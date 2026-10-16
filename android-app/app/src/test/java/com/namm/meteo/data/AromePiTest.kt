@@ -78,13 +78,16 @@ class AromePiTest {
 
     @Test
     fun rasterIsFlippedSouthFirstAndConverted() {
-        // Ligne du haut (nord) = 1 mm/s → 900 mm/15 min ; ligne du bas = 0.
-        val r = GeoTiff.decode(tiff(2, 2, floatArrayOf(1f, 1f, 0f, 0f), deflate = false))
+        // Ligne du haut (nord) = 0,002 mm/s → 1,8 mm/15 min ; ligne du bas = 0.
+        val r = GeoTiff.decode(tiff(2, 2, floatArrayOf(0.002f, 0.002f, 0f, 0f), deflate = false))
         val frame = r.toFrame(0, PrecipKind.RATE, null)
 
         assertEquals(ForecastSource.AROME_PI, frame.source)
         assertEquals(0.0, frame.values[0][0], 1e-9) // sud
-        assertEquals(900.0, frame.values[1][0], 1e-9) // nord
+        assertEquals(1.8, frame.values[1][0], 1e-6) // nord
+        // Même couche exprimée en mm/h : 8 mm/h → 2 mm/15 min.
+        val mmPerHour = GeoTiff.decode(tiff(2, 2, floatArrayOf(8f, 0f, 0f, 0f), deflate = false)).toFrame(0, PrecipKind.RATE, null)
+        assertEquals(2.0, mmPerHour.values[1][0], 1e-6)
         assertEquals(46.0 - 1.5 * 0.01, frame.grid.south, 1e-9)
     }
 
@@ -112,5 +115,23 @@ class AromePiTest {
         assertTrue(AromePiSource.covers(ForecastGrid(45.0, 2.0, 0.1, 0.1, 16, 12)))
         assertFalse(AromePiSource.covers(ForecastGrid(40.0, -80.0, 0.1, 0.1, 16, 12))) // hors France
         assertFalse(AromePiSource.covers(ForecastGrid(40.0, -5.0, 0.6, 0.8, 16, 12))) // vue trop large
+    }
+}
+
+class AromeCredentialsTest {
+    @Test
+    fun recognisesTheThreeKindsOfCredentials() {
+        val appId = java.util.Base64.getEncoder().encodeToString("AbC123xyz:SeCrEt456".toByteArray())
+        assertEquals(AromePiSource.Companion.CredentialType.APPLICATION_ID, AromePiSource.credentialType(appId))
+        assertEquals(AromePiSource.Companion.CredentialType.JWT, AromePiSource.credentialType("eyJhbGciOi.eyJzdWIi.c2lnbmF0dXJl"))
+        assertEquals(AromePiSource.Companion.CredentialType.API_KEY, AromePiSource.credentialType("eyJ4NXQiOiJ_simple_api_key"))
+    }
+
+    @Test
+    fun extractsReadableErrorMessage() {
+        assertEquals(
+            "Invalid Credentials",
+            AromePiSource.errorMessage("""{"code":"900901","message":"Invalid Credentials","description":"Invalid Credentials"}"""),
+        )
     }
 }

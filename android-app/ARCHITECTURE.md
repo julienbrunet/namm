@@ -16,7 +16,7 @@
 | Radar de pluie observé (passé récent) | **[RainViewer](https://www.rainviewer.com/api.html)** tuiles | Tuiles radar mondiales gratuites |
 | Fond de carte | **osmdroid** + tuiles **OpenStreetMap** standard, assombries par filtre de couleur | Léger (pur Java), sans clé ; respecter la politique d'usage OSM (User-Agent = nom du paquet) |
 | Mises à jour de l'app | API **GitHub Releases** | Détection d'une nouvelle version, téléchargement de l'APK |
-| Prévision immédiate fine (option) | **Météo-France AROME-PI** (WCS `public-api.meteofrance.fr/public/aromepi/1.0/wcs/MF-NWP-HIGHRES-AROMEPI-001-FRANCE-WCS`) | Maille 0,01°, 15 min, +6 h ; clé gratuite saisie dans Paramètres (en-tête `apikey`, ou jeton `Bearer`) ; GeoTIFF décodé sur le téléphone (`GeoTiff`) |
+| Prévision immédiate fine (option) | **Météo-France AROME-PI** (WCS `public-api.meteofrance.fr/public/aromepi/1.0/wcs/MF-NWP-HIGHRES-AROMEPI-001-FRANCE-WCS`) | Maille 0,01°, 15 min, +6 h ; identifiant gratuit saisi dans Paramètres : API Key (JWT, en-tête `apikey`), jeton (`Bearer`) ou Application ID (jeton OAuth client_credentials obtenu et renouvelé par l'app via `portail-api.meteofrance.fr/token`) ; GeoTIFF décodé sur le téléphone (`GeoTiff`) |
 | Alertes officielles (option) | Météo-France vigilance via [portail API](https://portail-api.meteofrance.fr) | Gratuit avec compte (clé) |
 
 > Limites : Open-Meteo est gratuit pour un usage non commercial (< 10 000 appels/jour par IP — chaque téléphone a son IP, donc pas de souci). Si l'app devient commerciale, prendre l'abonnement API ou auto-héberger Open-Meteo (open-source).

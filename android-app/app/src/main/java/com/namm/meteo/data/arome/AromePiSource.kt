@@ -93,21 +93,81 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
         return get(key, url)
     }
 
-    private suspend fun get(key: String, url: String): ByteArray = withContext(Dispatchers.IO) {
-        // Clé d'API (« API Key », durable) ou jeton OAuth (« Générer token », valable ~1 h).
-        val request = Request.Builder().url(url).apply {
-            if (key.startsWith("eyJ")) header("Authorization", "Bearer $key") else header("apikey", key)
-        }.build()
+    /** Jeton OAuth obtenu à partir d'un Application ID, avec son expiration (ms). */
+    private var token: Pair<String, Long>? = null
+
+    /**
+     * Le portail Météo-France fournit trois sortes d'identifiants, tous acceptés :
+     * - « API Key » (un JWT `eyJ…` durable) → en-tête `apikey` ;
+     * - jeton « Générer token » (JWT `eyJ…`, ~1 h) → `Authorization: Bearer` ;
+     * - « Application ID » (base64 de `clé:secret`) → l'app demande elle-même un jeton
+     *   (client_credentials) et le renouvelle avant expiration.
+     * Un JWT pouvant être l'un ou l'autre, on essaie `apikey` puis `Bearer`.
+     */
+    private fun attempts(key: String): List<suspend (Request.Builder) -> Unit> = when (credentialType(key)) {
+        CredentialType.API_KEY -> listOf({ b -> b.header("apikey", key) })
+        CredentialType.JWT -> listOf({ b -> b.header("apikey", key) }, { b -> b.header("Authorization", "Bearer $key") })
+        CredentialType.APPLICATION_ID -> listOf(
+            { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = false)}") },
+            { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = true)}") }, // jeton expiré entre-temps
+        )
+    }
+
+    private suspend fun accessToken(applicationId: String, renew: Boolean): String = withContext(Dispatchers.IO) {
+        token?.takeIf { !renew && it.second > System.currentTimeMillis() + 60_000 }?.let { return@withContext it.first }
+        val request = Request.Builder()
+            .url(TOKEN_URL)
+            .header("Authorization", "Basic $applicationId")
+            .post(okhttp3.FormBody.Builder().add("grant_type", "client_credentials").build())
+            .build()
         client.newCall(request).execute().use { r ->
-            when {
-                r.code == 401 || r.code == 403 -> throw InvalidKeyException("Clé refusée par Météo-France (${r.code})")
-                !r.isSuccessful -> throw IOException("Météo-France : HTTP ${r.code}")
-            }
-            r.body?.bytes() ?: throw IOException("Réponse vide")
+            val body = r.body?.string().orEmpty()
+            if (!r.isSuccessful) throw InvalidKeyException("Application ID refusé (${r.code}) ${errorMessage(body)}".trim())
+            val access = Regex(""""access_token"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
+                ?: throw IOException("Jeton Météo-France introuvable dans la réponse")
+            val expires = Regex(""""expires_in"\s*:\s*(\d+)""").find(body)?.groupValues?.get(1)?.toLong() ?: 3600
+            token = access to System.currentTimeMillis() + expires * 1000
+            access
         }
     }
 
+    private suspend fun get(key: String, url: String): ByteArray {
+        var refused: String? = null
+        for (auth in attempts(key)) {
+            val request = Request.Builder().url(url).also { auth(it) }.build()
+            val result = withContext(Dispatchers.IO) {
+                client.newCall(request).execute().use { r ->
+                    if (r.isSuccessful) return@use r.body?.bytes() ?: throw IOException("Réponse vide")
+                    val body = r.body?.string().orEmpty()
+                    if (r.code != 401 && r.code != 403) throw IOException("Météo-France : HTTP ${r.code} ${errorMessage(body)}".trim())
+                    refused = "(${r.code}) ${errorMessage(body)}"
+                    null
+                }
+            }
+            if (result != null) return result
+        }
+        throw InvalidKeyException("Refusé par Météo-France ${refused.orEmpty()}".trim())
+    }
+
     companion object {
+        const val TOKEN_URL = "https://portail-api.meteofrance.fr/token"
+
+        enum class CredentialType { API_KEY, JWT, APPLICATION_ID }
+
+        /** Devine le type d'identifiant collé par l'utilisateur. */
+        fun credentialType(key: String): CredentialType = when {
+            key.startsWith("eyJ") && key.count { it == '.' } == 2 -> CredentialType.JWT
+            runCatching { String(java.util.Base64.getDecoder().decode(key)) }.getOrNull()
+                ?.let { it.contains(':') && it.all { c -> c.code in 33..126 } } == true -> CredentialType.APPLICATION_ID
+            else -> CredentialType.API_KEY
+        }
+
+        /** Message lisible extrait d'une erreur JSON / XML du portail. */
+        internal fun errorMessage(body: String): String =
+            Regex(""""(?:description|message)"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
+                ?: Regex("""<(?:\w+:)?ExceptionText>([^<]+)<""").find(body)?.groupValues?.get(1)
+                ?: body.take(120).replace(Regex("\\s+"), " ")
+
         const val BASE = "https://public-api.meteofrance.fr/public/aromepi/1.0/wcs/MF-NWP-HIGHRES-AROMEPI-001-FRANCE-WCS"
         const val STEP = 15 * 60L
         const val MAX_STEPS = 24 // +6 h
@@ -185,12 +245,15 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
                 rows = height,
                 cols = width,
             )
+            // Unité du taux non documentée : kg m⁻² s⁻¹ (= mm/s) ou mm/h. Un taux > 0,1 mm/s
+            // (360 mm/h) étant irréaliste, une telle valeur signifie que la couche est en mm/h.
+            val rateFactor = if (kind == PrecipKind.RATE && values.any { it > 0.1f }) 0.25 else STEP.toDouble()
             val values = List(height) { row ->
                 val y = height - 1 - row
                 List(width) { x ->
                     val v = this[x, y].toDouble()
                     when (kind) {
-                        PrecipKind.RATE -> v * STEP
+                        PrecipKind.RATE -> v * rateFactor
                         PrecipKind.PER_15MIN -> v
                         PrecipKind.CUMULATIVE -> (v - (previous?.takeIf { it.width == width && it.height == height }
                             ?.get(x, y)?.toDouble() ?: 0.0)).coerceAtLeast(0.0)

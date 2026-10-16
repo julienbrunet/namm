@@ -54,10 +54,17 @@ class SettingsViewModel(
                 store.setAromeApiKey(key)
                 val run = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
                     .withZone(java.time.ZoneId.systemDefault()).format(it.run)
-                "Clé valide ✓ · run du $run · couche ${it.layer.lowercase().replace('_', ' ')}"
+                val warning = ""
+                "Clé valide ✓ · run du $run · couche ${it.layer.lowercase().replace('_', ' ')}$warning"
             },
             onFailure = {
-                if (it is InvalidKeyException) "Clé refusée : vérifiez la clé et l'abonnement à AROME-PI"
+                val type = when (AromePiSource.credentialType(key.trim())) {
+                    AromePiSource.Companion.CredentialType.API_KEY -> "API Key"
+                    AromePiSource.Companion.CredentialType.JWT -> "API Key ou jeton"
+                    AromePiSource.Companion.CredentialType.APPLICATION_ID -> "Application ID"
+                }
+                if (it is InvalidKeyException) "Identifiant reconnu comme $type, mais refusé : ${it.message}. " +
+                    "Vérifiez l'abonnement de l'application à AROME-PI sur le portail."
                 else "Vérification impossible : ${it.message}"
             },
         )
