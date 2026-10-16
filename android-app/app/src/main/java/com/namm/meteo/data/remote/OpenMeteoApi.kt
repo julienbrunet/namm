@@ -14,6 +14,7 @@ interface OpenMeteoApi {
         @Query("longitude") longitude: Double,
         @Query("current") current: String = "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
         @Query("minutely_15") minutely15: String = "precipitation",
+        @Query("hourly") hourly: String = "temperature_2m,precipitation_probability,weather_code",
         @Query("daily") daily: String = "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
         @Query("models") models: String = "best_match",
         @Query("timezone") timezone: String = "auto",
@@ -78,6 +79,7 @@ data class ForecastDto(
     val timezone: String = "GMT",
     val current: CurrentDto? = null,
     @SerialName("minutely_15") val minutely15: Minutely15Dto? = null,
+    val hourly: HourlyDto? = null,
     val daily: DailyDto? = null,
 )
 
@@ -96,6 +98,14 @@ data class CurrentDto(
 data class Minutely15Dto(
     val time: List<String>,
     val precipitation: List<Double?>,
+)
+
+@Serializable
+data class HourlyDto(
+    val time: List<String>,
+    @SerialName("temperature_2m") val temperature: List<Double?>,
+    @SerialName("precipitation_probability") val precipitationProbability: List<Int?> = emptyList(),
+    @SerialName("weather_code") val weatherCode: List<Int?> = emptyList(),
 )
 
 @Serializable

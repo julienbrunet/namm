@@ -3,6 +3,8 @@ package com.namm.meteo.domain
 data class Forecast(
     val current: CurrentWeather,
     val nextPrecipitation: List<PrecipitationStep>,
+    /** Prochaines 24 h, heure par heure (à partir de l'heure en cours). */
+    val hours: List<HourlyForecast> = emptyList(),
     val days: List<DailyForecast>,
 )
 
@@ -25,5 +27,13 @@ data class DailyForecast(
     val tempMin: Double,
     val tempMax: Double,
     val precipitationSum: Double,
+    val weatherCode: Int,
+)
+
+data class HourlyForecast(
+    /** Heure locale ISO, ex. "2026-10-16T21:00". */
+    val time: String,
+    val temperature: Double,
+    val precipitationProbability: Int,
     val weatherCode: Int,
 )

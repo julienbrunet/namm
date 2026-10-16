@@ -118,9 +118,9 @@ fun ForecastContent(
         }
 
         // Météo actuelle : icône + température, puis le lieu juste en dessous.
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(condition.icon(), condition.label, tint = Slate.Primary, modifier = Modifier.size(84.dp))
+            Icon(condition.icon(), condition.label, tint = Slate.Primary, modifier = Modifier.size(72.dp))
             Spacer(Modifier.width(20.dp))
             Column {
                 Text(
@@ -131,7 +131,7 @@ fun ForecastContent(
                 Text(condition.label, style = MaterialTheme.typography.titleMedium, color = Slate.Secondary)
             }
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(4.dp))
         Row(
             Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpenSettings).padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -158,7 +158,11 @@ fun ForecastContent(
 
         UpdateBanner(update, onUpdateAction)
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("PROCHAINES 24 H")
+        HourlyTile(forecast.hours)
+
+        Spacer(Modifier.height(16.dp))
         SectionLabel("PLUIE DANS LES 2 H")
         NowcastTile(forecast.nextPrecipitation, onOpenMap)
 
@@ -237,9 +241,9 @@ private fun NowcastTile(steps: List<PrecipitationStep>, onOpenMap: () -> Unit) {
             )
             Text("Voir la carte", color = Slate.Muted, style = MaterialTheme.typography.labelSmall)
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
         Row(
-            Modifier.fillMaxWidth().height(56.dp),
+            Modifier.fillMaxWidth().height(40.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.Bottom,
         ) {

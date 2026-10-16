@@ -31,7 +31,7 @@ private val colors = darkColorScheme(
 )
 
 private val typography = Typography(
-    displayLarge = TextStyle(fontSize = 88.sp, fontWeight = FontWeight.ExtraLight, letterSpacing = (-2).sp),
+    displayLarge = TextStyle(fontSize = 76.sp, fontWeight = FontWeight.ExtraLight, letterSpacing = (-2).sp),
     headlineLarge = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Normal, lineHeight = 40.sp),
     titleMedium = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium),
     bodyMedium = TextStyle(fontSize = 14.sp),

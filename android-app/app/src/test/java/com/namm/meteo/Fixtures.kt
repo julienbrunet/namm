@@ -14,7 +14,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlin.math.exp
 
 /**
- * Données de test : forecast.json et geocoding.json sont de vraies réponses Open-Meteo ;
+ * Données de test : forecast.json et geocoding.json sont de vraies réponses Open-Meteo
+ * (le bloc « hourly » de forecast.json a été ajouté, cohérent avec les min/max réels) ;
  * grid.json suit le format multi-points documenté (généré, quota sandbox atteint).
  */
 object Fixtures {

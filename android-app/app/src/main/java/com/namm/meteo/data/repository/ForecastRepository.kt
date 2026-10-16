@@ -9,6 +9,7 @@ import com.namm.meteo.data.remote.OpenMeteoApi
 import com.namm.meteo.domain.CurrentWeather
 import com.namm.meteo.domain.DailyForecast
 import com.namm.meteo.domain.Forecast
+import com.namm.meteo.domain.HourlyForecast
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.PrecipitationStep
 
@@ -55,6 +56,9 @@ class ForecastRepository(
 /** Nombre de pas de 15 min affichés (2 h). */
 private const val NOWCAST_STEPS = 8
 
+/** Nombre d'heures du graphique de températures. */
+private const val HOURLY_COUNT = 24
+
 internal fun ForecastDto.toDomain(): Forecast {
     val c = requireNotNull(current) { "Réponse sans données actuelles" }
     // minutely_15 commence à minuit : on ne garde que les pas à partir du quart d'heure courant.
@@ -64,6 +68,20 @@ internal fun ForecastDto.toDomain(): Forecast {
             .dropWhile { (t, _) -> t < start }
             .take(NOWCAST_STEPS)
             .map { (t, p) -> PrecipitationStep(t, p ?: 0.0) }
+    }.orEmpty()
+    val hours = hourly?.let { h ->
+        val currentHour = c.time.take(13) + ":00"
+        h.time.indices
+            .filter { h.time[it] >= currentHour && h.temperature[it] != null }
+            .take(HOURLY_COUNT)
+            .map { i ->
+                HourlyForecast(
+                    time = h.time[i],
+                    temperature = h.temperature[i]!!,
+                    precipitationProbability = h.precipitationProbability.getOrNull(i) ?: 0,
+                    weatherCode = h.weatherCode.getOrNull(i) ?: c.weatherCode,
+                )
+            }
     }.orEmpty()
     val days = daily?.let { d ->
         d.time.indices.map { i ->
@@ -81,6 +99,7 @@ internal fun ForecastDto.toDomain(): Forecast {
             windSpeed = c.windSpeed,
         ),
         nextPrecipitation = steps,
+        hours = hours,
         days = days,
     )
 }

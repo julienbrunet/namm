@@ -30,6 +30,14 @@ class ForecastMappingTest {
     }
 
     @Test
+    fun `24 heures à partir de l'heure en cours`() {
+        val forecast = Fixtures.forecastDto().toDomain()
+
+        assertEquals(24, forecast.hours.size)
+        assertEquals(forecast.current.time.take(13) + ":00", forecast.hours.first().time)
+    }
+
+    @Test
     fun `parse une vraie réponse de géocodage`() {
         val places = Fixtures.geocodingDto().toPlaces()
 
