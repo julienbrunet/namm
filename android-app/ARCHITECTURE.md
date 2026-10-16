@@ -24,7 +24,7 @@
 Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à l'emploi. Approche implémentée (`RainMapRepository`) :
 1. **Passé (≈ −2 h → maintenant)** : tuiles radar RainViewer (`/256/{z}/{x}/{y}/2/1_1.png`), **zoom 7 maximum** (au-delà RainViewer renvoie « zoom not supported ») : `RadarOverlay` les télécharge au zoom ≤ 7 et les étire au zoom de la carte.
 2. **Futur (maintenant → +24 h, pas de 15 min — la plus fine dispo gratuitement)** : grille 12 × 16 points couvrant **la zone visible** de la carte (+10 %) ;
-   rechargée (après 400 ms d'inactivité) seulement si la vue sort de la grille ou si la maille devient 2× trop grossière/fine (`RainMapRepository.needsNewGrid`). Chaque point compte comme un appel dans le quota Open-Meteo (10 000/jour) : ~190 par rechargement,
+   rechargée (après 400 ms d'inactivité) seulement si la vue sort de la grille ou si la maille devient 2× trop grossière/fine (`RainMapRepository.needsNewGrid`). Chaque point compte comme un appel dans le quota Open-Meteo (10 000/jour) : ~190 par rechargement ; les 10 dernières zones sont gardées 15 min en mémoire (`cachedFor`) pour ne pas re-télécharger une zone déjà vue,
    **un seul appel** Open-Meteo multi-coordonnées avec `minutely_15=precipitation` (AROME HD en France via `best_match`),
    interpolée (bilinéaire, ×10) puis colorée par paliers d'intensité (contours nets) par `ForecastGridOverlay` ; la limite de la zone est tracée en pointillés.
 3. Curseur temporel + lecture animée ; échelle de couleurs commune radar/prévision (palette RainViewer « Universal Blue » : bleus → jaune → rouge, `RainLevel`) avec légende.

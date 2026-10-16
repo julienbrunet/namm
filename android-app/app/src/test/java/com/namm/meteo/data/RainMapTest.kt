@@ -86,3 +86,33 @@ class RainMapRepositoryTest {
         assertEquals(1, map.frames.size)
     }
 }
+
+class RainMapCacheTest {
+
+    @Test
+    fun forecastIsReusedForAnAlreadySeenArea() = kotlinx.coroutines.runBlocking {
+        var calls = 0
+        val api = java.lang.reflect.Proxy.newProxyInstance(
+            javaClass.classLoader,
+            arrayOf(com.namm.meteo.data.remote.OpenMeteoApi::class.java),
+        ) { _, _, _ ->
+            calls++
+            val t = 1_000_000L
+            List(RainMapRepository.GRID_COLS * RainMapRepository.GRID_ROWS) {
+                com.namm.meteo.data.remote.GridPointDto(0.0, 0.0, com.namm.meteo.data.remote.GridSeriesDto(listOf(t, t + 900), listOf(1.0, 0.0)))
+            }
+        } as com.namm.meteo.data.remote.OpenMeteoApi
+        val radar = object : com.namm.meteo.data.remote.RainViewerApi {
+            override suspend fun maps() = RainViewerMapsDto("h", RadarDto(emptyList()))
+        }
+        val repo = RainMapRepository(api, radar)
+        val view = Bounds(48.0, 1.0, 50.0, 4.0)
+
+        repo.forecastFor(RainMapRepository.gridFor(view), now = 1_000_000L)
+
+        assertEquals(1, calls)
+        assertTrue(repo.cachedFor(Bounds(48.1, 1.1, 50.1, 4.1), now = 1_000_100L) != null)
+        assertEquals(null, repo.cachedFor(view, now = 1_000_000L + RainMapRepository.CACHE_SECONDS + 1))
+        assertEquals(null, repo.cachedFor(Bounds(40.0, -5.0, 42.0, -2.0), now = 1_000_100L))
+    }
+}

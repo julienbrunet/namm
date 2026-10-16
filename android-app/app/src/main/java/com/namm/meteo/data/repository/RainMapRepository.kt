@@ -34,7 +34,24 @@ class RainMapRepository(
         RainMap(grid, frames)
     }
 
-    /** Prévision seule pour une grille donnée (zone visible de la carte). */
+    /** Zones de prévision déjà téléchargées (les plus récentes en tête). */
+    private val cache = ArrayDeque<CachedGrid>()
+
+    private class CachedGrid(val grid: ForecastGrid, val frames: List<MapFrame>, val at: Long)
+
+    /**
+     * Prévision déjà en mémoire (< [CACHE_SECONDS]) dont la grille convient à cette vue :
+     * revenir sur une zone déjà vue ne coûte aucun appel Open-Meteo.
+     */
+    fun cachedFor(view: Bounds, now: Long = System.currentTimeMillis() / 1000): Pair<ForecastGrid, List<MapFrame>>? =
+        synchronized(cache) {
+            cache.removeAll { now - it.at > CACHE_SECONDS }
+            cache.firstOrNull { !needsNewGrid(it.grid, view) }
+                ?.let { c -> c.grid to c.frames.filter { it.time + 15 * 60 > now } }
+                ?.takeIf { it.second.isNotEmpty() }
+        }
+
+    /** Prévision seule pour une grille donnée (zone visible de la carte), mise en cache. */
     suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> {
         val points = grid.coordinates()
         return forecastFrames(
@@ -44,12 +61,19 @@ class RainMapRepository(
                 longitudes = points.joinToString(",") { "%.4f".format(Locale.ROOT, it.second) },
             ),
             now,
-        )
+        ).also { frames ->
+            if (frames.isNotEmpty()) synchronized(cache) {
+                cache.addFirst(CachedGrid(grid, frames, now))
+                while (cache.size > CACHE_SIZE) cache.removeLast()
+            }
+        }
     }
 
     companion object {
         // 12 × 16 points (format portrait) par appel Open-Meteo ; chaque point compte comme un
         // appel dans le quota gratuit, d'où une grille modeste recalculée seulement si besoin.
+        const val CACHE_SECONDS = 15 * 60L
+        const val CACHE_SIZE = 10
         const val GRID_COLS = 12
         const val GRID_ROWS = 16
         const val LAT_STEP = 0.1

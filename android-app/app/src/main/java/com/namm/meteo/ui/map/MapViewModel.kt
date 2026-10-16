@@ -72,6 +72,12 @@ class MapViewModel(
             delay(400)
             val s = _state.value as? MapUiState.Ready ?: return@launch
             if (!RainMapRepository.needsNewGrid(s.map.grid, bounds)) return@launch
+            // Zone déjà vue récemment : réutilisée sans appel réseau.
+            rainMaps.cachedFor(bounds)?.let { (grid, forecast) ->
+                val map = s.map.withForecast(grid, forecast)
+                _state.value = s.copy(map = map, index = s.index.coerceIn(0, map.frames.lastIndex))
+                return@launch
+            }
             val grid = RainMapRepository.gridFor(bounds)
             _state.value = s.copy(refreshing = true)
             val forecast = runCatching { rainMaps.forecastFor(grid) }.getOrNull()
