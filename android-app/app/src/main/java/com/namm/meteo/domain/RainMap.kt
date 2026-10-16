@@ -7,8 +7,21 @@ sealed interface MapFrame {
 
     data class Radar(override val time: Long, val tileUrlTemplate: String) : MapFrame
 
-    /** Valeurs en mm / 15 min, indexées [ligne][colonne] ; ligne 0 = sud. */
-    data class Forecast(override val time: Long, val values: List<List<Double>>) : MapFrame
+    /**
+     * Prévision sur une grille régulière lat/lon : valeurs en mm / 15 min,
+     * indexées [ligne][colonne] ; ligne 0 = sud.
+     */
+    data class Forecast(
+        override val time: Long,
+        val values: List<List<Double>>,
+        val grid: ForecastGrid,
+        val source: ForecastSource = ForecastSource.OPEN_METEO,
+    ) : MapFrame
+}
+
+enum class ForecastSource(val label: String) {
+    OPEN_METEO("Prévision Open-Meteo (AROME / ICON)"),
+    AROME_PI("Prévision Météo-France AROME-PI"),
 }
 
 data class ForecastGrid(

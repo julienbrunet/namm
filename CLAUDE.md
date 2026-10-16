@@ -57,6 +57,7 @@ echo "robolectricRepo=https://maven-central.storage-download.googleapis.com/mave
 - Aucune dépendance publicitaire, analytics ou Google Play Services (compatibilité F-Droid).
 - Tests : fixtures dans `app/src/test/resources/` (`forecast.json`, `geocoding.json` réelles — bloc `hourly` de `forecast.json` complété ; `grid.json` au format multi-points) ; tout nouvel écran a un test Roborazzi (`ScreenshotTest`, application neutre `android.app.Application` pour éviter WorkManager).
 - Accueil = position GPS par défaut ; lieux préenregistrés gérés dans Paramètres (`SettingsStore`). La carte utilise le même lieu que l'accueil.
+- Carte : Open-Meteo par défaut ; AROME-PI (Météo-France) si une clé est enregistrée dans Paramètres. Aucune clé dans le code ni le dépôt.
 - Navigation : barre flottante en bas de l'accueil (carte de pluie, paramètres) ; actualisation de l'accueil en tirant vers le bas.
 
 ## Release & signature

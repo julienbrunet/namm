@@ -27,6 +27,7 @@ import org.osmdroid.views.overlay.Overlay
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.min
@@ -146,17 +147,17 @@ fun rainColor(mmPer15: Double): Int? {
 }
 
 /**
- * Grille de prévision Open-Meteo : valeurs interpolées (bilinéaire) sur une image
- * [UPSCALE] fois plus fine, puis colorées par paliers → zones aux contours nets et arrondis.
+ * Grille de prévision (Open-Meteo ou AROME-PI) : valeurs interpolées sur une image plus fine,
+ * puis colorées par paliers → zones aux contours nets et arrondis.
  */
-class ForecastGridOverlay(private val grid: ForecastGrid) : Overlay() {
+class ForecastGridOverlay : Overlay() {
     var frame: MapFrame.Forecast? = null
         set(value) {
+            if (value !== field) bitmap = value?.let { renderForecast(it.grid, it.values) }
             field = value
-            bitmap = value?.let { renderForecast(grid, it.values) }
         }
     private var bitmap: Bitmap? = null
-    private val paint = Paint() // pas de filtrage : on garde les contours nets
+    private val paint = Paint().apply { isFilterBitmap = false } // contours nets, pas de flou
     private val outline = Paint().apply {
         style = Paint.Style.STROKE
         color = 0x55F2F3F5
@@ -168,40 +169,55 @@ class ForecastGridOverlay(private val grid: ForecastGrid) : Overlay() {
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow) return
+        val f = frame ?: return
         val bmp = bitmap ?: return
+        val grid = f.grid
         val projection = mapView.projection
-        val north = grid.south + (grid.rows - 1) * grid.latStep
-        val east = grid.west + (grid.cols - 1) * grid.lonStep
-        projection.toPixels(GeoPoint(north, grid.west), a)
-        projection.toPixels(GeoPoint(grid.south, east), b)
+        // Chaque point représente une cellule centrée sur lui : l'image couvre ± ½ pas.
+        val north = grid.south + (grid.rows - 0.5) * grid.latStep
+        val east = grid.west + (grid.cols - 0.5) * grid.lonStep
+        projection.toPixels(GeoPoint(north, grid.west - grid.lonStep / 2), a)
+        projection.toPixels(GeoPoint(grid.south - grid.latStep / 2, east), b)
         val rect = RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat())
         canvas.drawBitmap(bmp, null, rect, paint)
         canvas.drawRect(rect, outline) // limite de la zone de prévision
     }
-
-    companion object {
-        const val UPSCALE = 10
-    }
 }
 
-/** Image (cols-1)·k × (rows-1)·k ; chaque pixel = interpolation bilinéaire des 4 points voisins. */
+/** Taille max (px) de l'image de prévision : assez fine pour des bords nets, sans exploser la mémoire. */
+private const val RENDER_MAX = 480
+
+/**
+ * Interpolation à noyau gaussien (voisinage 4 × 4) : contrairement au bilinéaire, un point
+ * pluvieux isolé donne une tache ronde (et non un losange), et les contours sont arrondis.
+ */
 internal fun renderForecast(grid: ForecastGrid, values: List<List<Double>>): Bitmap {
-    val k = ForecastGridOverlay.UPSCALE
-    val w = (grid.cols - 1) * k
-    val h = (grid.rows - 1) * k
+    val k = (RENDER_MAX / maxOf(grid.cols, grid.rows)).coerceIn(1, 12)
+    val w = grid.cols * k
+    val h = grid.rows * k
     val pixels = IntArray(w * h)
+    val sigma2 = 2 * 0.55 * 0.55 // en cellules²
     for (py in 0 until h) {
-        // Ligne 0 de la grille = sud = bas de l'image.
-        val gy = (h - 1 - py + 0.5) / k
-        val r0 = floor(gy).toInt().coerceIn(0, grid.rows - 2)
-        val ty = gy - r0
+        // Ligne 0 de la grille = sud = bas de l'image ; centre de cellule à +0,5.
+        val gy = (h - py - 0.5) / k - 0.5
+        val r0 = floor(gy).toInt()
         for (px in 0 until w) {
-            val gx = (px + 0.5) / k
-            val c0 = floor(gx).toInt().coerceIn(0, grid.cols - 2)
-            val tx = gx - c0
-            val v = values[r0][c0] * (1 - tx) * (1 - ty) + values[r0][c0 + 1] * tx * (1 - ty) +
-                values[r0 + 1][c0] * (1 - tx) * ty + values[r0 + 1][c0 + 1] * tx * ty
-            pixels[py * w + px] = rainColor(v) ?: 0
+            val gx = (px + 0.5) / k - 0.5
+            val c0 = floor(gx).toInt()
+            var sum = 0.0
+            var weights = 0.0
+            for (r in r0 - 1..r0 + 2) {
+                if (r !in 0 until grid.rows) continue
+                val dy = gy - r
+                for (c in c0 - 1..c0 + 2) {
+                    if (c !in 0 until grid.cols) continue
+                    val dx = gx - c
+                    val wgt = exp(-(dx * dx + dy * dy) / sigma2)
+                    sum += wgt * values[r][c]
+                    weights += wgt
+                }
+            }
+            pixels[py * w + px] = rainColor(if (weights > 0) sum / weights else 0.0) ?: 0
         }
     }
     return Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)

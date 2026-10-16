@@ -16,6 +16,7 @@
 | Radar de pluie observé (passé récent) | **[RainViewer](https://www.rainviewer.com/api.html)** tuiles | Tuiles radar mondiales gratuites |
 | Fond de carte | **osmdroid** + tuiles **OpenStreetMap** standard, assombries par filtre de couleur | Léger (pur Java), sans clé ; respecter la politique d'usage OSM (User-Agent = nom du paquet) |
 | Mises à jour de l'app | API **GitHub Releases** | Détection d'une nouvelle version, téléchargement de l'APK |
+| Prévision immédiate fine (option) | **Météo-France AROME-PI** (WCS `public-api.meteofrance.fr/public/aromepi/1.0/wcs/MF-NWP-HIGHRES-AROMEPI-001-FRANCE-WCS`) | Maille 0,01°, 15 min, +6 h ; clé gratuite saisie dans Paramètres (en-tête `apikey`, ou jeton `Bearer`) ; GeoTIFF décodé sur le téléphone (`GeoTiff`) |
 | Alertes officielles (option) | Météo-France vigilance via [portail API](https://portail-api.meteofrance.fr) | Gratuit avec compte (clé) |
 
 > Limites : Open-Meteo est gratuit pour un usage non commercial (< 10 000 appels/jour par IP — chaque téléphone a son IP, donc pas de souci). Si l'app devient commerciale, prendre l'abonnement API ou auto-héberger Open-Meteo (open-source).
@@ -30,6 +31,12 @@ Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à 
 3. Curseur temporel + lecture animée ; échelle de couleurs commune radar/prévision (palette RainViewer « Universal Blue » : bleus → jaune → rouge, `RainLevel`) avec légende.
 4. Rafraîchissement : automatique si les données ont > 10 min (vérifié chaque minute tant que l'écran est visible) + pastille « Mis à jour à HH:mm » cliquable. Accueil : tirer vers le bas pour actualiser.
 5. Évolution possible : convertir les GRIB2 AROME de [meteo.data.gouv.fr](https://meteo.data.gouv.fr) en tuiles pour une carte nationale.
+
+### AROME-PI (si une clé est saisie)
+- `AromePiSource` : GetCapabilities (mémorisé 5 min) → choix automatique de la couche de précipitation (taux > cumul 15 min > cumul depuis le run) et du dernier run ;
+  puis un GetCoverage GeoTIFF par pas de 15 min (4 en parallèle) sur l'emprise de la grille, réduit à ≤ 160 px.
+- Utilisé seulement en France et si la vue fait ≤ 4° de haut ; au-delà de +6 h, ou en cas d'échec, la prévision Open-Meteo prend le relais.
+- Rendu commun (`renderForecast`) : interpolation à noyau gaussien → taches rondes, contours nets (plus de losanges).
 
 ## Stack Android
 - **Kotlin**, **Jetpack Compose** + Material 3, minSdk 26

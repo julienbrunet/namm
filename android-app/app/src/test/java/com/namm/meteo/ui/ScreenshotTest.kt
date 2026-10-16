@@ -83,6 +83,18 @@ class ScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h1500dp-xxhdpi")
+    fun parametresMeteoFrance() = capture("parametres_meteo_france") {
+        SettingsContent(
+            settings = Settings(aromeApiKey = "abcdef0123456789"),
+            search = SearchState(),
+            versionName = "0.1.10",
+            updateStatus = null,
+            aromeStatus = "Clé valide ✓ · run du 16/10 23:00 · couche total precipitation rate",
+        )
+    }
+
+    @Test
     fun carte() = capture("carte") {
         val map = Fixtures.rainMap()
         MapContent(MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3, loadedAt = 1_792_180_800_000L), online = false)

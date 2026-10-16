@@ -126,7 +126,7 @@ private fun RainMapView(
     onViewportChanged: (Bounds) -> Unit,
 ) {
     val context = LocalContext.current
-    val gridOverlay = remember(map) { ForecastGridOverlay(map.grid) }
+    val gridOverlay = remember { ForecastGridOverlay() }
     val mapView = remember {
         MapView(context).apply {
             setTileSource(OsmTiles)
@@ -214,7 +214,7 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
                 Text(
                     when (frame) {
                         is MapFrame.Radar -> "Radar observé"
-                        is MapFrame.Forecast -> "Prévision AROME / ICON"
+                        is MapFrame.Forecast -> frame.source.label
                         null -> "Aucune donnée"
                     },
                     color = Slate.Secondary,

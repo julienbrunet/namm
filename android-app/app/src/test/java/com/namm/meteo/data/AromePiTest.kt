@@ -1,0 +1,116 @@
+package com.namm.meteo.data
+
+import com.namm.meteo.data.arome.AromePiSource
+import com.namm.meteo.data.arome.AromePiSource.Companion.toFrame
+import com.namm.meteo.data.arome.GeoTiff
+import com.namm.meteo.data.arome.PrecipKind
+import com.namm.meteo.domain.ForecastGrid
+import com.namm.meteo.domain.ForecastSource
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.zip.Deflater
+
+class AromePiTest {
+
+    /** GeoTIFF float32 little-endian minimal (une bande), comme ceux du WCS Météo-France. */
+    private fun tiff(width: Int, height: Int, data: FloatArray, deflate: Boolean): ByteArray {
+        val raw = ByteBuffer.allocate(width * height * 4).order(ByteOrder.LITTLE_ENDIAN)
+        data.forEach { raw.putFloat(it) }
+        val pixels = if (!deflate) raw.array() else {
+            val d = Deflater().apply { setInput(raw.array()); finish() }
+            val out = ByteArrayOutputStream()
+            val chunk = ByteArray(1024)
+            while (!d.finished()) out.write(chunk, 0, d.deflate(chunk))
+            out.toByteArray()
+        }
+        val entries = 12
+        val ifd = 8
+        val extra = ifd + 2 + entries * 12 + 4
+        val scaleOff = extra
+        val tieOff = scaleOff + 24
+        val dataOff = tieOff + 48
+        val b = ByteBuffer.allocate(dataOff + pixels.size).order(ByteOrder.LITTLE_ENDIAN)
+        b.put('I'.code.toByte()).put('I'.code.toByte()).putShort(42).putInt(ifd)
+        b.position(ifd)
+        b.putShort(entries.toShort())
+        fun tag(id: Int, type: Int, count: Int, value: Int) {
+            b.putShort(id.toShort()).putShort(type.toShort()).putInt(count)
+            if (type == 3 && count == 1) b.putShort(value.toShort()).putShort(0) else b.putInt(value)
+        }
+        tag(256, 3, 1, width)
+        tag(257, 3, 1, height)
+        tag(258, 3, 1, 32)
+        tag(259, 3, 1, if (deflate) 8 else 1)
+        tag(262, 3, 1, 1)
+        tag(273, 4, 1, dataOff)
+        tag(277, 3, 1, 1)
+        tag(278, 3, 1, height)
+        tag(279, 4, 1, pixels.size)
+        tag(339, 3, 1, 3)
+        tag(33550, 12, 3, scaleOff)
+        tag(33922, 12, 6, tieOff)
+        b.putInt(0)
+        b.position(scaleOff)
+        b.putDouble(0.01).putDouble(0.01).putDouble(0.0)
+        b.putDouble(0.0).putDouble(0.0).putDouble(0.0).putDouble(2.0).putDouble(46.0).putDouble(0.0)
+        b.position(dataOff)
+        b.put(pixels)
+        return b.array()
+    }
+
+    @Test
+    fun decodesGeoTiffUncompressedAndDeflate() {
+        val data = FloatArray(3 * 2) { it.toFloat() }
+        for (deflate in listOf(false, true)) {
+            val r = GeoTiff.decode(tiff(3, 2, data, deflate))
+            assertEquals(3, r.width)
+            assertEquals(2, r.height)
+            assertEquals(2.0, r.west, 1e-9)
+            assertEquals(46.0, r.north, 1e-9)
+            assertEquals(5f, r[2, 1])
+        }
+    }
+
+    @Test
+    fun rasterIsFlippedSouthFirstAndConverted() {
+        // Ligne du haut (nord) = 1 mm/s → 900 mm/15 min ; ligne du bas = 0.
+        val r = GeoTiff.decode(tiff(2, 2, floatArrayOf(1f, 1f, 0f, 0f), deflate = false))
+        val frame = r.toFrame(0, PrecipKind.RATE, null)
+
+        assertEquals(ForecastSource.AROME_PI, frame.source)
+        assertEquals(0.0, frame.values[0][0], 1e-9) // sud
+        assertEquals(900.0, frame.values[1][0], 1e-9) // nord
+        assertEquals(46.0 - 1.5 * 0.01, frame.grid.south, 1e-9)
+    }
+
+    @Test
+    fun choosesPrecipitationLayerAndLatestRun() {
+        val xml = """
+            <wcs:Capabilities><wcs:Contents>
+            <wcs:CoverageSummary><wcs:CoverageId>TEMPERATURE__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND___2026-10-16T21.00.00Z</wcs:CoverageId></wcs:CoverageSummary>
+            <wcs:CoverageSummary><wcs:CoverageId>TOTAL_PRECIPITATION__GROUND_OR_WATER_SURFACE___2026-10-16T20.00.00Z</wcs:CoverageId></wcs:CoverageSummary>
+            <wcs:CoverageSummary><wcs:CoverageId>TOTAL_PRECIPITATION__GROUND_OR_WATER_SURFACE___2026-10-16T21.00.00Z</wcs:CoverageId></wcs:CoverageSummary>
+            <wcs:CoverageSummary><wcs:CoverageId>TOTAL_SNOW_PRECIPITATION__GROUND_OR_WATER_SURFACE___2026-10-16T22.00.00Z</wcs:CoverageId></wcs:CoverageSummary>
+            <wcs:CoverageSummary><wcs:CoverageId>TOTAL_PRECIPITATION_RATE__GROUND_OR_WATER_SURFACE___2026-10-16T21.00.00Z</wcs:CoverageId></wcs:CoverageSummary>
+            </wcs:Contents></wcs:Capabilities>
+        """.trimIndent()
+
+        val layer = AromePiSource.chooseLayer(xml)!!
+
+        assertEquals(PrecipKind.RATE, layer.kind) // un taux est préféré à un cumul depuis le run
+        assertEquals("TOTAL_PRECIPITATION_RATE__GROUND_OR_WATER_SURFACE___2026-10-16T21.00.00Z", layer.coverageId)
+        assertEquals(null, AromePiSource.chooseLayer("<x/>"))
+    }
+
+    @Test
+    fun aromeUsedOnlyForFranceAndModerateZoom() {
+        assertTrue(AromePiSource.covers(ForecastGrid(45.0, 2.0, 0.1, 0.1, 16, 12)))
+        assertFalse(AromePiSource.covers(ForecastGrid(40.0, -80.0, 0.1, 0.1, 16, 12))) // hors France
+        assertFalse(AromePiSource.covers(ForecastGrid(40.0, -5.0, 0.6, 0.8, 16, 12))) // vue trop large
+    }
+}

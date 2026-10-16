@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.namm.meteo.BuildConfig
 import com.namm.meteo.MeteoApp
+import com.namm.meteo.data.arome.AromePiSource
+import com.namm.meteo.data.arome.InvalidKeyException
 import com.namm.meteo.data.local.Settings
 import com.namm.meteo.data.local.SettingsStore
 import com.namm.meteo.data.location.LocationProvider
@@ -33,7 +35,35 @@ class SettingsViewModel(
     private val places: PlaceRepository,
     private val updates: UpdateManager,
     private val location: LocationProvider,
+    private val arome: AromePiSource,
 ) : ViewModel() {
+
+    private val _aromeStatus = MutableStateFlow<String?>(null)
+    val aromeStatus: StateFlow<String?> = _aromeStatus
+
+    /** Vérifie la clé auprès de Météo-France puis l'enregistre si elle fonctionne. */
+    fun testAndSaveAromeKey(key: String) = viewModelScope.launch {
+        if (key.isBlank()) {
+            store.setAromeApiKey("")
+            _aromeStatus.value = "Clé retirée : prévision Open-Meteo"
+            return@launch
+        }
+        _aromeStatus.value = "Vérification…"
+        _aromeStatus.value = runCatching { arome.latestLayer(key.trim(), fresh = true) }.fold(
+            onSuccess = {
+                store.setAromeApiKey(key)
+                val run = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
+                    .withZone(java.time.ZoneId.systemDefault()).format(it.run)
+                "Clé valide ✓ · run du $run · couche ${it.layer.lowercase().replace('_', ' ')}"
+            },
+            onFailure = {
+                if (it is InvalidKeyException) "Clé refusée : vérifiez la clé et l'abonnement à AROME-PI"
+                else "Vérification impossible : ${it.message}"
+            },
+        )
+    }
+
+    fun removeAromeKey() = testAndSaveAromeKey("")
 
     fun hasLocationPermission() = location.hasPermission()
 
@@ -89,7 +119,7 @@ class SettingsViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MeteoApp
-                SettingsViewModel(app.settings, app.placeRepository, app.updateManager, app.location)
+                SettingsViewModel(app.settings, app.placeRepository, app.updateManager, app.location, app.aromePi)
             }
         }
     }

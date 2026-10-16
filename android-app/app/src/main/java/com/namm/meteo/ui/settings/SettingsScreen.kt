@@ -25,6 +25,13 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,6 +64,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val search by viewModel.search.collectAsStateWithLifecycle()
     val updateStatus by viewModel.updateStatus.collectAsStateWithLifecycle()
+    val aromeStatus by viewModel.aromeStatus.collectAsStateWithLifecycle()
 
     val locationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -89,6 +97,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         },
         onAutoUpdate = viewModel::setAutoUpdate,
         onCheckUpdate = { viewModel.checkUpdate() },
+        aromeStatus = aromeStatus,
+        onSaveAromeKey = { viewModel.testAndSaveAromeKey(it) },
+        onRemoveAromeKey = { viewModel.removeAromeKey() },
     )
 }
 
@@ -106,6 +117,9 @@ fun SettingsContent(
     onRainAlerts: (Boolean) -> Unit = {},
     onAutoUpdate: (Boolean) -> Unit = {},
     onCheckUpdate: () -> Unit = {},
+    aromeStatus: String? = null,
+    onSaveAromeKey: (String) -> Unit = {},
+    onRemoveAromeKey: () -> Unit = {},
 ) {
     Column(
         Modifier
@@ -189,6 +203,10 @@ fun SettingsContent(
         }
 
         Spacer(Modifier.height(24.dp))
+        SectionLabel("CARTE DE PLUIE · MÉTÉO-FRANCE")
+        AromeKeyCard(settings.aromeApiKey, aromeStatus, onSaveAromeKey, onRemoveAromeKey)
+
+        Spacer(Modifier.height(24.dp))
         SectionLabel("MISES À JOUR")
         Card {
             SwitchRow(null, "Mise à jour automatique", "Télécharge les nouvelles versions publiées sur GitHub", settings.autoUpdate, onAutoUpdate)
@@ -204,10 +222,70 @@ fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
         Text(
-            "Aucune publicité, aucun pistage. Données Open-Meteo et RainViewer, fond de carte © contributeurs OpenStreetMap.",
+            "Aucune publicité, aucun pistage. Données Open-Meteo, Météo-France (AROME-PI) et RainViewer, fond de carte © contributeurs OpenStreetMap.",
             color = Slate.Muted,
             style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+/** Clé d'API AROME-PI : sans clé, la carte utilise Open-Meteo. */
+@Composable
+private fun AromeKeyCard(savedKey: String, status: String?, onSave: (String) -> Unit, onRemove: () -> Unit) {
+    var key by rememberSaveable(savedKey) { mutableStateOf(savedKey) }
+    var visible by rememberSaveable { mutableStateOf(false) }
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                if (savedKey.isBlank()) "Prévision Open-Meteo (par défaut)" else "Prévision AROME-PI activée",
+                color = Slate.Primary,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                "Avec une clé gratuite du portail portail-api.meteofrance.fr (abonnement « AROME-PI »), " +
+                    "la carte affiche la prévision immédiate de Météo-France : maille 1,3 km, 15 min, jusqu'à +6 h, en France.",
+                color = Slate.Secondary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = key,
+                onValueChange = { key = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Clé d'API (API Key)", color = Slate.Muted) },
+                singleLine = true,
+                visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { visible = !visible }) {
+                        Icon(
+                            if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            if (visible) "Masquer" else "Afficher",
+                            tint = Slate.Secondary,
+                        )
+                    }
+                },
+                shape = TileShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Slate.Background,
+                    unfocusedContainerColor = Slate.Background,
+                    focusedBorderColor = Slate.TileHighlight,
+                    unfocusedBorderColor = Slate.Background,
+                    focusedTextColor = Slate.Primary,
+                    unfocusedTextColor = Slate.Primary,
+                    cursorColor = Slate.Rain,
+                ),
+            )
+            status?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = Slate.Secondary, style = MaterialTheme.typography.bodyMedium)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (savedKey.isNotBlank()) TextButton(onClick = onRemove) { Text("Retirer", color = Slate.Muted) }
+                TextButton(onClick = { onSave(key) }, enabled = key.isNotBlank()) {
+                    Text("Tester et enregistrer", color = Slate.Rain)
+                }
+            }
+        }
     }
 }
 

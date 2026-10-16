@@ -1,5 +1,6 @@
 package com.namm.meteo.data.repository
 
+import com.namm.meteo.data.arome.AromePiSource
 import com.namm.meteo.data.remote.GridPointDto
 import com.namm.meteo.data.remote.OpenMeteoApi
 import com.namm.meteo.data.remote.RainViewerApi
@@ -19,6 +20,9 @@ import java.util.Locale
 class RainMapRepository(
     private val openMeteo: OpenMeteoApi,
     private val rainViewer: RainViewerApi,
+    private val arome: AromePiSource = AromePiSource(),
+    /** Clé Météo-France saisie dans les paramètres (null : Open-Meteo seul). */
+    private val aromeKey: suspend () -> String? = { null },
 ) {
 
     suspend fun load(
@@ -51,8 +55,31 @@ class RainMapRepository(
                 ?.takeIf { it.second.isNotEmpty() }
         }
 
-    /** Prévision seule pour une grille donnée (zone visible de la carte), mise en cache. */
-    suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> {
+    /**
+     * Prévision seule pour une grille donnée (zone visible de la carte), mise en cache.
+     * Avec une clé Météo-France et une zone en France : AROME-PI pour les 6 premières heures
+     * (maille 1,3 km), Open-Meteo ensuite ; sinon (ou en cas d'échec) Open-Meteo seul.
+     */
+    suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> =
+        coroutineScope {
+            val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
+            val aromeFrames = key?.let { async { runCatching { arome.forecast(it, grid, now) }.getOrDefault(emptyList()) } }
+            val openMeteoFrames = runCatching { openMeteoFrames(grid, now) }
+            val precise = aromeFrames?.await().orEmpty()
+            val after = precise.lastOrNull()?.time ?: Long.MIN_VALUE
+            val frames = precise + openMeteoFrames.getOrNull().orEmpty().filter { it.time > after }
+            if (frames.isEmpty()) openMeteoFrames.getOrThrow()
+            frames.also { cacheFrames(grid, it, now) }
+        }
+
+    private fun cacheFrames(grid: ForecastGrid, frames: List<MapFrame>, now: Long) {
+        if (frames.isNotEmpty()) synchronized(cache) {
+            cache.addFirst(CachedGrid(grid, frames, now))
+            while (cache.size > CACHE_SIZE) cache.removeLast()
+        }
+    }
+
+    private suspend fun openMeteoFrames(grid: ForecastGrid, now: Long): List<MapFrame> {
         val points = grid.coordinates()
         return forecastFrames(
             grid,
@@ -61,12 +88,7 @@ class RainMapRepository(
                 longitudes = points.joinToString(",") { "%.4f".format(Locale.ROOT, it.second) },
             ),
             now,
-        ).also { frames ->
-            if (frames.isNotEmpty()) synchronized(cache) {
-                cache.addFirst(CachedGrid(grid, frames, now))
-                while (cache.size > CACHE_SIZE) cache.removeLast()
-            }
-        }
+        )
     }
 
     companion object {
@@ -140,6 +162,7 @@ internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now:
         .filter { times[it] + 15 * 60 > now }
         .map { i ->
             MapFrame.Forecast(
+                grid = grid,
                 time = times[i],
                 values = (0 until grid.rows).map { r ->
                     (0 until grid.cols).map { c ->
