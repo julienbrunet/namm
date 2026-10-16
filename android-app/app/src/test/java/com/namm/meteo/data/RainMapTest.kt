@@ -20,9 +20,9 @@ class RainMapTest {
         val grid = RainMapRepository.gridAround(Fixtures.paris)
         val points = grid.coordinates()
 
-        assertEquals(121, points.size)
-        assertEquals(Fixtures.paris.latitude, points[60].first, 1e-9)
-        assertEquals(Fixtures.paris.longitude, points[60].second, 1e-9)
+        assertEquals(315, points.size)
+        assertEquals(Fixtures.paris.latitude, points[157].first, 1e-9)
+        assertEquals(Fixtures.paris.longitude, points[157].second, 1e-9)
     }
 
     @Test

@@ -40,9 +40,9 @@ object Fixtures {
                 now + step * 900,
                 List(grid.rows) { r ->
                     List(grid.cols) { c ->
-                        val dr = r - 4.0 - step * 0.1
-                        val dc = c - 2.0 - step * 0.25
-                        2.5 * exp(-(dr * dr + dc * dc) / 6)
+                        val dr = r - 9.0 - step * 0.15
+                        val dc = c - 4.0 - step * 0.3
+                        2.5 * exp(-(dr * dr + 2 * dc * dc) / 10)
                     }
                 },
             )

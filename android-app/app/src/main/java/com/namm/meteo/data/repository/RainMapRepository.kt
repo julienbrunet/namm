@@ -39,17 +39,19 @@ class RainMapRepository(
     }
 
     companion object {
-        const val GRID_SIZE = 11
-        const val LAT_STEP = 0.045 // ≈ 5 km
-        const val LON_STEP = 0.065 // ≈ 5 km en France
+        // 15 × 21 points espacés d'≈ 11 km (format portrait, ≈ 160 × 230 km), un seul appel Open-Meteo.
+        const val GRID_COLS = 15
+        const val GRID_ROWS = 21
+        const val LAT_STEP = 0.1
+        const val LON_STEP = 0.145
 
         fun gridAround(center: Place) = ForecastGrid(
-            south = center.latitude - LAT_STEP * (GRID_SIZE - 1) / 2,
-            west = center.longitude - LON_STEP * (GRID_SIZE - 1) / 2,
+            south = center.latitude - LAT_STEP * (GRID_ROWS - 1) / 2,
+            west = center.longitude - LON_STEP * (GRID_COLS - 1) / 2,
             latStep = LAT_STEP,
             lonStep = LON_STEP,
-            rows = GRID_SIZE,
-            cols = GRID_SIZE,
+            rows = GRID_ROWS,
+            cols = GRID_COLS,
         )
     }
 }

@@ -41,11 +41,9 @@ import com.namm.meteo.domain.RainMap
 import com.namm.meteo.ui.components.RoundIconButton
 import com.namm.meteo.ui.components.TileShape
 import com.namm.meteo.ui.theme.Slate
-import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.TilesOverlay
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -90,7 +88,6 @@ fun MapContent(
 private fun RainMapView(place: Place, map: RainMap, frame: MapFrame?, online: Boolean) {
     val context = LocalContext.current
     val gridOverlay = remember(map) { ForecastGridOverlay(map.grid) }
-    val radarOverlays = remember(map) { mutableMapOf<Long, TilesOverlay>() }
     val mapView = remember {
         MapView(context).apply {
             setTileSource(OsmTiles)
@@ -98,14 +95,15 @@ private fun RainMapView(place: Place, map: RainMap, frame: MapFrame?, online: Bo
             setUseDataConnection(online)
             setMultiTouchControls(true)
             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
-            minZoomLevel = 4.0
+            minZoomLevel = 5.0
             maxZoomLevel = 12.0
-            controller.setZoom(9.0)
+            controller.setZoom(8.0) // la zone de prévision (~190 km) remplit l'écran
             controller.setCenter(GeoPoint(place.latitude, place.longitude))
             isTilesScaledToDpi = true
             setBackgroundColor(0xFF2F333D.toInt())
-            overlayManager.tilesOverlay.loadingBackgroundColor = 0xFF2F333D.toInt()
-            overlayManager.tilesOverlay.loadingLineColor = 0xFF2F333D.toInt()
+            // Le filtre ardoise inverse les couleurs : un fond clair devient ardoise sombre.
+            overlayManager.tilesOverlay.loadingBackgroundColor = 0xFFD8D8DC.toInt()
+            overlayManager.tilesOverlay.loadingLineColor = 0xFFD8D8DC.toInt()
             overlays.add(Marker(this).apply {
                 position = GeoPoint(place.latitude, place.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
@@ -114,25 +112,18 @@ private fun RainMapView(place: Place, map: RainMap, frame: MapFrame?, online: Bo
             })
         }
     }
+    val radarOverlay = remember { RadarOverlay(mapView) }
     DisposableEffect(Unit) {
         mapView.onResume()
         onDispose { mapView.onDetach() }
     }
     AndroidView({ mapView }, Modifier.fillMaxSize()) { view ->
         // Une seule couche de pluie visible : radar (passé) ou grille de prévision (futur).
-        view.overlays.removeAll { it is TilesOverlay || it is ForecastGridOverlay }
+        view.overlays.removeAll { it is RadarOverlay || it is ForecastGridOverlay }
         when (frame) {
             is MapFrame.Radar -> {
-                val overlay = radarOverlays.getOrPut(frame.time) {
-                    val provider = MapTileProviderBasic(view.context, RadarTileSource(frame))
-                    provider.setUseDataConnection(online)
-                    TilesOverlay(provider, view.context).apply {
-                        loadingBackgroundColor = android.graphics.Color.TRANSPARENT
-                        loadingLineColor = android.graphics.Color.TRANSPARENT
-                        setColorFilter(null)
-                    }
-                }
-                view.overlays.add(0, overlay)
+                radarOverlay.frame = frame
+                view.overlays.add(0, radarOverlay)
             }
             is MapFrame.Forecast -> {
                 gridOverlay.frame = frame
