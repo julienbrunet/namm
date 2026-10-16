@@ -11,9 +11,7 @@ import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Dehaze
 import androidx.compose.material.icons.outlined.FilterDrama
-import androidx.compose.material.icons.outlined.Grain
 import androidx.compose.material.icons.outlined.Thunderstorm
-import androidx.compose.material.icons.outlined.Umbrella
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,8 +65,8 @@ fun WeatherCondition.icon(): ImageVector = when (this) {
     WeatherCondition.PARTLY_CLOUDY -> Icons.Outlined.FilterDrama
     WeatherCondition.CLOUDY -> Icons.Outlined.Cloud
     WeatherCondition.FOG -> Icons.Outlined.Dehaze
-    WeatherCondition.DRIZZLE -> Icons.Outlined.Grain
-    WeatherCondition.RAIN -> Icons.Outlined.Umbrella
+    WeatherCondition.DRIZZLE -> WeatherIcons.Drizzle
+    WeatherCondition.RAIN -> WeatherIcons.Rain
     WeatherCondition.SNOW -> Icons.Outlined.AcUnit
     WeatherCondition.STORM -> Icons.Outlined.Thunderstorm
 }

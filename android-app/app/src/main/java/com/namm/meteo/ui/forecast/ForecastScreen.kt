@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SouthEast
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Thermostat
-import androidx.compose.material.icons.outlined.Umbrella
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -53,6 +52,7 @@ import com.namm.meteo.ui.components.Pill
 import com.namm.meteo.ui.components.RoundIconButton
 import com.namm.meteo.ui.components.SectionLabel
 import com.namm.meteo.ui.components.TileShape
+import com.namm.meteo.ui.components.WeatherIcons
 import com.namm.meteo.ui.components.icon
 import com.namm.meteo.ui.theme.Slate
 import java.time.LocalDate
@@ -171,7 +171,7 @@ fun ForecastContent(
                 TileData(Icons.Outlined.Thermostat, "${c.apparentTemperature.roundToInt()}°", "ressenti"),
                 TileData(Icons.Outlined.Air, "${c.windSpeed.roundToInt()} km/h", "vent"),
                 TileData(Icons.Outlined.WaterDrop, "${c.humidity} %", "humidité"),
-                TileData(Icons.Outlined.Umbrella, "${mm(today?.precipitationSum ?: 0.0)} mm", "pluie du jour"),
+                TileData(WeatherIcons.Rain, "${mm(today?.precipitationSum ?: 0.0)} mm", "pluie du jour"),
                 TileData(Icons.Outlined.NorthEast, "${today?.tempMax?.roundToInt() ?: "–"}°", "max"),
                 TileData(Icons.Outlined.SouthEast, "${today?.tempMin?.roundToInt() ?: "–"}°", "min"),
             ),
