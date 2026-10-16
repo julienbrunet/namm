@@ -126,17 +126,23 @@ private fun latToTile(lat: Double, z: Int): Int {
 private fun tileToLon(x: Int, z: Int) = x.toDouble() / (1 shl z) * 360 - 180
 private fun tileToLat(y: Int, z: Int) = Math.toDegrees(atan(sinh(PI * (1 - 2.0 * y / (1 shl z)))))
 
-/** Intensité (mm / 15 min) → couleur ARGB par paliers, du bleu léger au violet. */
+/**
+ * Échelle d'intensité commune au radar (palette RainViewer « Universal Blue », n° 2)
+ * et à la prévision : bleus pour la pluie faible à modérée, jaune → rouge pour la pluie forte.
+ */
+enum class RainLevel(val minMmPerHour: Double, val color: Int, val label: String) {
+    VERY_LIGHT(0.2, 0x999BC4E2.toInt(), "faible"),
+    LIGHT(1.0, 0xAA4A90D9.toInt(), ""),
+    MODERATE(2.5, 0xBB1F5FBF.toInt(), "modérée"),
+    HEAVY(5.0, 0xCCF2D13A.toInt(), "forte"),
+    VERY_HEAVY(10.0, 0xCCF28C28.toInt(), ""),
+    EXTREME(20.0, 0xDDE0412E.toInt(), "intense"),
+}
+
+/** Intensité (mm / 15 min) → couleur ARGB du palier, ou null sous le seuil de pluie. */
 fun rainColor(mmPer15: Double): Int? {
     val mmPerHour = mmPer15 * 4
-    return when {
-        mmPerHour < 0.2 -> null
-        mmPerHour < 1 -> 0x888FB3D9.toInt()
-        mmPerHour < 2.5 -> 0xAA5B8FD0.toInt()
-        mmPerHour < 7.5 -> 0xBB3366CC.toInt()
-        mmPerHour < 15 -> 0xCC7B4FC9.toInt()
-        else -> 0xDDC04FB0.toInt()
-    }
+    return RainLevel.entries.lastOrNull { mmPerHour >= it.minMmPerHour }?.color
 }
 
 /**

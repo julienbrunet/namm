@@ -1,6 +1,7 @@
 package com.namm.meteo.ui.map
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -25,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,7 +38,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import com.namm.meteo.domain.MapFrame
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
@@ -53,6 +61,17 @@ private val HourFormat = DateTimeFormatter.ofPattern("HH:mm")
 @Composable
 fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Tant que l'écran est visible (et à chaque retour au premier plan), on vérifie
+    // chaque minute si les données ont plus de 10 min et on les recharge si besoin.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                viewModel.refreshIfStale()
+                delay(60_000)
+            }
+        }
+    }
     when (val s = state) {
         MapUiState.Loading -> Box(Modifier.fillMaxSize().background(Slate.Background), Alignment.Center) {
             CircularProgressIndicator(color = Slate.Secondary)
@@ -65,7 +84,7 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
                 TextButton(onClick = onBack) { Text("Retour", color = Slate.Secondary) }
             }
         }
-        is MapUiState.Ready -> MapContent(s, onBack, viewModel::select, viewModel::togglePlay)
+        is MapUiState.Ready -> MapContent(s, onBack, viewModel::select, viewModel::togglePlay, { viewModel.load() })
     }
 }
 
@@ -75,11 +94,16 @@ fun MapContent(
     onBack: () -> Unit = {},
     onSelect: (Int) -> Unit = {},
     onTogglePlay: () -> Unit = {},
+    onRefresh: () -> Unit = {},
     online: Boolean = true,
 ) {
     Box(Modifier.fillMaxSize().background(Slate.Background)) {
         RainMapView(state.place, state.map, state.map.frames.getOrNull(state.index), online)
-        Box(Modifier.padding(20.dp)) { RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack) }
+        Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
+            Spacer(Modifier.weight(1f))
+            RefreshPill(state.loadedAt, state.refreshing, onRefresh)
+        }
         Timeline(state, onSelect, onTogglePlay, Modifier.align(Alignment.BottomCenter))
     }
 }
@@ -165,7 +189,6 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Legend()
         }
         if (frames.size > 1) {
             Slider(
@@ -182,20 +205,50 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
                 ),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("passé", color = Slate.Muted, style = MaterialTheme.typography.labelSmall)
-                Text("maintenant", color = Slate.Muted, style = MaterialTheme.typography.labelSmall)
-                Text("+6 h", color = Slate.Muted, style = MaterialTheme.typography.labelSmall)
+                Text("radar −2 h", color = Slate.Muted, style = MaterialTheme.typography.labelSmall)
+                Text("prévision +24 h", color = Slate.Muted, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Legend()
+    }
+}
+
+/** Légende commune radar / prévision : une case par palier, libellés sous les paliers clés. */
+@Composable
+private fun Legend() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        RainLevel.entries.forEach { level ->
+            Column(Modifier.weight(1f)) {
+                Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(level.color)))
+                Text(level.label, color = Slate.Muted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
         }
     }
 }
 
+/** Pastille « Mis à jour à HH:mm » : un appui force le rechargement. */
 @Composable
-private fun Legend() {
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-        listOf(0.1, 0.4, 1.0, 3.0, 5.0).forEach {
-            Box(Modifier.size(width = 10.dp, height = 18.dp).clip(RoundedCornerShape(3.dp)).background(Color(rainColor(it)!!)))
+private fun RefreshPill(loadedAt: Long, refreshing: Boolean, onRefresh: () -> Unit) {
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Slate.Background.copy(alpha = 0.92f))
+            .clickable(enabled = !refreshing, onClick = onRefresh)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (refreshing) {
+            CircularProgressIndicator(Modifier.size(16.dp), color = Slate.Primary, strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Outlined.Refresh, "Actualiser", tint = Slate.Primary, modifier = Modifier.size(16.dp))
         }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            if (refreshing) "Mise à jour…"
+            else "Mis à jour à " + HourFormat.format(Instant.ofEpochMilli(loadedAt).atZone(ZoneId.systemDefault())),
+            color = Slate.Secondary,
+            style = MaterialTheme.typography.labelSmall,
+        )
     }
-    Spacer(Modifier.height(0.dp))
 }

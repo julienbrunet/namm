@@ -85,6 +85,6 @@ class ScreenshotTest {
     @Test
     fun carte() = capture("carte") {
         val map = Fixtures.rainMap()
-        MapContent(MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3), online = false)
+        MapContent(MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3, loadedAt = 1_792_180_800_000L), online = false)
     }
 }

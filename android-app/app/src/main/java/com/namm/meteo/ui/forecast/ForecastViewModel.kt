@@ -43,6 +43,10 @@ class ForecastViewModel(
     )
     val state: StateFlow<ForecastUiState> = _state
 
+    /** Vrai pendant un rafraîchissement déclenché en tirant l'écran vers le bas. */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing
+
     private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.None)
     val update: StateFlow<UpdateUiState> = _update
 
@@ -57,11 +61,13 @@ class ForecastViewModel(
 
     fun refresh() {
         if (_state.value is ForecastUiState.Error) _state.value = ForecastUiState.Loading
+        _refreshing.value = _state.value is ForecastUiState.Success
         viewModelScope.launch {
             _state.value = runCatching { repository.load() }.fold(
                 onSuccess = { ForecastUiState.Success(it) },
                 onFailure = { (_state.value as? ForecastUiState.Success) ?: ForecastUiState.Error(it.message ?: "Erreur réseau") },
             )
+            _refreshing.value = false
         }
     }
 

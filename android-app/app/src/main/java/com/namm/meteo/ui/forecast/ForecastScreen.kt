@@ -23,18 +23,21 @@ import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.NorthEast
 import androidx.compose.material.icons.outlined.Place
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SouthEast
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -63,6 +66,7 @@ import kotlin.math.roundToInt
 
 private val French = Locale.FRENCH
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForecastScreen(
     viewModel: ForecastViewModel,
@@ -71,6 +75,8 @@ fun ForecastScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val pullState = rememberPullToRefreshState()
     Box(Modifier.fillMaxSize().background(Slate.Background), contentAlignment = Alignment.Center) {
         when (val s = state) {
             ForecastUiState.Loading -> CircularProgressIndicator(color = Slate.Secondary)
@@ -80,14 +86,29 @@ fun ForecastScreen(
                 TextButton(onClick = viewModel::refresh) { Text("Réessayer", color = Slate.Primary) }
                 TextButton(onClick = onOpenSettings) { Text("Choisir une ville", color = Slate.Secondary) }
             }
-            is ForecastUiState.Success -> ForecastContent(
-                data = s.data,
-                update = update,
-                onOpenMap = onOpenMap,
-                onOpenSettings = onOpenSettings,
+            // Tirer l'écran vers le bas pour actualiser.
+            is ForecastUiState.Success -> PullToRefreshBox(
+                isRefreshing = refreshing,
                 onRefresh = viewModel::refresh,
-                onUpdateAction = viewModel::onUpdateAction,
-            )
+                state = pullState,
+                indicator = {
+                    PullToRefreshDefaults.Indicator(
+                        state = pullState,
+                        isRefreshing = refreshing,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        containerColor = Slate.TileHighlight,
+                        color = Slate.Primary,
+                    )
+                },
+            ) {
+                ForecastContent(
+                    data = s.data,
+                    update = update,
+                    onOpenMap = onOpenMap,
+                    onOpenSettings = onOpenSettings,
+                    onUpdateAction = viewModel::onUpdateAction,
+                )
+            }
         }
     }
 }
@@ -98,7 +119,6 @@ fun ForecastContent(
     update: UpdateUiState = UpdateUiState.None,
     onOpenMap: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    onRefresh: () -> Unit = {},
     onUpdateAction: () -> Unit = {},
 ) {
     val forecast = data.forecast
@@ -112,7 +132,6 @@ fun ForecastContent(
             .padding(horizontal = 24.dp, vertical = 24.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
-            RoundIconButton(Icons.Outlined.Refresh, "Actualiser", onRefresh)
             RoundIconButton(Icons.Outlined.Map, "Carte de pluie", onOpenMap)
             RoundIconButton(Icons.Outlined.Settings, "Paramètres", onOpenSettings)
         }

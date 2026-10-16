@@ -19,13 +19,22 @@ import kotlinx.coroutines.launch
 
 sealed interface MapUiState {
     data object Loading : MapUiState
-    data class Ready(val place: Place, val map: RainMap, val index: Int, val playing: Boolean = false) : MapUiState
+    data class Ready(
+        val place: Place,
+        val map: RainMap,
+        val index: Int,
+        val playing: Boolean = false,
+        /** Heure du dernier téléchargement (ms). */
+        val loadedAt: Long = 0,
+        val refreshing: Boolean = false,
+    ) : MapUiState
     data class Error(val message: String) : MapUiState
 }
 
 class MapViewModel(
     private val forecasts: ForecastRepository,
     private val rainMaps: RainMapRepository,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<MapUiState>(MapUiState.Loading)
@@ -37,12 +46,26 @@ class MapViewModel(
     }
 
     fun load() = viewModelScope.launch {
-        _state.value = MapUiState.Loading
+        val previous = _state.value as? MapUiState.Ready
+        if (previous == null) _state.value = MapUiState.Loading else _state.value = previous.copy(refreshing = true)
         _state.value = runCatching {
             val place = forecasts.cached()?.place ?: forecasts.resolvePlace()
             val map = rainMaps.load(place)
-            MapUiState.Ready(place, map, map.nowIndex)
-        }.getOrElse { MapUiState.Error(it.message ?: "Erreur réseau") }
+            // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
+            val index = when {
+                previous == null || previous.index == previous.map.nowIndex -> map.nowIndex
+                else -> map.frames.indexOfFirst { it.time >= previous.map.frames[previous.index].time }
+                    .takeIf { it >= 0 } ?: map.nowIndex
+            }
+            MapUiState.Ready(place, map, index, playing = previous?.playing ?: false, loadedAt = clock())
+        }.getOrElse { previous?.copy(refreshing = false) ?: MapUiState.Error(it.message ?: "Erreur réseau") }
+    }
+
+    /** Recharge si les données ont plus de [REFRESH_MS] (radar mis à jour toutes les 10 min). */
+    fun refreshIfStale() {
+        val s = _state.value
+        if (s is MapUiState.Ready && !s.refreshing && clock() - s.loadedAt >= REFRESH_MS) load()
+        if (s is MapUiState.Error) load()
     }
 
     fun select(index: Int) {
@@ -68,6 +91,8 @@ class MapViewModel(
     }
 
     companion object {
+        const val REFRESH_MS = 10 * 60 * 1000L
+
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MeteoApp

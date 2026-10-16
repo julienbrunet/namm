@@ -23,10 +23,12 @@
 ## Carte de prévision de précipitations
 Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à l'emploi. Approche implémentée (`RainMapRepository`) :
 1. **Passé (≈ −2 h → maintenant)** : tuiles radar RainViewer (`/256/{z}/{x}/{y}/2/1_1.png`), **zoom 7 maximum** (au-delà RainViewer renvoie « zoom not supported ») : `RadarOverlay` les télécharge au zoom ≤ 7 et les étire au zoom de la carte.
-2. **Futur (maintenant → +6 h)** : grille 15 × 21 points (pas ≈ 11 km, ≈ 160 × 230 km, format portrait) autour du lieu,
+2. **Futur (maintenant → +24 h, pas de 15 min — la plus fine dispo gratuitement)** : grille 15 × 21 points (pas ≈ 11 km, ≈ 160 × 230 km, format portrait) autour du lieu,
    **un seul appel** Open-Meteo multi-coordonnées avec `minutely_15=precipitation` (AROME HD en France via `best_match`),
    interpolée (bilinéaire, ×10) puis colorée par paliers d'intensité (contours nets) par `ForecastGridOverlay` ; la limite de la zone est tracée en pointillés.
-3. Curseur temporel + lecture animée. Évolution possible : convertir les GRIB2 AROME de [meteo.data.gouv.fr](https://meteo.data.gouv.fr) en tuiles pour une carte nationale.
+3. Curseur temporel + lecture animée ; échelle de couleurs commune radar/prévision (palette RainViewer « Universal Blue » : bleus → jaune → rouge, `RainLevel`) avec légende.
+4. Rafraîchissement : automatique si les données ont > 10 min (vérifié chaque minute tant que l'écran est visible) + pastille « Mis à jour à HH:mm » cliquable. Accueil : tirer vers le bas pour actualiser.
+5. Évolution possible : convertir les GRIB2 AROME de [meteo.data.gouv.fr](https://meteo.data.gouv.fr) en tuiles pour une carte nationale.
 
 ## Stack Android
 - **Kotlin**, **Jetpack Compose** + Material 3, minSdk 26

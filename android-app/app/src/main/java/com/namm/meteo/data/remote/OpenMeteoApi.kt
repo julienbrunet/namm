@@ -27,7 +27,7 @@ interface OpenMeteoApi {
         @Query("latitude") latitudes: String,
         @Query("longitude") longitudes: String,
         @Query("minutely_15") minutely15: String = "precipitation",
-        @Query("forecast_minutely_15") steps: Int = 24,
+        @Query("forecast_minutely_15") steps: Int = 96, // 24 h au pas de 15 min
         @Query("timeformat") timeFormat: String = "unixtime",
     ): List<GridPointDto>
 
