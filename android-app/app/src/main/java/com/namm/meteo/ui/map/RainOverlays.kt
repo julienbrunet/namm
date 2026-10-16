@@ -2,27 +2,38 @@ package com.namm.meteo.ui.map
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Point
 import android.graphics.RectF
 import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.MapFrame
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
-import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 
-/** Fond de carte sombre CARTO (raster, sans clé), assorti au thème ardoise. */
-val CartoDark = XYTileSource(
-    "CartoDarkMatter", 0, 19, 256, ".png",
-    arrayOf(
-        "https://a.basemaps.cartocdn.com/dark_all/",
-        "https://b.basemaps.cartocdn.com/dark_all/",
-        "https://c.basemaps.cartocdn.com/dark_all/",
-    ),
-    "© OpenStreetMap © CARTO",
+/** Fond de carte OpenStreetMap standard (sans clé, User-Agent = nom du paquet, cf. MeteoApp). */
+val OsmTiles: OnlineTileSourceBase = TileSourceFactory.MAPNIK
+
+/** Assombrit et désature les tuiles OSM pour coller au thème ardoise. */
+val SlateMapFilter = ColorMatrixColorFilter(
+    ColorMatrix().apply {
+        setSaturation(0.15f)
+        postConcat(
+            ColorMatrix(
+                floatArrayOf(
+                    -0.55f, 0f, 0f, 0f, 175f,
+                    0f, -0.55f, 0f, 0f, 180f,
+                    0f, 0f, -0.55f, 0f, 195f,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            ),
+        )
+    },
 )
 
 /** Tuiles radar RainViewer d'une image donnée. */

@@ -24,12 +24,18 @@ class RainMapRepository(
         val grid = gridAround(center)
         val radar = async { runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList()) }
         val points = async {
-            openMeteo.grid(
+            runCatching {
+                openMeteo.grid(
                 latitudes = grid.coordinates().joinToString(",") { "%.4f".format(java.util.Locale.ROOT, it.first) },
-                longitudes = grid.coordinates().joinToString(",") { "%.4f".format(java.util.Locale.ROOT, it.second) },
-            )
+                    longitudes = grid.coordinates().joinToString(",") { "%.4f".format(java.util.Locale.ROOT, it.second) },
+                )
+            }
         }
-        RainMap(grid, radar.await() + forecastFrames(grid, points.await(), now))
+        // Radar et prévision sont indépendants : l'un peut échouer sans masquer l'autre.
+        val forecast = points.await()
+        val frames = radar.await() + forecast.getOrNull().orEmpty().let { forecastFrames(grid, it, now) }
+        if (frames.isEmpty()) throw forecast.exceptionOrNull() ?: IllegalStateException("Aucune donnée de pluie")
+        RainMap(grid, frames)
     }
 
     companion object {

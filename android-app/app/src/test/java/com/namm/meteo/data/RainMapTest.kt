@@ -49,3 +49,22 @@ class RainMapTest {
         )
     }
 }
+
+class RainMapRepositoryTest {
+
+    private val radarOnly = object : com.namm.meteo.data.remote.RainViewerApi {
+        override suspend fun maps() = RainViewerMapsDto("https://h", RadarDto(listOf(RadarFrameDto(1, "/p"))))
+    }
+
+    private val failingOpenMeteo = java.lang.reflect.Proxy.newProxyInstance(
+        javaClass.classLoader,
+        arrayOf(com.namm.meteo.data.remote.OpenMeteoApi::class.java),
+    ) { _, _, _ -> throw java.io.IOException("HTTP 429") } as com.namm.meteo.data.remote.OpenMeteoApi
+
+    @Test
+    fun radarShownWhenForecastFails() = kotlinx.coroutines.runBlocking {
+        val map = RainMapRepository(failingOpenMeteo, radarOnly).load(Fixtures.paris)
+
+        assertEquals(1, map.frames.size)
+    }
+}

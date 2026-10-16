@@ -14,7 +14,7 @@
 | Fallback Europe / monde | `icon_d2` (DWD, 2 km), `best_match` | Couverture hors France |
 | Recherche de ville | Open-Meteo Geocoding `/v1/search` | Gratuit, sans clé |
 | Radar de pluie observé (passé récent) | **[RainViewer](https://www.rainviewer.com/api.html)** tuiles | Tuiles radar mondiales gratuites |
-| Fond de carte | **osmdroid** + tuiles raster **CARTO Dark Matter** (© OSM) | Léger (pur Java, pas de lib native), sans clé, assorti au thème sombre |
+| Fond de carte | **osmdroid** + tuiles **OpenStreetMap** standard, assombries par filtre de couleur | Léger (pur Java), sans clé ; respecter la politique d'usage OSM (User-Agent = nom du paquet) |
 | Mises à jour de l'app | API **GitHub Releases** | Détection d'une nouvelle version, téléchargement de l'APK |
 | Alertes officielles (option) | Météo-France vigilance via [portail API](https://portail-api.meteofrance.fr) | Gratuit avec compte (clé) |
 

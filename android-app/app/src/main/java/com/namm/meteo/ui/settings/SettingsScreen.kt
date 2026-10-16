@@ -204,7 +204,7 @@ fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
         Text(
-            "Aucune publicité, aucun pistage. Données Open-Meteo et RainViewer, fonds de carte © OpenStreetMap / CARTO.",
+            "Aucune publicité, aucun pistage. Données Open-Meteo et RainViewer, fond de carte © contributeurs OpenStreetMap.",
             color = Slate.Muted,
             style = MaterialTheme.typography.bodyMedium,
         )

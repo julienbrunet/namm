@@ -93,7 +93,8 @@ private fun RainMapView(place: Place, map: RainMap, frame: MapFrame?, online: Bo
     val radarOverlays = remember(map) { mutableMapOf<Long, TilesOverlay>() }
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(CartoDark)
+            setTileSource(OsmTiles)
+            overlayManager.tilesOverlay.setColorFilter(SlateMapFilter)
             setUseDataConnection(online)
             setMultiTouchControls(true)
             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
