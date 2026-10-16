@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.namm.meteo.MeteoApp
 import com.namm.meteo.data.repository.ForecastRepository
+import com.namm.meteo.data.repository.Bounds
 import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
@@ -40,17 +41,56 @@ class MapViewModel(
     private val _state = MutableStateFlow<MapUiState>(MapUiState.Loading)
     val state: StateFlow<MapUiState> = _state
     private var player: Job? = null
+    private var viewportJob: Job? = null
 
-    init {
-        load()
+    /** Lieu affiché sur l'accueil (position ou lieu enregistré), fourni par l'écran. */
+    private var place: Place? = null
+
+    /** Dernière zone visible de la carte, pour y adapter la grille de prévision. */
+    private var viewport: Bounds? = null
+
+    /** Affiche la carte centrée sur ce lieu (null : lieu résolu via les paramètres) ; recharge s'il a changé. */
+    fun show(target: Place?) {
+        val current = place
+        if (target != null) place = target
+        if (_state.value !is MapUiState.Ready || (target != null && (current == null || !current.sameAs(target)))) {
+            viewport = null
+            load()
+        } else {
+            refreshIfStale()
+        }
+    }
+
+    /**
+     * La carte a bougé (déplacement / zoom) : après une courte pause, on recharge la prévision
+     * sur la zone visible si la grille actuelle ne la couvre plus ou n'a plus la bonne finesse.
+     */
+    fun onViewportChanged(bounds: Bounds) {
+        viewport = bounds
+        viewportJob?.cancel()
+        viewportJob = viewModelScope.launch {
+            delay(400)
+            val s = _state.value as? MapUiState.Ready ?: return@launch
+            if (!RainMapRepository.needsNewGrid(s.map.grid, bounds)) return@launch
+            val grid = RainMapRepository.gridFor(bounds)
+            _state.value = s.copy(refreshing = true)
+            val forecast = runCatching { rainMaps.forecastFor(grid) }.getOrNull()
+            val cur = _state.value as? MapUiState.Ready ?: return@launch
+            _state.value = if (forecast.isNullOrEmpty()) {
+                cur.copy(refreshing = false)
+            } else {
+                val map = cur.map.withForecast(grid, forecast)
+                cur.copy(map = map, index = cur.index.coerceIn(0, map.frames.lastIndex), refreshing = false)
+            }
+        }
     }
 
     fun load() = viewModelScope.launch {
         val previous = _state.value as? MapUiState.Ready
         if (previous == null) _state.value = MapUiState.Loading else _state.value = previous.copy(refreshing = true)
         _state.value = runCatching {
-            val place = forecasts.cached()?.place ?: forecasts.resolvePlace()
-            val map = rainMaps.load(place)
+            val place = place ?: forecasts.resolvePlace()
+            val map = rainMaps.load(place, viewport?.let(RainMapRepository::gridFor) ?: RainMapRepository.gridAround(place))
             // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
             val index = when {
                 previous == null || previous.index == previous.map.nowIndex -> map.nowIndex

@@ -20,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.namm.meteo.data.location.LocationProvider
 import com.namm.meteo.ui.forecast.ForecastScreen
+import com.namm.meteo.ui.forecast.ForecastUiState
 import com.namm.meteo.ui.forecast.ForecastViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.namm.meteo.ui.map.MapScreen
 import com.namm.meteo.ui.map.MapViewModel
 import com.namm.meteo.ui.settings.SettingsScreen
@@ -39,6 +41,7 @@ class MainActivity : ComponentActivity() {
             MeteoTheme {
                 var screen by rememberSaveable { mutableStateOf(Screen.Forecast) }
                 val forecastViewModel: ForecastViewModel = viewModel(factory = ForecastViewModel.Factory)
+                val forecastState by forecastViewModel.state.collectAsStateWithLifecycle()
 
                 // Par défaut l'accueil affiche la position GPS : on demande l'autorisation au lancement.
                 val permission = rememberLauncherForActivityResult(
@@ -60,6 +63,8 @@ class MainActivity : ComponentActivity() {
                         )
                         Screen.Map -> MapScreen(
                             viewModel = viewModel<MapViewModel>(factory = MapViewModel.Factory),
+                            // Même lieu que l'accueil : position actuelle ou lieu enregistré choisi.
+                            place = (forecastState as? ForecastUiState.Success)?.data?.place,
                             onBack = { screen = Screen.Forecast },
                         )
                         Screen.Settings -> SettingsScreen(

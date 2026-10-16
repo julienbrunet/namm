@@ -52,7 +52,6 @@ import com.namm.meteo.domain.DailyForecast
 import com.namm.meteo.domain.PrecipitationStep
 import com.namm.meteo.domain.WeatherCondition
 import com.namm.meteo.ui.components.Pill
-import com.namm.meteo.ui.components.RoundIconButton
 import com.namm.meteo.ui.components.SectionLabel
 import com.namm.meteo.ui.components.TileShape
 import com.namm.meteo.ui.components.WeatherIcons
@@ -124,20 +123,14 @@ fun ForecastContent(
     val forecast = data.forecast
     val now = LocalDateTime.parse(forecast.current.time)
     val condition = WeatherCondition.fromWmo(forecast.current.weatherCode)
+    Box(Modifier.fillMaxSize().background(Slate.Background)) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(Slate.Background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
-            RoundIconButton(Icons.Outlined.Map, "Carte de pluie", onOpenMap)
-            RoundIconButton(Icons.Outlined.Settings, "Paramètres", onOpenSettings)
-        }
-
         // Météo actuelle : icône + température, puis le lieu juste en dessous.
-        Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(condition.icon(), condition.label, tint = Slate.Primary, modifier = Modifier.size(72.dp))
             Spacer(Modifier.width(20.dp))
@@ -212,6 +205,41 @@ fun ForecastContent(
                 color = Slate.Muted,
                 style = MaterialTheme.typography.labelSmall,
             )
+        }
+        Spacer(Modifier.height(88.dp)) // place pour la barre du bas
+    }
+        BottomBar(onOpenMap, onOpenSettings, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** Barre flottante en bas d'écran, à portée de pouce : carte de pluie + paramètres. */
+@Composable
+private fun BottomBar(onOpenMap: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier) {
+    Row(
+        modifier
+            .padding(bottom = 16.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Slate.TileHighlight)
+            .padding(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(50))
+                .background(Slate.Primary)
+                .clickable(onClick = onOpenMap)
+                .padding(horizontal = 22.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Map, null, tint = Slate.Background, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Carte de pluie", color = Slate.Background, style = MaterialTheme.typography.titleMedium)
+        }
+        Spacer(Modifier.width(6.dp))
+        Box(
+            Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onOpenSettings).padding(14.dp),
+        ) {
+            Icon(Icons.Outlined.Settings, "Paramètres", tint = Slate.Primary, modifier = Modifier.size(20.dp))
         }
     }
 }

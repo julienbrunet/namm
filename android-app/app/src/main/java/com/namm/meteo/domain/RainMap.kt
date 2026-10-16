@@ -21,6 +21,10 @@ data class ForecastGrid(
 )
 
 data class RainMap(val grid: ForecastGrid, val frames: List<MapFrame>) {
+    /** Remplace la prévision (nouvelle zone visible) en gardant les images radar. */
+    fun withForecast(newGrid: ForecastGrid, forecast: List<MapFrame>) =
+        RainMap(newGrid, frames.filterIsInstance<MapFrame.Radar>() + forecast)
+
     /** Index de la première image de prévision (« maintenant »). */
     val nowIndex: Int get() = frames.indexOfFirst { it is MapFrame.Forecast }.coerceAtLeast(0)
 }

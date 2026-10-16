@@ -31,6 +31,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import com.namm.meteo.data.repository.Bounds
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,7 +64,8 @@ import java.time.format.DateTimeFormatter
 private val HourFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
-fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
+fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
+    LaunchedEffect(place) { viewModel.show(place) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Tant que l'écran est visible (et à chaque retour au premier plan), on vérifie
     // chaque minute si les données ont plus de 10 min et on les recharge si besoin.
@@ -84,7 +90,9 @@ fun MapScreen(viewModel: MapViewModel, onBack: () -> Unit) {
                 TextButton(onClick = onBack) { Text("Retour", color = Slate.Secondary) }
             }
         }
-        is MapUiState.Ready -> MapContent(s, onBack, viewModel::select, viewModel::togglePlay, { viewModel.load() })
+        is MapUiState.Ready -> MapContent(
+            s, onBack, viewModel::select, viewModel::togglePlay, { viewModel.load() }, viewModel::onViewportChanged,
+        )
     }
 }
 
@@ -95,10 +103,11 @@ fun MapContent(
     onSelect: (Int) -> Unit = {},
     onTogglePlay: () -> Unit = {},
     onRefresh: () -> Unit = {},
+    onViewportChanged: (Bounds) -> Unit = {},
     online: Boolean = true,
 ) {
     Box(Modifier.fillMaxSize().background(Slate.Background)) {
-        RainMapView(state.place, state.map, state.map.frames.getOrNull(state.index), online)
+        RainMapView(state.place, state.map, state.map.frames.getOrNull(state.index), online, onViewportChanged)
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
             Spacer(Modifier.weight(1f))
@@ -109,7 +118,13 @@ fun MapContent(
 }
 
 @Composable
-private fun RainMapView(place: Place, map: RainMap, frame: MapFrame?, online: Boolean) {
+private fun RainMapView(
+    place: Place,
+    map: RainMap,
+    frame: MapFrame?,
+    online: Boolean,
+    onViewportChanged: (Bounds) -> Unit,
+) {
     val context = LocalContext.current
     val gridOverlay = remember(map) { ForecastGridOverlay(map.grid) }
     val mapView = remember {
@@ -137,6 +152,23 @@ private fun RainMapView(place: Place, map: RainMap, frame: MapFrame?, online: Bo
         }
     }
     val radarOverlay = remember { RadarOverlay(mapView) }
+    val viewportCallback by rememberUpdatedState(onViewportChanged)
+    DisposableEffect(mapView) {
+        fun report() = mapView.boundingBox.let {
+            viewportCallback(Bounds(it.latSouth, it.lonWest, it.latNorth, it.lonEast))
+        }
+        val listener = object : MapListener {
+            override fun onScroll(event: ScrollEvent?) = true.also { report() }
+            override fun onZoom(event: ZoomEvent?) = true.also { report() }
+        }
+        mapView.addMapListener(listener)
+        onDispose { mapView.removeMapListener(listener) }
+    }
+    // Recentre la carte si le lieu affiché change (autre lieu enregistré, nouvelle position).
+    LaunchedEffect(place.latitude, place.longitude) {
+        mapView.controller.setCenter(GeoPoint(place.latitude, place.longitude))
+        (mapView.overlays.firstOrNull { it is Marker } as? Marker)?.position = GeoPoint(place.latitude, place.longitude)
+    }
     DisposableEffect(Unit) {
         mapView.onResume()
         onDispose { mapView.onDetach() }

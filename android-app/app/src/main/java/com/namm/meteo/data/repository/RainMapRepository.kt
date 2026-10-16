@@ -10,6 +10,7 @@ import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import java.util.Locale
 
 /**
  * Carte de pluie : radar observé RainViewer (passé) + grille de prévision Open-Meteo
@@ -20,28 +21,37 @@ class RainMapRepository(
     private val rainViewer: RainViewerApi,
 ) {
 
-    suspend fun load(center: Place, now: Long = System.currentTimeMillis() / 1000): RainMap = coroutineScope {
-        val grid = gridAround(center)
+    suspend fun load(
+        center: Place,
+        grid: ForecastGrid = gridAround(center),
+        now: Long = System.currentTimeMillis() / 1000,
+    ): RainMap = coroutineScope {
         val radar = async { runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList()) }
-        val points = async {
-            runCatching {
-                openMeteo.grid(
-                latitudes = grid.coordinates().joinToString(",") { "%.4f".format(java.util.Locale.ROOT, it.first) },
-                    longitudes = grid.coordinates().joinToString(",") { "%.4f".format(java.util.Locale.ROOT, it.second) },
-                )
-            }
-        }
+        val forecast = async { runCatching { forecastFor(grid, now) } }
         // Radar et prévision sont indépendants : l'un peut échouer sans masquer l'autre.
-        val forecast = points.await()
-        val frames = radar.await() + forecast.getOrNull().orEmpty().let { forecastFrames(grid, it, now) }
-        if (frames.isEmpty()) throw forecast.exceptionOrNull() ?: IllegalStateException("Aucune donnée de pluie")
+        val frames = radar.await() + forecast.await().getOrNull().orEmpty()
+        if (frames.isEmpty()) throw forecast.await().exceptionOrNull() ?: IllegalStateException("Aucune donnée de pluie")
         RainMap(grid, frames)
     }
 
+    /** Prévision seule pour une grille donnée (zone visible de la carte). */
+    suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> {
+        val points = grid.coordinates()
+        return forecastFrames(
+            grid,
+            openMeteo.grid(
+                latitudes = points.joinToString(",") { "%.4f".format(Locale.ROOT, it.first) },
+                longitudes = points.joinToString(",") { "%.4f".format(Locale.ROOT, it.second) },
+            ),
+            now,
+        )
+    }
+
     companion object {
-        // 15 × 21 points espacés d'≈ 11 km (format portrait, ≈ 160 × 230 km), un seul appel Open-Meteo.
-        const val GRID_COLS = 15
-        const val GRID_ROWS = 21
+        // 12 × 16 points (format portrait) par appel Open-Meteo ; chaque point compte comme un
+        // appel dans le quota gratuit, d'où une grille modeste recalculée seulement si besoin.
+        const val GRID_COLS = 12
+        const val GRID_ROWS = 16
         const val LAT_STEP = 0.1
         const val LON_STEP = 0.145
 
@@ -53,8 +63,42 @@ class RainMapRepository(
             rows = GRID_ROWS,
             cols = GRID_COLS,
         )
+
+        /** Grille couvrant la zone visible (+10 % de marge), même nombre de points quel que soit le zoom. */
+        fun gridFor(view: Bounds): ForecastGrid {
+            val padLat = (view.north - view.south) * 0.1
+            val padLon = (view.east - view.west) * 0.1
+            val south = (view.south - padLat).coerceAtLeast(-80.0)
+            val north = (view.north + padLat).coerceAtMost(80.0)
+            val west = view.west - padLon
+            val east = view.east + padLon
+            return ForecastGrid(
+                south = south,
+                west = west,
+                latStep = (north - south) / (GRID_ROWS - 1),
+                lonStep = (east - west) / (GRID_COLS - 1),
+                rows = GRID_ROWS,
+                cols = GRID_COLS,
+            )
+        }
+
+        /**
+         * Faut-il recharger la prévision pour cette vue ? Oui si la grille actuelle ne couvre
+         * plus la zone visible, ou si sa maille est 2× trop grossière / trop fine pour le zoom.
+         */
+        fun needsNewGrid(current: ForecastGrid, view: Bounds): Boolean {
+            val north = current.south + current.latStep * (current.rows - 1)
+            val east = current.west + current.lonStep * (current.cols - 1)
+            val covered = view.south >= current.south && view.north <= north && view.west >= current.west && view.east <= east
+            val ideal = (view.north - view.south) * 1.2 / (GRID_ROWS - 1)
+            val ratio = current.latStep / ideal
+            return !covered || ratio > 2 || ratio < 0.5
+        }
     }
 }
+
+/** Emprise géographique (degrés). */
+data class Bounds(val south: Double, val west: Double, val north: Double, val east: Double)
 
 /** Coordonnées des points, ligne par ligne en partant du sud-ouest. */
 internal fun ForecastGrid.coordinates(): List<Pair<Double, Double>> =

@@ -10,7 +10,10 @@ import com.namm.meteo.data.repository.forecastFrames
 import com.namm.meteo.data.repository.toFrames
 import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.MapFrame
+import com.namm.meteo.data.repository.Bounds
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RainMapTest {
@@ -20,9 +23,9 @@ class RainMapTest {
         val grid = RainMapRepository.gridAround(Fixtures.paris)
         val points = grid.coordinates()
 
-        assertEquals(315, points.size)
-        assertEquals(Fixtures.paris.latitude, points[157].first, 1e-9)
-        assertEquals(Fixtures.paris.longitude, points[157].second, 1e-9)
+        assertEquals(192, points.size)
+        assertEquals(Fixtures.paris.latitude, (points.first().first + points.last().first) / 2, 1e-9)
+        assertEquals(Fixtures.paris.longitude, (points.first().second + points.last().second) / 2, 1e-9)
     }
 
     @Test
@@ -36,6 +39,21 @@ class RainMapTest {
         assertEquals(23, frames.size)
         assertEquals(start + 15 * 60, frames.first().time)
         assertEquals(points[3].minutely15.precipitation[1], (frames.first() as MapFrame.Forecast).values[1][1])
+    }
+
+    @Test
+    fun `la grille suit la zone visible et n'est rechargée que si nécessaire`() {
+        val view = Bounds(south = 48.0, west = 1.0, north = 50.0, east = 4.0)
+        val grid = RainMapRepository.gridFor(view)
+
+        assertTrue(grid.south < 48.0 && grid.west < 1.0)
+        assertFalse(RainMapRepository.needsNewGrid(grid, view))
+        // Petit déplacement à l'intérieur de la marge : pas de rechargement.
+        assertFalse(RainMapRepository.needsNewGrid(grid, Bounds(48.1, 1.1, 50.1, 4.1)))
+        // Sortie de la zone couverte, dézoom fort, zoom fort : rechargement.
+        assertTrue(RainMapRepository.needsNewGrid(grid, Bounds(49.0, 3.0, 51.0, 6.0)))
+        assertTrue(RainMapRepository.needsNewGrid(grid, Bounds(46.0, -1.0, 52.0, 6.0)))
+        assertTrue(RainMapRepository.needsNewGrid(grid, Bounds(48.9, 2.3, 49.2, 2.6)))
     }
 
     @Test
