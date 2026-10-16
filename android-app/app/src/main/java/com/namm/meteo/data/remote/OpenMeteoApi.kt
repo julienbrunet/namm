@@ -16,9 +16,8 @@ interface OpenMeteoApi {
     suspend fun forecast(
         @Query("latitude") latitude: Double,
         @Query("longitude") longitude: Double,
-        @Query("current") current: String = "temperature_2m,precipitation,weather_code,wind_speed_10m",
+        @Query("current") current: String = "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
         @Query("minutely_15") minutely15: String = "precipitation",
-        @Query("hourly") hourly: String = "temperature_2m,precipitation_probability,precipitation",
         @Query("daily") daily: String = "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
         @Query("models") models: String = "best_match",
         @Query("timezone") timezone: String = "auto",
@@ -43,6 +42,7 @@ interface OpenMeteoApi {
 data class ForecastDto(
     val latitude: Double,
     val longitude: Double,
+    val timezone: String = "GMT",
     val current: CurrentDto? = null,
     @SerialName("minutely_15") val minutely15: Minutely15Dto? = null,
     val daily: DailyDto? = null,
@@ -52,6 +52,8 @@ data class ForecastDto(
 data class CurrentDto(
     val time: String,
     @SerialName("temperature_2m") val temperature: Double,
+    @SerialName("apparent_temperature") val apparentTemperature: Double,
+    @SerialName("relative_humidity_2m") val humidity: Int,
     val precipitation: Double,
     @SerialName("weather_code") val weatherCode: Int,
     @SerialName("wind_speed_10m") val windSpeed: Double,

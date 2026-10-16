@@ -7,7 +7,11 @@ data class Forecast(
 )
 
 data class CurrentWeather(
+    /** Heure locale ISO, ex. "2026-10-16T10:30". */
+    val time: String,
     val temperature: Double,
+    val apparentTemperature: Double,
+    val humidity: Int,
     val precipitation: Double,
     val weatherCode: Int,
     val windSpeed: Double,

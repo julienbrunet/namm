@@ -53,7 +53,7 @@ com.namm.meteo
 ```
 
 ## Feuille de route
-1. ✅ Squelette + écran prévisions Open-Meteo
+1. ✅ Squelette + écran prévisions Open-Meteo (design ardoise, tests Roborazzi, CI + release APK, site Pages)
 2. Localisation GPS + recherche de ville
 3. Cache Room + mode hors-ligne
 4. Carte radar RainViewer (MapLibre)

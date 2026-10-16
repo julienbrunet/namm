@@ -1,0 +1,71 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: ["android-app/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android-app/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-app
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Tests unitaires + captures d'écran
+        run: ./gradlew testDebugUnitTest recordRoborazziDebug
+
+      - name: Clé de signature (si les secrets existent)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: APK release
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk no-ad-meteo.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-and-screenshots
+          path: |
+            android-app/no-ad-meteo.apk
+            android-app/app/screenshots/*.png
+
+      - name: Publier la release GitHub
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: No Ad Météo 0.1.${{ github.run_number }}
+          make_latest: true
+          generate_release_notes: true
+          files: android-app/no-ad-meteo.apk

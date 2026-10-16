@@ -3,7 +3,11 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.roborazzi)
 }
+
+// Version injectée par la CI (numéro de build), 1 en local.
+val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
 
 android {
     namespace = "com.namm.meteo"
@@ -13,14 +17,31 @@ android {
         applicationId = "com.namm.meteo"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = buildNumber
+        versionName = "0.1.$buildNumber"
+    }
+
+    signingConfigs {
+        // Clé de release fournie par la CI via secrets ; sinon, clé debug (APK installable mais non officiel).
+        create("release") {
+            val ks = System.getenv("SIGNING_KEYSTORE_PATH")
+            if (ks != null) {
+                storeFile = file(ks)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -29,6 +50,19 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            // Miroir Maven optionnel pour Robolectric (voir CLAUDE.md, ~/.gradle/gradle.properties).
+            providers.gradleProperty("robolectricRepo").orNull?.let { repo ->
+                it.systemProperty("robolectric.dependency.repo.url", repo)
+            }
+        }
+    }
+}
+
+roborazzi {
+    outputDir.set(file("screenshots"))
 }
 
 dependencies {
@@ -40,10 +74,19 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons)
     debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
 }
