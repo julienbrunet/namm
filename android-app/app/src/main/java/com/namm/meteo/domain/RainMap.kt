@@ -1,0 +1,26 @@
+package com.namm.meteo.domain
+
+/** Une image de la carte : radar observé (passé) ou grille de prévision (futur). */
+sealed interface MapFrame {
+    /** Horodatage unix (secondes). */
+    val time: Long
+
+    data class Radar(override val time: Long, val tileUrlTemplate: String) : MapFrame
+
+    /** Valeurs en mm / 15 min, indexées [ligne][colonne] ; ligne 0 = sud. */
+    data class Forecast(override val time: Long, val values: List<List<Double>>) : MapFrame
+}
+
+data class ForecastGrid(
+    val south: Double,
+    val west: Double,
+    val latStep: Double,
+    val lonStep: Double,
+    val rows: Int,
+    val cols: Int,
+)
+
+data class RainMap(val grid: ForecastGrid, val frames: List<MapFrame>) {
+    /** Index de la première image de prévision (« maintenant »). */
+    val nowIndex: Int get() = frames.indexOfFirst { it is MapFrame.Forecast }.coerceAtLeast(0)
+}

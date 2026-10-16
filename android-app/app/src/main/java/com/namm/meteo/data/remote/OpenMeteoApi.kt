@@ -2,10 +2,6 @@ package com.namm.meteo.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
-import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -24,19 +20,56 @@ interface OpenMeteoApi {
         @Query("forecast_days") forecastDays: Int = 7,
     ): ForecastDto
 
-    companion object {
-        private const val BASE_URL = "https://api.open-meteo.com/"
+    /** Grille multi-points pour la carte de prévision (pas de 15 min, horodatage unix). */
+    @GET("v1/forecast")
+    suspend fun grid(
+        @Query("latitude") latitudes: String,
+        @Query("longitude") longitudes: String,
+        @Query("minutely_15") minutely15: String = "precipitation",
+        @Query("forecast_minutely_15") steps: Int = 24,
+        @Query("timeformat") timeFormat: String = "unixtime",
+    ): List<GridPointDto>
 
-        fun create(): OpenMeteoApi {
-            val json = Json { ignoreUnknownKeys = true }
-            return Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-                .build()
-                .create(OpenMeteoApi::class.java)
-        }
+    companion object {
+        fun create(): OpenMeteoApi = Network.create("https://api.open-meteo.com/")
     }
 }
+
+/** API de géocodage Open-Meteo (recherche de ville). */
+interface GeocodingApi {
+    @GET("v1/search")
+    suspend fun search(
+        @Query("name") name: String,
+        @Query("count") count: Int = 10,
+        @Query("language") language: String = "fr",
+    ): GeocodingDto
+
+    companion object {
+        fun create(): GeocodingApi = Network.create("https://geocoding-api.open-meteo.com/")
+    }
+}
+
+@Serializable
+data class GeocodingDto(val results: List<PlaceDto> = emptyList())
+
+@Serializable
+data class PlaceDto(
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val country: String? = null,
+    val admin1: String? = null,
+)
+
+@Serializable
+data class GridPointDto(
+    val latitude: Double,
+    val longitude: Double,
+    @SerialName("minutely_15") val minutely15: GridSeriesDto,
+)
+
+@Serializable
+data class GridSeriesDto(val time: List<Long>, val precipitation: List<Double?>)
 
 @Serializable
 data class ForecastDto(

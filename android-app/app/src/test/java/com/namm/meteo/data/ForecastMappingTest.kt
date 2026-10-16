@@ -2,6 +2,7 @@ package com.namm.meteo.data
 
 import com.namm.meteo.Fixtures
 import com.namm.meteo.data.repository.toDomain
+import com.namm.meteo.data.repository.toPlaces
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,6 +25,15 @@ class ForecastMappingTest {
         val first = forecast.nextPrecipitation.first().time
 
         assertEquals(now.take(13), first.take(13))
+        assertTrue(first <= now)
         assertTrue(forecast.nextPrecipitation.zipWithNext().all { (a, b) -> a.time < b.time })
+    }
+
+    @Test
+    fun `parse une vraie réponse de géocodage`() {
+        val places = Fixtures.geocodingDto().toPlaces()
+
+        assertEquals("Clermont-Ferrand", places.first().name)
+        assertTrue(places.first().detail!!.contains("France"))
     }
 }

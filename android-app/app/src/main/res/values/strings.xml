@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">No Ad Météo</string>
+    <string name="widget_description">Température et pluie à venir</string>
 </resources>

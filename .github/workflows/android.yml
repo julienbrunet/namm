@@ -33,6 +33,11 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Version 0.<1 + n/100>.<n % 100> : le dernier chiffre ne dépasse jamais 99
+      # (build 99 → 0.1.99, build 100 → 0.2.0). Calculée par Gradle, source unique.
+      - name: Version
+        run: echo "VERSION_NAME=$(./gradlew -q printVersionName)" >> "$GITHUB_ENV"
+
       - name: Tests unitaires + captures d'écran
         run: ./gradlew testDebugUnitTest recordRoborazziDebug
 
@@ -64,8 +69,8 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: No Ad Météo 0.1.${{ github.run_number }}
+          tag_name: v${{ env.VERSION_NAME }}
+          name: No Ad Météo ${{ env.VERSION_NAME }}
           make_latest: true
           generate_release_notes: true
           files: android-app/no-ad-meteo.apk

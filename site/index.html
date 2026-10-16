@@ -36,6 +36,10 @@
       background: #2a2e37; box-shadow: 0 30px 60px rgba(0,0,0,.35), inset 0 0 0 2px #23262e;
     }
     .phone img { display: block; width: 100%; height: auto; border-radius: 36px; }
+    .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 88px; }
+    .gallery figure { margin: 0; }
+    .gallery img { display: block; width: 100%; height: auto; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
+    .gallery figcaption { color: var(--sub); font-size: 14px; text-align: center; margin-top: 12px; }
     .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 88px; }
     .tile { background: var(--tile); border-radius: 18px; padding: 20px; min-height: 150px;
       display: flex; flex-direction: column; justify-content: space-between; }
@@ -47,7 +51,11 @@
     @media (max-width: 760px) {
       main { padding: 48px 16px 32px; }
       .hero { grid-template-columns: 1fr; gap: 40px; }
-      .tiles { grid-template-columns: 1fr 1fr; margin-top: 56px; }
+      .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 88px; }
+    .gallery figure { margin: 0; }
+    .gallery img { display: block; width: 100%; height: auto; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
+    .gallery figcaption { color: var(--sub); font-size: 14px; text-align: center; margin-top: 12px; }
+    .tiles { grid-template-columns: 1fr 1fr; margin-top: 56px; }
     }
   </style>
 </head>
@@ -68,13 +76,19 @@
     <div class="phone"><img src="accueil.png" alt="Écran principal de l'application : température, pluie dans les 2 heures et tuiles météo" width="1233" height="2673"></div>
   </section>
 
+  <section class="gallery">
+    <figure><img src="accueil_mise_a_jour.png" alt="Accueil : mise à jour en cours de téléchargement" width="1233" height="2673" loading="lazy"><figcaption>Mises à jour automatiques, mode hors-ligne</figcaption></figure>
+    <figure><img src="carte.png" alt="Carte de pluie : radar et prévision animés" width="1233" height="2673" loading="lazy"><figcaption>Carte de pluie, radar + prévision 6 h</figcaption></figure>
+    <figure><img src="parametres.png" alt="Paramètres : lieux enregistrés et options" width="1233" height="2673" loading="lazy"><figcaption>Lieux enregistrés et réglages</figcaption></figure>
+  </section>
+
   <section class="tiles">
-    <div class="tile"><span class="ico">☂</span><div><b>Pluie à 15 min</b><p>Modèles haute résolution (AROME Météo-France, ICON-D2).</p></div></div>
-    <div class="tile"><span class="ico">◌</span><div><b>Zéro publicité</b><p>Aucun SDK publicitaire ni traqueur.</p></div></div>
-    <div class="tile"><span class="ico">⌁</span><div><b>Léger</b><p>Environ 1 Mo, aucun compte requis.</p></div></div>
-    <div class="tile"><span class="ico">◷</span><div><b>7 jours</b><p>Températures min/max et cumuls de pluie.</p></div></div>
-    <div class="tile"><span class="ico">◍</span><div><b>Données ouvertes</b><p>Fournies par Open-Meteo.</p></div></div>
-    <div class="tile"><span class="ico">⟨⟩</span><div><b>Open-source</b><p>Le code est sur GitHub.</p></div></div>
+    <div class="tile"><span class="ico">◎</span><div><b>Votre position</b><p>GPS par défaut, plus vos lieux enregistrés.</p></div></div>
+    <div class="tile"><span class="ico">☂</span><div><b>Pluie à 15 min</b><p>Modèles haute résolution (AROME, ICON-D2) et alerte pluie dans l'heure.</p></div></div>
+    <div class="tile"><span class="ico">▦</span><div><b>Carte de pluie</b><p>Radar observé et prévision animée sur 6 h.</p></div></div>
+    <div class="tile"><span class="ico">▢</span><div><b>Widget</b><p>Température et pluie à venir sur l'écran d'accueil.</p></div></div>
+    <div class="tile"><span class="ico">↻</span><div><b>Mise à jour auto</b><p>Les nouvelles versions s'installent depuis GitHub.</p></div></div>
+    <div class="tile"><span class="ico">◌</span><div><b>Zéro publicité</b><p>Aucun SDK publicitaire, aucun pistage, open-source.</p></div></div>
   </section>
 
   <footer>

@@ -1,16 +1,55 @@
 package com.namm.meteo.data.repository
 
+import com.namm.meteo.data.local.CachedForecast
+import com.namm.meteo.data.local.ForecastCache
+import com.namm.meteo.data.local.SettingsStore
+import com.namm.meteo.data.location.LocationProvider
 import com.namm.meteo.data.remote.ForecastDto
 import com.namm.meteo.data.remote.OpenMeteoApi
 import com.namm.meteo.domain.CurrentWeather
 import com.namm.meteo.domain.DailyForecast
 import com.namm.meteo.domain.Forecast
+import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.PrecipitationStep
 
-class ForecastRepository(private val api: OpenMeteoApi) {
+/** Prévision pour un lieu, avec l'heure de téléchargement et un indicateur hors-ligne. */
+data class LocalForecast(
+    val place: Place,
+    val forecast: Forecast,
+    val fetchedAtMillis: Long,
+    val offline: Boolean = false,
+)
 
-    suspend fun getForecast(latitude: Double, longitude: Double): Forecast =
-        api.forecast(latitude, longitude).toDomain()
+class ForecastRepository(
+    private val api: OpenMeteoApi,
+    private val cache: ForecastCache,
+    private val settings: SettingsStore,
+    private val location: LocationProvider,
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
+
+    /** Lieu à utiliser : la position si activée et disponible, sinon la ville choisie. */
+    suspend fun resolvePlace(): Place {
+        val s = settings.current()
+        return if (s.useLocation) location.currentPlace() ?: s.place else s.place
+    }
+
+    /** Télécharge la prévision ; en cas d'échec réseau, renvoie la dernière prévision en cache. */
+    suspend fun load(place: Place? = null): LocalForecast {
+        val target = place ?: resolvePlace()
+        return try {
+            val dto = api.forecast(target.latitude, target.longitude)
+            val now = clock()
+            cache.write(CachedForecast(target, now, dto))
+            LocalForecast(target, dto.toDomain(), now)
+        } catch (e: Exception) {
+            cached()?.copy(offline = true) ?: throw e
+        }
+    }
+
+    fun cached(): LocalForecast? = cache.read()?.let {
+        LocalForecast(it.place, it.forecast.toDomain(), it.fetchedAtMillis)
+    }
 }
 
 /** Nombre de pas de 15 min affichés (2 h). */
@@ -18,10 +57,11 @@ private const val NOWCAST_STEPS = 8
 
 internal fun ForecastDto.toDomain(): Forecast {
     val c = requireNotNull(current) { "Réponse sans données actuelles" }
-    // minutely_15 commence à minuit : on ne garde que les pas à partir de l'heure courante.
+    // minutely_15 commence à minuit : on ne garde que les pas à partir du quart d'heure courant.
+    val start = c.time.dropLast(2) + floorQuarter(c.time)
     val steps = minutely15?.let { m ->
         m.time.zip(m.precipitation)
-            .dropWhile { (t, _) -> t < c.time.take(14) + floorQuarter(c.time) }
+            .dropWhile { (t, _) -> t < start }
             .take(NOWCAST_STEPS)
             .map { (t, p) -> PrecipitationStep(t, p ?: 0.0) }
     }.orEmpty()

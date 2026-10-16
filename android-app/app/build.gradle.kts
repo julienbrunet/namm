@@ -7,7 +7,14 @@ plugins {
 }
 
 // Version injectée par la CI (numéro de build), 1 en local.
+// Le dernier chiffre reste dans 0..99 : au-delà, on incrémente le chiffre du milieu
+// (build 99 -> 0.1.99, build 100 -> 0.2.0, build 205 -> 0.3.5). versionCode reste le numéro de build.
 val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
+val appVersionName = "0.${1 + buildNumber / 100}.${buildNumber % 100}"
+
+tasks.register("printVersionName") {
+    doLast { println(appVersionName) }
+}
 
 android {
     namespace = "com.namm.meteo"
@@ -18,7 +25,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = buildNumber
-        versionName = "0.1.$buildNumber"
+        versionName = appVersionName
     }
 
     signingConfigs {
@@ -49,7 +56,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
@@ -77,6 +87,12 @@ dependencies {
     implementation(libs.compose.material.icons)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+
+    implementation(libs.datastore.preferences)
+    implementation(libs.work.runtime)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+    implementation(libs.osmdroid)
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)

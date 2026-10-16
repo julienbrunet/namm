@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Point de position sobre : disque clair cerclé d'ardoise -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="22dp" android:height="22dp">
+        <shape android:shape="oval"><solid android:color="#66F2F3F5" /></shape>
+    </item>
+    <item android:width="12dp" android:height="12dp" android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#F2F3F5" />
+            <stroke android:width="2dp" android:color="#353A45" />
+        </shape>
+    </item>
+</layer-list>

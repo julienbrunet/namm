@@ -6,50 +6,94 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.namm.meteo.MeteoApp
+import com.namm.meteo.data.local.SettingsStore
 import com.namm.meteo.data.repository.ForecastRepository
-import com.namm.meteo.domain.Forecast
+import com.namm.meteo.data.repository.LocalForecast
+import com.namm.meteo.data.update.AvailableUpdate
+import com.namm.meteo.data.update.UpdateManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-
-data class City(val name: String, val latitude: Double, val longitude: Double)
+import java.io.File
 
 sealed interface ForecastUiState {
     data object Loading : ForecastUiState
-    data class Success(val city: String, val forecast: Forecast) : ForecastUiState
+    data class Success(val data: LocalForecast) : ForecastUiState
     data class Error(val message: String) : ForecastUiState
 }
 
-class ForecastViewModel(private val repository: ForecastRepository) : ViewModel() {
+sealed interface UpdateUiState {
+    data object None : UpdateUiState
+    data class Available(val update: AvailableUpdate) : UpdateUiState
+    data class Downloading(val update: AvailableUpdate, val progress: Float) : UpdateUiState
+    data class Ready(val update: AvailableUpdate, val apk: File) : UpdateUiState
+}
 
-    private val _state = MutableStateFlow<ForecastUiState>(ForecastUiState.Loading)
+class ForecastViewModel(
+    private val repository: ForecastRepository,
+    private val settings: SettingsStore,
+    private val updates: UpdateManager,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<ForecastUiState>(
+        repository.cached()?.let { ForecastUiState.Success(it) } ?: ForecastUiState.Loading,
+    )
     val state: StateFlow<ForecastUiState> = _state
 
-    // Position par défaut en attendant la géolocalisation (voir feuille de route).
-    private var city = City("Paris", 48.8566, 2.3522)
+    private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.None)
+    val update: StateFlow<UpdateUiState> = _update
 
     init {
-        retry()
+        refresh()
+        // Recharge dès que l'utilisateur change de ville ou active la position.
+        viewModelScope.launch {
+            settings.settings.map { it.place to it.useLocation }.distinctUntilChanged().drop(1).collect { refresh() }
+        }
+        checkForUpdate()
     }
 
-    fun retry() = load(city)
-
-    fun load(city: City) {
-        this.city = city
-        _state.value = ForecastUiState.Loading
+    fun refresh() {
+        if (_state.value is ForecastUiState.Error) _state.value = ForecastUiState.Loading
         viewModelScope.launch {
-            _state.value = runCatching { repository.getForecast(city.latitude, city.longitude) }
-                .fold(
-                    onSuccess = { ForecastUiState.Success(city.name, it) },
-                    onFailure = { ForecastUiState.Error(it.message ?: "Erreur réseau") },
-                )
+            _state.value = runCatching { repository.load() }.fold(
+                onSuccess = { ForecastUiState.Success(it) },
+                onFailure = { (_state.value as? ForecastUiState.Success) ?: ForecastUiState.Error(it.message ?: "Erreur réseau") },
+            )
+        }
+    }
+
+    /** Vérifie GitHub ; si la mise à jour auto est active, télécharge directement l'APK. */
+    private fun checkForUpdate() = viewModelScope.launch {
+        val available = runCatching { updates.check() }.getOrNull() ?: return@launch
+        _update.value = UpdateUiState.Available(available)
+        if (settings.current().autoUpdate) download()
+    }
+
+    fun onUpdateAction() {
+        when (val u = _update.value) {
+            is UpdateUiState.Available -> download()
+            is UpdateUiState.Ready -> updates.install(u.apk)
+            else -> Unit
+        }
+    }
+
+    private fun download() {
+        val available = (_update.value as? UpdateUiState.Available)?.update ?: return
+        _update.value = UpdateUiState.Downloading(available, 0f)
+        viewModelScope.launch {
+            val apk = updates.download(available) { _update.value = UpdateUiState.Downloading(available, it) }
+            _update.value = if (apk != null) UpdateUiState.Ready(available, apk) else UpdateUiState.Available(available)
         }
     }
 
     companion object {
         val Factory = viewModelFactory {
             initializer {
-                ForecastViewModel((this[APPLICATION_KEY] as MeteoApp).forecastRepository)
+                val app = this[APPLICATION_KEY] as MeteoApp
+                ForecastViewModel(app.forecastRepository, app.settings, app.updateManager)
             }
         }
     }

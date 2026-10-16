@@ -14,49 +14,55 @@
 | Fallback Europe / monde | `icon_d2` (DWD, 2 km), `best_match` | Couverture hors France |
 | Recherche de ville | Open-Meteo Geocoding `/v1/search` | Gratuit, sans clé |
 | Radar de pluie observé (passé récent) | **[RainViewer](https://www.rainviewer.com/api.html)** tuiles | Tuiles radar mondiales gratuites |
-| Fond de carte | **MapLibre Native** + **[OpenFreeMap](https://openfreemap.org)** | Open-source, sans clé, sans quota |
+| Fond de carte | **osmdroid** + tuiles raster **CARTO Dark Matter** (© OSM) | Léger (pur Java, pas de lib native), sans clé, assorti au thème sombre |
+| Mises à jour de l'app | API **GitHub Releases** | Détection d'une nouvelle version, téléchargement de l'APK |
 | Alertes officielles (option) | Météo-France vigilance via [portail API](https://portail-api.meteofrance.fr) | Gratuit avec compte (clé) |
 
 > Limites : Open-Meteo est gratuit pour un usage non commercial (< 10 000 appels/jour par IP — chaque téléphone a son IP, donc pas de souci). Si l'app devient commerciale, prendre l'abonnement API ou auto-héberger Open-Meteo (open-source).
 
 ## Carte de prévision de précipitations
-Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à l'emploi. Approche retenue :
-1. **Passé (−2 h → maintenant)** : tuiles radar RainViewer superposées sur MapLibre.
-2. **Futur (maintenant → +48 h)** : on génère nous-mêmes une grille autour de l'utilisateur
-   - grille ex. 15×15 points (≈ 3 km de pas, ~45 km de côté) ;
-   - **un seul appel** Open-Meteo multi-coordonnées (`latitude=a,b,c…&longitude=…`) avec `minutely_15=precipitation` et le modèle AROME HD ;
-   - rendu en couche *heatmap*/raster colorée dans MapLibre, avec un curseur temporel (pas de 15 min) et animation.
-3. Évolution possible : petit service optionnel qui convertit les GRIB2 AROME de [data.gouv.fr / Météo-France](https://meteo.data.gouv.fr) en tuiles PNG pour une carte nationale fine.
+Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à l'emploi. Approche implémentée (`RainMapRepository`) :
+1. **Passé (≈ −2 h → maintenant)** : tuiles radar RainViewer (`/256/{z}/{x}/{y}/2/1_1.png`), une couche par image.
+2. **Futur (maintenant → +6 h)** : grille 11×11 points (pas ≈ 5 km, ~55 km de côté) autour du lieu,
+   **un seul appel** Open-Meteo multi-coordonnées avec `minutely_15=precipitation` (AROME HD en France via `best_match`),
+   rendue en bitmap lissé (filtrage bilinéaire) par `ForecastGridOverlay`.
+3. Curseur temporel + lecture animée. Évolution possible : convertir les GRIB2 AROME de [meteo.data.gouv.fr](https://meteo.data.gouv.fr) en tuiles pour une carte nationale.
 
 ## Stack Android
 - **Kotlin**, **Jetpack Compose** + Material 3, minSdk 26
-- **MVVM + Clean Architecture légère** : `ui` → `domain` → `data`
-- Réseau : **Retrofit + OkHttp + kotlinx.serialization**
-- Cache : **Room** (prévisions) + **DataStore** (préférences)
-- Arrière-plan : **WorkManager** (rafraîchissement, notifications pluie imminente)
-- Widget : **Jetpack Glance**
-- Localisation : `LocationManager` natif (évite Google Play Services → compatible F-Droid)
-- Carte : **MapLibre Android SDK**
-- DI : manuelle au départ (`AppContainer`), Hilt si l'app grossit
+- **MVVM + couches** : `ui` → `domain` → `data`, navigation par état simple (`MainActivity`)
+- Réseau : **Retrofit + OkHttp + kotlinx.serialization** (`Network`)
+- Cache hors-ligne : dernière prévision en JSON (`ForecastCache`) ; préférences et lieux enregistrés : **DataStore**
+- Arrière-plan : **WorkManager** (`RefreshWorker`, 30 min) : cache, widget, alerte « pluie dans l'heure », vérification de mise à jour
+- Widget : **Jetpack Glance** (`WeatherWidget`)
+- Localisation : `LocationManager` natif (fused/GPS/réseau), sans Google Play Services → compatible F-Droid
+- Carte : **osmdroid**
+- Mise à jour : `UpdateManager` (GitHub Releases → DownloadManager → installateur Android via FileProvider)
 
 ```
 com.namm.meteo
 ├── data
-│   ├── remote        # API Open-Meteo, RainViewer (DTO)
-│   ├── local         # Room, DataStore (à venir)
-│   └── repository    # implémentations, mapping DTO -> domaine
-├── domain            # modèles métier
-└── ui                # écrans Compose + ViewModels
-    ├── forecast      # écran principal
-    ├── map           # carte précipitations (à venir)
-    └── theme
+│   ├── remote        # Open-Meteo (prévision, grille, géocodage), RainViewer, GitHub
+│   ├── local         # SettingsStore (DataStore), ForecastCache
+│   ├── location      # LocationProvider
+│   ├── update        # UpdateManager
+│   └── repository    # Forecast, Place, RainMap
+├── domain            # modèles + règles (AppVersion, minutesUntilRain, WeatherCondition)
+├── work              # RefreshWorker, Notifications
+├── widget            # WeatherWidget (Glance)
+└── ui                # forecast, map, settings, components, theme
 ```
 
+## Versions
+`versionCode` = numéro de run CI ; `versionName` = `0.<1 + n/100>.<n % 100>` : le dernier chiffre reste < 100
+(build 99 → 0.1.99, build 100 → 0.2.0). Les versions sont comparées numériquement (`AppVersion`).
+
 ## Feuille de route
-1. ✅ Squelette + écran prévisions Open-Meteo (design ardoise, tests Roborazzi, CI + release APK, site Pages)
-2. Localisation GPS + recherche de ville
-3. Cache Room + mode hors-ligne
-4. Carte radar RainViewer (MapLibre)
-5. Carte de prévision précipitations (grille AROME 15 min)
-6. Widget Glance + notification « pluie dans 15 min »
-7. Publication F-Droid / Play Store
+1. ✅ Squelette + écran prévisions, design ardoise, CI + release APK, site Pages
+2. ✅ Position GPS par défaut + lieux enregistrés (recherche de ville)
+3. ✅ Cache hors-ligne
+4. ✅ Carte radar RainViewer
+5. ✅ Carte de prévision précipitations (grille 15 min)
+6. ✅ Widget Glance + notification « pluie dans l'heure »
+7. ✅ Mise à jour automatique depuis GitHub Releases
+8. À venir : publication F-Droid, alertes vigilance Météo-France, thème clair
