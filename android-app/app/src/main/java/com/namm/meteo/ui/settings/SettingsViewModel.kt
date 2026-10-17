@@ -13,7 +13,7 @@ import com.namm.meteo.data.local.Settings
 import com.namm.meteo.data.local.SettingsStore
 import com.namm.meteo.data.location.LocationProvider
 import com.namm.meteo.data.repository.PlaceRepository
-import com.namm.meteo.data.update.UpdateManager
+import com.namm.meteo.data.update.UpdateController
 import com.namm.meteo.domain.Place
 import com.namm.meteo.ui.theme.ThemeMode
 import kotlinx.coroutines.Job
@@ -34,7 +34,7 @@ data class SearchState(
 class SettingsViewModel(
     private val store: SettingsStore,
     private val places: PlaceRepository,
-    private val updates: UpdateManager,
+    private val updates: UpdateController,
     private val location: LocationProvider,
     private val arome: AromePiSource,
 ) : ViewModel() {
@@ -119,7 +119,10 @@ class SettingsViewModel(
     fun checkUpdate() = viewModelScope.launch {
         _updateStatus.value = "Recherche…"
         _updateStatus.value = runCatching { updates.check() }.fold(
-            onSuccess = { if (it == null) "Vous avez la dernière version" else "Version ${it.version} disponible : revenez à l'accueil" },
+            onSuccess = {
+                if (it == null) "Vous avez la dernière version"
+                else "Version ${it.version} disponible : voir le bandeau sur l'accueil"
+            },
             onFailure = { "Vérification impossible (réseau)" },
         )
     }
@@ -128,7 +131,7 @@ class SettingsViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MeteoApp
-                SettingsViewModel(app.settings, app.placeRepository, app.updateManager, app.location, app.aromePi)
+                SettingsViewModel(app.settings, app.placeRepository, app.updates, app.location, app.aromePi)
             }
         }
     }

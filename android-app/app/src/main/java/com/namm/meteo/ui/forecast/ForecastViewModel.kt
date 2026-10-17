@@ -9,15 +9,14 @@ import com.namm.meteo.MeteoApp
 import com.namm.meteo.data.local.SettingsStore
 import com.namm.meteo.data.repository.ForecastRepository
 import com.namm.meteo.data.repository.LocalForecast
-import com.namm.meteo.data.update.AvailableUpdate
-import com.namm.meteo.data.update.UpdateManager
+import com.namm.meteo.data.update.UpdateController
+import com.namm.meteo.data.update.UpdateUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.io.File
 
 sealed interface ForecastUiState {
     data object Loading : ForecastUiState
@@ -25,17 +24,11 @@ sealed interface ForecastUiState {
     data class Error(val message: String) : ForecastUiState
 }
 
-sealed interface UpdateUiState {
-    data object None : UpdateUiState
-    data class Available(val update: AvailableUpdate) : UpdateUiState
-    data class Downloading(val update: AvailableUpdate, val progress: Float) : UpdateUiState
-    data class Ready(val update: AvailableUpdate, val apk: File) : UpdateUiState
-}
 
 class ForecastViewModel(
     private val repository: ForecastRepository,
     private val settings: SettingsStore,
-    private val updates: UpdateManager,
+    private val updates: UpdateController,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ForecastUiState>(
@@ -47,8 +40,7 @@ class ForecastViewModel(
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing
 
-    private val _update = MutableStateFlow<UpdateUiState>(UpdateUiState.None)
-    val update: StateFlow<UpdateUiState> = _update
+    val update: StateFlow<UpdateUiState> = updates.state
 
     init {
         refresh()
@@ -56,7 +48,7 @@ class ForecastViewModel(
         viewModelScope.launch {
             settings.settings.map { it.place to it.useLocation }.distinctUntilChanged().drop(1).collect { refresh() }
         }
-        checkForUpdate()
+        updates.checkIfDue()
     }
 
     fun refresh() {
@@ -87,35 +79,13 @@ class ForecastViewModel(
         }
     }
 
-    /** Vérifie GitHub ; si la mise à jour auto est active, télécharge directement l'APK. */
-    private fun checkForUpdate() = viewModelScope.launch {
-        val available = runCatching { updates.check() }.getOrNull() ?: return@launch
-        _update.value = UpdateUiState.Available(available)
-        if (settings.current().autoUpdate) download()
-    }
-
-    fun onUpdateAction() {
-        when (val u = _update.value) {
-            is UpdateUiState.Available -> download()
-            is UpdateUiState.Ready -> updates.install(u.apk)
-            else -> Unit
-        }
-    }
-
-    private fun download() {
-        val available = (_update.value as? UpdateUiState.Available)?.update ?: return
-        _update.value = UpdateUiState.Downloading(available, 0f)
-        viewModelScope.launch {
-            val apk = updates.download(available) { _update.value = UpdateUiState.Downloading(available, it) }
-            _update.value = if (apk != null) UpdateUiState.Ready(available, apk) else UpdateUiState.Available(available)
-        }
-    }
+    fun onUpdateAction() = updates.onAction()
 
     companion object {
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MeteoApp
-                ForecastViewModel(app.forecastRepository, app.settings, app.updateManager)
+                ForecastViewModel(app.forecastRepository, app.settings, app.updates)
             }
         }
     }

@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.namm.meteo.data.repository.LocalForecast
+import com.namm.meteo.data.update.UpdateUiState
 import com.namm.meteo.domain.DailyForecast
 import com.namm.meteo.domain.PrecipitationStep
 import com.namm.meteo.domain.WeatherCondition

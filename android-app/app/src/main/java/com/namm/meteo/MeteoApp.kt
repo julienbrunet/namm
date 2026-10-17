@@ -12,6 +12,7 @@ import com.namm.meteo.data.remote.RainViewerApi
 import com.namm.meteo.data.repository.ForecastRepository
 import com.namm.meteo.data.repository.PlaceRepository
 import com.namm.meteo.data.repository.RainMapRepository
+import com.namm.meteo.data.update.UpdateController
 import com.namm.meteo.data.update.UpdateManager
 import com.namm.meteo.work.Notifications
 import com.namm.meteo.work.RefreshWorker
@@ -32,6 +33,9 @@ class MeteoApp : Application() {
         RainMapRepository(openMeteo, RainViewerApi.create(), aromePi) { settings.current().aromeApiKey.ifBlank { null } }
     }
     val updateManager by lazy { UpdateManager(this, GitHubApi.create()) }
+
+    /** État des mises à jour partagé par tous les écrans. */
+    val updates by lazy { UpdateController(updateManager, settings) }
 
     override fun onCreate() {
         super.onCreate()

@@ -9,7 +9,7 @@ import com.namm.meteo.data.update.AvailableUpdate
 import com.namm.meteo.domain.AppVersion
 import com.namm.meteo.domain.Place
 import com.namm.meteo.ui.forecast.ForecastContent
-import com.namm.meteo.ui.forecast.UpdateUiState
+import com.namm.meteo.data.update.UpdateUiState
 import com.namm.meteo.ui.map.MapContent
 import com.namm.meteo.ui.map.MapUiState
 import com.namm.meteo.ui.settings.SearchState

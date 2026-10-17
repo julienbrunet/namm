@@ -37,6 +37,13 @@ import com.namm.meteo.ui.theme.Slate
 private enum class Screen { Forecast, Map, Settings }
 
 class MainActivity : ComponentActivity() {
+
+    override fun onResume() {
+        super.onResume()
+        // Retour au premier plan : nouvelle version publiée entre-temps ? (au plus toutes les 30 min)
+        (application as MeteoApp).updates.checkIfDue()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
