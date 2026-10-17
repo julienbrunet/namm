@@ -89,6 +89,8 @@ private fun HourRow(hours: List<HourlyForecast>, cell: @Composable (HourlyForeca
 /** Courbe lissée des températures, un point au centre de chaque colonne. */
 @Composable
 private fun TemperatureCurve(hours: List<HourlyForecast>, width: Dp) {
+    val primary = Slate.Primary
+    val secondary = Slate.Secondary
     Canvas(Modifier.width(width).height(CurveHeight)) {
         val temps = hours.map { it.temperature }
         val min = temps.min()
@@ -107,9 +109,9 @@ private fun TemperatureCurve(hours: List<HourlyForecast>, width: Dp) {
         }
         drawPath(
             path,
-            brush = Brush.horizontalGradient(listOf(Slate.Primary, Slate.Secondary)),
+            brush = Brush.horizontalGradient(listOf(primary, secondary)),
             style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
         )
-        points.forEach { drawCircle(Slate.Primary, radius = 3.dp.toPx(), center = it) }
+        points.forEach { drawCircle(primary, radius = 3.dp.toPx(), center = it) }
     }
 }

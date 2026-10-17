@@ -21,6 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.namm.meteo.ui.theme.ThemeMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Place
@@ -100,6 +105,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         aromeStatus = aromeStatus,
         onSaveAromeKey = { viewModel.testAndSaveAromeKey(it) },
         onRemoveAromeKey = { viewModel.removeAromeKey() },
+        onTheme = viewModel::setTheme,
     )
 }
 
@@ -120,6 +126,7 @@ fun SettingsContent(
     aromeStatus: String? = null,
     onSaveAromeKey: (String) -> Unit = {},
     onRemoveAromeKey: () -> Unit = {},
+    onTheme: (ThemeMode) -> Unit = {},
 ) {
     Column(
         Modifier
@@ -203,6 +210,10 @@ fun SettingsContent(
         }
 
         Spacer(Modifier.height(24.dp))
+        SectionLabel("APPARENCE")
+        ThemeSelector(settings.theme, onTheme)
+
+        Spacer(Modifier.height(24.dp))
         SectionLabel("CARTE DE PLUIE · MÉTÉO-FRANCE")
         AromeKeyCard(settings.aromeApiKey, aromeStatus, onSaveAromeKey, onRemoveAromeKey)
 
@@ -226,6 +237,46 @@ fun SettingsContent(
             color = Slate.Muted,
             style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+/** Sélecteur segmenté Système / Sombre / Clair. */
+@Composable
+private fun ThemeSelector(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(TileShape).background(Slate.Tile).padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        ThemeMode.entries.forEach { mode ->
+            val selected = mode == current
+            Row(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) Slate.TileHighlight else Slate.Tile)
+                    .clickable { onSelect(mode) }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    when (mode) {
+                        ThemeMode.SYSTEM -> Icons.Outlined.Contrast
+                        ThemeMode.DARK -> Icons.Outlined.DarkMode
+                        ThemeMode.LIGHT -> Icons.Outlined.LightMode
+                    },
+                    null,
+                    tint = if (selected) Slate.Primary else Slate.Secondary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    mode.label,
+                    color = if (selected) Slate.Primary else Slate.Secondary,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
     }
 }
 

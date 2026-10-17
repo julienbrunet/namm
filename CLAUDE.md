@@ -53,7 +53,7 @@ echo "robolectricRepo=https://maven-central.storage-download.googleapis.com/mave
 ## Conventions
 - Code et commentaires en français pour les libellés UI ; noms de code en anglais.
 - Couches : `ui` (Compose + ViewModel) → `domain` (modèles) → `data` (remote / repository). DI manuelle dans `MeteoApp`.
-- Design **sobre « ardoise »** (voir `ui/theme/Theme.kt`, objet `Slate`) : fond `#353A45`, tuiles arrondies `#2F333D`, texte blanc/gris, grandes typos fines, pastilles discrètes. Pas de couleurs vives hormis le bleu pluie `#8FB3D9`. Le site reprend la même palette.
+- Design **sobre « ardoise »** (voir `ui/theme/Theme.kt`) : thèmes `DarkSlate` (fond `#353A45`, tuiles `#2F333D`, bleu pluie `#8FB3D9`) et `LightSlate` (fond `#E9EBEF`, tuiles `#F8F9FA`, bleu `#3F7CC4`), choix Système/Sombre/Clair dans Paramètres. Toujours passer par `Slate.X` (couleurs du thème courant, lisibles seulement dans un composable : les capturer avant un `Canvas`). Grandes typos fines, pastilles discrètes, pas de couleurs vives hormis le bleu pluie. Les captures Roborazzi couvrent les deux thèmes. Le site reprend la palette sombre.
 - Aucune dépendance publicitaire, analytics ou Google Play Services (compatibilité F-Droid).
 - Tests : fixtures dans `app/src/test/resources/` (`forecast.json`, `geocoding.json` réelles — bloc `hourly` de `forecast.json` complété ; `grid.json` au format multi-points) ; tout nouvel écran a un test Roborazzi (`ScreenshotTest`, application neutre `android.app.Application` pour éviter WorkManager).
 - Accueil = position GPS par défaut ; lieux préenregistrés gérés dans Paramètres (`SettingsStore`). La carte utilise le même lieu que l'accueil.

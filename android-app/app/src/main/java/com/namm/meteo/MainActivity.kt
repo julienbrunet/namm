@@ -1,7 +1,11 @@
 package com.namm.meteo
 
 import android.os.Bundle
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.DisposableEffect
+import com.namm.meteo.ui.theme.ThemeMode
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -38,7 +42,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val app = application as MeteoApp
         setContent {
-            MeteoTheme {
+            val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+            val mode = settings?.theme ?: ThemeMode.SYSTEM
+            MeteoTheme(mode) {
+                // Icônes de la barre d'état claires sur fond sombre, foncées sur fond clair.
+                val dark = Slate.isDark
+                DisposableEffect(dark) {
+                    val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
+                    else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                    onDispose {}
+                }
                 var screen by rememberSaveable { mutableStateOf(Screen.Forecast) }
                 val forecastViewModel: ForecastViewModel = viewModel(factory = ForecastViewModel.Factory)
                 val forecastState by forecastViewModel.state.collectAsStateWithLifecycle()

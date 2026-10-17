@@ -158,6 +158,12 @@ class ForecastGridOverlay : Overlay() {
         }
     private var bitmap: Bitmap? = null
     private val paint = Paint().apply { isFilterBitmap = false } // contours nets, pas de flou
+    /** Couleur des pointillés de la zone de prévision (selon le thème). */
+    var outlineColor: Int = 0x55F2F3F5
+        set(value) {
+            field = value
+            outline.color = value
+        }
     private val outline = Paint().apply {
         style = Paint.Style.STROKE
         color = 0x55F2F3F5

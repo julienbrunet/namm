@@ -15,6 +15,7 @@ import com.namm.meteo.ui.map.MapUiState
 import com.namm.meteo.ui.settings.SearchState
 import com.namm.meteo.ui.settings.SettingsContent
 import com.namm.meteo.ui.theme.MeteoTheme
+import com.namm.meteo.ui.theme.ThemeMode
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,8 +33,12 @@ class ScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun capture(name: String, content: @androidx.compose.runtime.Composable () -> Unit) {
-        compose.setContent { MeteoTheme(content) }
+    private fun capture(
+        name: String,
+        mode: ThemeMode = ThemeMode.DARK,
+        content: @androidx.compose.runtime.Composable () -> Unit,
+    ) {
+        compose.setContent { MeteoTheme(mode, content) }
         compose.onRoot().captureRoboImage("screenshots/$name.png")
     }
 
@@ -92,6 +97,25 @@ class ScreenshotTest {
             updateStatus = null,
             aromeStatus = "Clé valide ✓ · run du 16/10 23:00 · couche total precipitation rate",
         )
+    }
+
+    @Test
+    fun accueilClair() = capture("accueil_clair", ThemeMode.LIGHT) { ForecastContent(Fixtures.localForecast()) }
+
+    @Test
+    fun parametresClair() = capture("parametres_clair", ThemeMode.LIGHT) {
+        SettingsContent(
+            settings = Settings(theme = ThemeMode.LIGHT, savedPlaces = listOf(Place("Brest", 48.39, -4.49, "Bretagne, France"))),
+            search = SearchState(),
+            versionName = "0.1.14",
+            updateStatus = null,
+        )
+    }
+
+    @Test
+    fun carteClair() = capture("carte_clair", ThemeMode.LIGHT) {
+        val map = Fixtures.rainMap()
+        MapContent(MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3, loadedAt = 1_792_180_800_000L), online = false)
     }
 
     @Test

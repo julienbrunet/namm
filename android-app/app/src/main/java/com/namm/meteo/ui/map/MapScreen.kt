@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -130,7 +131,6 @@ private fun RainMapView(
     val mapView = remember {
         MapView(context).apply {
             setTileSource(OsmTiles)
-            overlayManager.tilesOverlay.setColorFilter(SlateMapFilter)
             setUseDataConnection(online)
             setMultiTouchControls(true)
             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
@@ -139,10 +139,6 @@ private fun RainMapView(
             controller.setZoom(8.0) // la zone de prévision (~190 km) remplit l'écran
             controller.setCenter(GeoPoint(place.latitude, place.longitude))
             isTilesScaledToDpi = true
-            setBackgroundColor(0xFF2F333D.toInt())
-            // Le filtre ardoise inverse les couleurs : un fond clair devient ardoise sombre.
-            overlayManager.tilesOverlay.loadingBackgroundColor = 0xFFD8D8DC.toInt()
-            overlayManager.tilesOverlay.loadingLineColor = 0xFFD8D8DC.toInt()
             overlays.add(Marker(this).apply {
                 position = GeoPoint(place.latitude, place.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
@@ -152,6 +148,20 @@ private fun RainMapView(
         }
     }
     val radarOverlay = remember { RadarOverlay(mapView) }
+    // Thème sombre : tuiles OSM assombries par le filtre ardoise ; thème clair : tuiles d'origine.
+    val dark = Slate.isDark
+    val background = Slate.Tile.toArgb()
+    LaunchedEffect(dark) {
+        mapView.setBackgroundColor(background)
+        mapView.overlayManager.tilesOverlay.apply {
+            setColorFilter(if (dark) SlateMapFilter else null)
+            // Le filtre inverse les couleurs : en sombre, un fond clair devient ardoise sombre.
+            loadingBackgroundColor = if (dark) 0xFFD8D8DC.toInt() else 0xFFE9EBEF.toInt()
+            loadingLineColor = loadingBackgroundColor
+        }
+        gridOverlay.outlineColor = if (dark) 0x55F2F3F5 else 0x662B2F38
+        mapView.invalidate()
+    }
     val viewportCallback by rememberUpdatedState(onViewportChanged)
     DisposableEffect(mapView) {
         fun report() = mapView.boundingBox.let {

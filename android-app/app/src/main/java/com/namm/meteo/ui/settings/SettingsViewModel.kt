@@ -15,6 +15,7 @@ import com.namm.meteo.data.location.LocationProvider
 import com.namm.meteo.data.repository.PlaceRepository
 import com.namm.meteo.data.update.UpdateManager
 import com.namm.meteo.domain.Place
+import com.namm.meteo.ui.theme.ThemeMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,6 +113,7 @@ class SettingsViewModel(
     fun chooseCurrentLocation() = viewModelScope.launch { store.selectCurrentLocation() }
     fun remove(place: Place) = viewModelScope.launch { store.removePlace(place) }
     fun setRainAlerts(value: Boolean) = viewModelScope.launch { store.setRainAlerts(value) }
+    fun setTheme(value: ThemeMode) = viewModelScope.launch { store.setTheme(value) }
     fun setAutoUpdate(value: Boolean) = viewModelScope.launch { store.setAutoUpdate(value) }
 
     fun checkUpdate() = viewModelScope.launch {

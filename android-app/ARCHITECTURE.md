@@ -75,4 +75,5 @@ com.namm.meteo
 5. ✅ Carte de prévision précipitations (grille 15 min)
 6. ✅ Widget Glance + notification « pluie dans l'heure »
 7. ✅ Mise à jour automatique depuis GitHub Releases
-8. À venir : publication F-Droid, alertes vigilance Météo-France, thème clair
+8. ✅ Thème clair (Système / Sombre / Clair)
+9. À venir : publication F-Droid, alertes vigilance Météo-France
