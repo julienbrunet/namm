@@ -73,7 +73,7 @@ class SettingsStore(private val context: Context) {
     }
 
     suspend fun setRainAlerts(value: Boolean) = context.dataStore.edit { it[Keys.rainAlerts] = value }
-    suspend fun setAromeApiKey(value: String) = context.dataStore.edit { it[Keys.aromeApiKey] = value.trim() }
+    suspend fun setAromeApiKey(value: String) = context.dataStore.edit { it[Keys.aromeApiKey] = value.filterNot { c -> c.isWhitespace() } }
     suspend fun setAutoUpdate(value: Boolean) = context.dataStore.edit { it[Keys.autoUpdate] = value }
 
     private inline fun <T> decode(block: () -> T): T? = runCatching(block).getOrNull()

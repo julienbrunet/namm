@@ -49,6 +49,7 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
 
     /** Découvre la couche de précipitation et le run le plus récent (mémorisé 5 min). */
     suspend fun latestLayer(key: String, fresh: Boolean = false): AromeLayer {
+        if (fresh) token = null
         val now = System.currentTimeMillis()
         cachedLayer?.takeIf { !fresh && now - it.first < 5 * 60_000 }?.let { return it.second }
         val layer = chooseLayer(get(key, "$BASE/GetCapabilities?service=WCS&version=2.0.1&language=fre").decodeToString())
@@ -104,13 +105,18 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
      *   (client_credentials) et le renouvelle avant expiration.
      * Un JWT pouvant être l'un ou l'autre, on essaie `apikey` puis `Bearer`.
      */
-    private fun attempts(key: String): List<suspend (Request.Builder) -> Unit> = when (credentialType(key)) {
-        CredentialType.API_KEY -> listOf({ b -> b.header("apikey", key) })
-        CredentialType.JWT -> listOf({ b -> b.header("apikey", key) }, { b -> b.header("Authorization", "Bearer $key") })
-        CredentialType.APPLICATION_ID -> listOf(
-            { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = false)}") },
-            { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = true)}") }, // jeton expiré entre-temps
-        )
+    private fun attempts(rawKey: String): List<suspend (Request.Builder) -> Unit> {
+        val key = normalizeKey(rawKey)
+        // On ne se fie pas au type deviné : on essaie chaque méthode, la plus probable d'abord.
+        val apiKey: suspend (Request.Builder) -> Unit = { b -> b.header("apikey", key) }
+        val bearer: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer $key") }
+        val viaToken: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = false)}") }
+        val viaNewToken: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = true)}") }
+        return when (credentialType(key)) {
+            CredentialType.APPLICATION_ID -> listOf(viaToken, viaNewToken, apiKey, bearer)
+            CredentialType.JWT -> listOf(apiKey, bearer)
+            CredentialType.API_KEY -> listOf(apiKey, bearer, viaToken)
+        }
     }
 
     private suspend fun accessToken(applicationId: String, renew: Boolean): String = withContext(Dispatchers.IO) {
@@ -134,7 +140,13 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
     private suspend fun get(key: String, url: String): ByteArray {
         var refused: String? = null
         for (auth in attempts(key)) {
-            val request = Request.Builder().url(url).also { auth(it) }.build()
+            // Une méthode qui échoue avant même l'appel (ex. jeton refusé) passe à la suivante.
+            val request = try {
+                Request.Builder().url(url).also { auth(it) }.build()
+            } catch (e: IOException) {
+                refused = e.message
+                continue
+            }
             val result = withContext(Dispatchers.IO) {
                 client.newCall(request).execute().use { r ->
                     if (r.isSuccessful) return@use r.body?.bytes() ?: throw IOException("Réponse vide")
@@ -154,13 +166,16 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
 
         enum class CredentialType { API_KEY, JWT, APPLICATION_ID }
 
+        /** Supprime espaces et retours à la ligne (fréquents en copiant depuis le portail). */
+        fun normalizeKey(key: String) = key.filterNot { it.isWhitespace() }
+
         /** Devine le type d'identifiant collé par l'utilisateur. */
-        fun credentialType(key: String): CredentialType = when {
+        fun credentialType(rawKey: String): CredentialType = normalizeKey(rawKey).let { key -> when {
             key.startsWith("eyJ") && key.count { it == '.' } == 2 -> CredentialType.JWT
             runCatching { String(java.util.Base64.getDecoder().decode(key)) }.getOrNull()
                 ?.let { it.contains(':') && it.all { c -> c.code in 33..126 } } == true -> CredentialType.APPLICATION_ID
             else -> CredentialType.API_KEY
-        }
+        } }
 
         /** Message lisible extrait d'une erreur JSON / XML du portail. */
         internal fun errorMessage(body: String): String =

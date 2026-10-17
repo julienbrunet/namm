@@ -49,7 +49,7 @@ class SettingsViewModel(
             return@launch
         }
         _aromeStatus.value = "Vérification…"
-        _aromeStatus.value = runCatching { arome.latestLayer(key.trim(), fresh = true) }.fold(
+        _aromeStatus.value = runCatching { arome.latestLayer(AromePiSource.normalizeKey(key), fresh = true) }.fold(
             onSuccess = {
                 store.setAromeApiKey(key)
                 val run = java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
@@ -63,8 +63,8 @@ class SettingsViewModel(
                     AromePiSource.Companion.CredentialType.JWT -> "API Key ou jeton"
                     AromePiSource.Companion.CredentialType.APPLICATION_ID -> "Application ID"
                 }
-                if (it is InvalidKeyException) "Identifiant reconnu comme $type, mais refusé : ${it.message}. " +
-                    "Vérifiez l'abonnement de l'application à AROME-PI sur le portail."
+                if (it is InvalidKeyException) "Identifiant ($type probable) refusé après essai de toutes les méthodes : ${it.message}. " +
+                    "Vérifiez que l'application est abonnée à AROME-PI sur le portail, puis régénérez la clé."
                 else "Vérification impossible : ${it.message}"
             },
         )

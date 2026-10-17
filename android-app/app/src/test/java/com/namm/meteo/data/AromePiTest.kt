@@ -135,3 +135,12 @@ class AromeCredentialsTest {
         )
     }
 }
+
+class AromeKeyNormalizationTest {
+    @Test
+    fun whitespaceInsidePastedKeyIsRemoved() {
+        assertEquals("abcDEF123", AromePiSource.normalizeKey(" abc DEF\n123 \t"))
+        val jwt = "eyJhbGciOi.\neyJzdWIi.c2ln bmF0dXJl"
+        assertEquals(AromePiSource.Companion.CredentialType.JWT, AromePiSource.credentialType(jwt))
+    }
+}
