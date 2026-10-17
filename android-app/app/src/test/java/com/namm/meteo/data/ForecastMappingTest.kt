@@ -1,6 +1,8 @@
 package com.namm.meteo.data
 
 import com.namm.meteo.Fixtures
+import com.namm.meteo.data.repository.StaleReason
+import com.namm.meteo.data.repository.staleReason
 import com.namm.meteo.data.repository.toDomain
 import com.namm.meteo.data.repository.toPlaces
 import org.junit.Assert.assertEquals
@@ -43,5 +45,16 @@ class ForecastMappingTest {
 
         assertEquals("Clermont-Ferrand", places.first().name)
         assertTrue(places.first().detail!!.contains("France"))
+    }
+}
+
+class StaleReasonTest {
+    @Test
+    fun reasonIsDerivedFromTheFailure() {
+        val tooMany = retrofit2.HttpException(
+            retrofit2.Response.error<Any>(429, okhttp3.ResponseBody.create(null, "")),
+        )
+        assertEquals(StaleReason.RATE_LIMITED, tooMany.staleReason())
+        assertEquals(StaleReason.NO_NETWORK, java.net.UnknownHostException().staleReason())
     }
 }

@@ -2,6 +2,7 @@ package com.namm.meteo.data.repository
 
 import com.namm.meteo.data.arome.AromePiSource
 import com.namm.meteo.data.remote.GridPointDto
+import com.namm.meteo.data.remote.OpenMeteoQuota
 import com.namm.meteo.data.remote.OpenMeteoApi
 import com.namm.meteo.data.remote.RainViewerApi
 import com.namm.meteo.data.remote.RainViewerMapsDto
@@ -38,6 +39,11 @@ class RainMapRepository(
         RainMap(grid, frames)
     }
 
+    /** Vrai si la dernière prévision chargée est incomplète (Open-Meteo indisponible). */
+    @Volatile
+    var lastPartial: Boolean = false
+        private set
+
     /** Zones de prévision déjà téléchargées (les plus récentes en tête). */
     private val cache = ArrayDeque<CachedGrid>()
 
@@ -64,12 +70,17 @@ class RainMapRepository(
         coroutineScope {
             val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
             val aromeFrames = key?.let { async { runCatching { arome.forecast(it, grid, now) }.getOrDefault(emptyList()) } }
-            val openMeteoFrames = runCatching { openMeteoFrames(grid, now) }
+            // Avec AROME-PI, Open-Meteo ne sert qu'au-delà de +6 h : une grille grossière suffit
+            // (≈ 80 points au lieu de 192) et ménage le quota par minute.
+            val openMeteoGrid = if (key != null) coarse(grid) else grid
+            val openMeteoFrames = runCatching { openMeteoFrames(openMeteoGrid, now) }
             val precise = aromeFrames?.await().orEmpty()
             val after = precise.lastOrNull()?.time ?: Long.MIN_VALUE
             val frames = precise + openMeteoFrames.getOrNull().orEmpty().filter { it.time > after }
             if (frames.isEmpty()) openMeteoFrames.getOrThrow()
-            frames.also { cacheFrames(grid, it, now) }
+            // Prévision incomplète (Open-Meteo saturé) : non mise en cache, et nouvel essai rapide.
+            lastPartial = openMeteoFrames.isFailure
+            frames.also { if (!lastPartial) cacheFrames(grid, it, now) }
         }
 
     private fun cacheFrames(grid: ForecastGrid, frames: List<MapFrame>, now: Long) {
@@ -80,6 +91,8 @@ class RainMapRepository(
     }
 
     private suspend fun openMeteoFrames(grid: ForecastGrid, now: Long): List<MapFrame> {
+        // Open-Meteo saturé : la carte attend, pour laisser le quota à l'accueil.
+        if (OpenMeteoQuota.isBlocked) throw java.io.IOException("Open-Meteo saturé, nouvel essai dans une minute")
         val points = grid.coordinates()
         return forecastFrames(
             grid,
@@ -109,6 +122,23 @@ class RainMapRepository(
             rows = GRID_ROWS,
             cols = GRID_COLS,
         )
+
+        const val COARSE_COLS = 8
+        const val COARSE_ROWS = 10
+
+        /** Même emprise que [grid] avec moins de points (prévision au-delà de +6 h). */
+        fun coarse(grid: ForecastGrid): ForecastGrid {
+            val north = grid.south + grid.latStep * (grid.rows - 1)
+            val east = grid.west + grid.lonStep * (grid.cols - 1)
+            return ForecastGrid(
+                south = grid.south,
+                west = grid.west,
+                latStep = (north - grid.south) / (COARSE_ROWS - 1),
+                lonStep = (east - grid.west) / (COARSE_COLS - 1),
+                rows = COARSE_ROWS,
+                cols = COARSE_COLS,
+            )
+        }
 
         /** Grille couvrant la zone visible (+10 % de marge), même nombre de points quel que soit le zoom. */
         fun gridFor(view: Bounds): ForecastGrid {

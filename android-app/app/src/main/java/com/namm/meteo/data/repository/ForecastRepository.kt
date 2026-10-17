@@ -18,8 +18,24 @@ data class LocalForecast(
     val place: Place,
     val forecast: Forecast,
     val fetchedAtMillis: Long,
-    val offline: Boolean = false,
-)
+    /** Non nul quand la mise à jour a échoué et que l'on affiche la dernière prévision connue. */
+    val staleReason: StaleReason? = null,
+) {
+    val offline: Boolean get() = staleReason != null
+}
+
+enum class StaleReason(val label: String) {
+    NO_NETWORK("pas de réseau"),
+    RATE_LIMITED("Open-Meteo saturé"),
+    ERROR("service indisponible"),
+}
+
+internal fun Throwable.staleReason(): StaleReason = when {
+    this is retrofit2.HttpException && code() == 429 -> StaleReason.RATE_LIMITED
+    this is java.net.UnknownHostException || this is java.net.ConnectException ||
+        this is java.net.SocketTimeoutException -> StaleReason.NO_NETWORK
+    else -> StaleReason.ERROR
+}
 
 class ForecastRepository(
     private val api: OpenMeteoApi,
@@ -44,7 +60,7 @@ class ForecastRepository(
             cache.write(CachedForecast(target, now, dto))
             LocalForecast(target, dto.toDomain(), now)
         } catch (e: Exception) {
-            cached()?.copy(offline = true) ?: throw e
+            cached()?.copy(staleReason = e.staleReason()) ?: throw e
         }
     }
 

@@ -32,6 +32,11 @@ Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à 
 4. Rafraîchissement : automatique si les données ont > 10 min (vérifié chaque minute tant que l'écran est visible) + pastille « Mis à jour à HH:mm » cliquable. Accueil : tirer vers le bas pour actualiser.
 5. Évolution possible : convertir les GRIB2 AROME de [meteo.data.gouv.fr](https://meteo.data.gouv.fr) en tuiles pour une carte nationale.
 
+### Quota Open-Meteo
+- `OpenMeteoQuota` : un 429 d'Open-Meteo bloque la carte ~60 s (Retry-After) pour laisser passer l'accueil.
+- Accueil en échec : pastille « données de HH:mm · raison » (pas de réseau / Open-Meteo saturé / service indisponible) et nouvel essai automatique.
+- Carte avec AROME-PI : grille Open-Meteo réduite à 8 × 10 points (au-delà de +6 h seulement) ; prévision incomplète non mise en cache et rechargée après 1 min.
+
 ### AROME-PI (si une clé est saisie)
 - `AromePiSource` : GetCapabilities (mémorisé 5 min) → choix automatique de la couche de précipitation (taux > cumul 15 min > cumul depuis le run) et du dernier run ;
   puis un GetCoverage GeoTIFF par pas de 15 min (4 en parallèle) sur l'emprise de la grille, réduit à ≤ 160 px.

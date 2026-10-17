@@ -110,7 +110,9 @@ class MapViewModel(
     /** Recharge si les données ont plus de [REFRESH_MS] (radar mis à jour toutes les 10 min). */
     fun refreshIfStale() {
         val s = _state.value
-        if (s is MapUiState.Ready && !s.refreshing && clock() - s.loadedAt >= REFRESH_MS) load()
+        // Prévision incomplète (Open-Meteo saturé) : on réessaie dès la minute suivante.
+        val maxAge = if (rainMaps.lastPartial) 60_000L else REFRESH_MS
+        if (s is MapUiState.Ready && !s.refreshing && clock() - s.loadedAt >= maxAge) load()
         if (s is MapUiState.Error) load()
     }
 

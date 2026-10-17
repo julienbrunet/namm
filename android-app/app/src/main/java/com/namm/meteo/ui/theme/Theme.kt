@@ -45,9 +45,9 @@ val LightSlate = SlatePalette(
     background = Color(0xFFE9EBEF),
     tile = Color(0xFFF8F9FA),
     tileHighlight = Color(0xFFDADDE3),
-    primary = Color(0xFF2B2F38),
-    secondary = Color(0xFF5E6470),
-    muted = Color(0xFF8A909B),
+    primary = Color(0xFF454B57),
+    secondary = Color(0xFF6E7480),
+    muted = Color(0xFF979CA6),
     rain = Color(0xFF3F7CC4),
     isDark = false,
 )

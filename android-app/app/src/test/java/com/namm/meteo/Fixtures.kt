@@ -28,7 +28,7 @@ object Fixtures {
 
     val paris = Place("Paris", 48.8566, 2.3522, "Position actuelle")
 
-    fun localForecast(offline: Boolean = false) = LocalForecast(paris, forecastDto().toDomain(), 0L, offline)
+    fun localForecast(offline: Boolean = false) = LocalForecast(paris, forecastDto().toDomain(), 1_792_178_100_000L, if (offline) com.namm.meteo.data.repository.StaleReason.RATE_LIMITED else null)
 
     /** Carte de pluie synthétique : une cellule pluvieuse qui traverse la grille. */
     fun rainMap(): RainMap {

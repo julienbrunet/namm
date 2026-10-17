@@ -57,6 +57,18 @@ class RainMapTest {
     }
 
     @Test
+    fun coarseGridKeepsTheSameArea() {
+        val grid = RainMapRepository.gridFor(Bounds(48.0, 1.0, 50.0, 4.0))
+        val coarse = RainMapRepository.coarse(grid)
+        val a = grid.coordinates()
+        val b = coarse.coordinates()
+
+        assertEquals(80, b.size)
+        assertEquals(a.first().first, b.first().first, 1e-9)
+        assertEquals(a.last().second, b.last().second, 1e-9)
+    }
+
+    @Test
     fun `url des tuiles radar RainViewer`() {
         val frames = RainViewerMapsDto("https://tilecache.rainviewer.com", RadarDto(listOf(RadarFrameDto(1, "/v2/radar/abc"))))
             .toFrames()

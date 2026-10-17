@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -112,6 +114,7 @@ fun ForecastScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ForecastContent(
     data: LocalForecast,
@@ -159,13 +162,18 @@ fun ForecastContent(
             )
         }
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill(
                 now.dayOfWeek.getDisplayName(TextStyle.FULL, French).replaceFirstChar { it.uppercase() } +
                     " ${now.dayOfMonth} " + now.month.getDisplayName(TextStyle.FULL, French) +
                     " · " + forecast.current.time.substringAfter('T'),
             )
-            if (data.offline) Pill("hors-ligne")
+            // Mise à jour échouée : on dit de quand datent les données et pourquoi.
+            data.staleReason?.let { reason ->
+                val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                    .format(java.time.Instant.ofEpochMilli(data.fetchedAtMillis).atZone(java.time.ZoneId.systemDefault()))
+                Pill("données de $time · ${reason.label}")
+            }
         }
 
         UpdateBanner(update, onUpdateAction)

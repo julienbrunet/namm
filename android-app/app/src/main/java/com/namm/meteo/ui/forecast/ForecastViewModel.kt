@@ -68,6 +68,22 @@ class ForecastViewModel(
                 onFailure = { (_state.value as? ForecastUiState.Success) ?: ForecastUiState.Error(it.message ?: "Erreur réseau") },
             )
             _refreshing.value = false
+            scheduleRetry()
+        }
+    }
+
+    private var retryJob: kotlinx.coroutines.Job? = null
+
+    /** Données en cache affichées : nouvel essai automatique (après la fin de la saturation si connue). */
+    private fun scheduleRetry() {
+        retryJob?.cancel()
+        val data = (_state.value as? ForecastUiState.Success)?.data ?: return
+        if (data.staleReason == null) return
+        retryJob = viewModelScope.launch {
+            val wait = (com.namm.meteo.data.remote.OpenMeteoQuota.blockedUntilMillis - System.currentTimeMillis())
+                .coerceAtLeast(30_000) + 2_000
+            kotlinx.coroutines.delay(wait)
+            refresh()
         }
     }
 
