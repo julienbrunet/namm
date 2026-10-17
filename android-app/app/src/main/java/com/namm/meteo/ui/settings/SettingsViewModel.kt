@@ -37,6 +37,7 @@ class SettingsViewModel(
     private val updates: UpdateController,
     private val location: LocationProvider,
     private val arome: AromePiSource,
+    private val onThemeChanged: () -> Unit = {},
 ) : ViewModel() {
 
     private val _aromeStatus = MutableStateFlow<String?>(null)
@@ -113,7 +114,10 @@ class SettingsViewModel(
     fun chooseCurrentLocation() = viewModelScope.launch { store.selectCurrentLocation() }
     fun remove(place: Place) = viewModelScope.launch { store.removePlace(place) }
     fun setRainAlerts(value: Boolean) = viewModelScope.launch { store.setRainAlerts(value) }
-    fun setTheme(value: ThemeMode) = viewModelScope.launch { store.setTheme(value) }
+    fun setTheme(value: ThemeMode) = viewModelScope.launch {
+        store.setTheme(value)
+        onThemeChanged()
+    }
     fun setAutoUpdate(value: Boolean) = viewModelScope.launch { store.setAutoUpdate(value) }
 
     fun checkUpdate() = viewModelScope.launch {
@@ -131,7 +135,7 @@ class SettingsViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MeteoApp
-                SettingsViewModel(app.settings, app.placeRepository, app.updates, app.location, app.aromePi)
+                SettingsViewModel(app.settings, app.placeRepository, app.updates, app.location, app.aromePi) { com.namm.meteo.widget.Widgets.refreshNow(app) }
             }
         }
     }

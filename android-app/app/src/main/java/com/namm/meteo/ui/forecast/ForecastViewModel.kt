@@ -29,6 +29,7 @@ class ForecastViewModel(
     private val repository: ForecastRepository,
     private val settings: SettingsStore,
     private val updates: UpdateController,
+    private val onRefreshed: suspend () -> Unit = {},
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ForecastUiState>(
@@ -61,6 +62,8 @@ class ForecastViewModel(
             )
             _refreshing.value = false
             scheduleRetry()
+            // Les widgets reflètent tout de suite la nouvelle prévision.
+            (_state.value as? ForecastUiState.Success)?.takeIf { it.data.staleReason == null }?.let { onRefreshed() }
         }
     }
 
@@ -85,7 +88,7 @@ class ForecastViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MeteoApp
-                ForecastViewModel(app.forecastRepository, app.settings, app.updates)
+                ForecastViewModel(app.forecastRepository, app.settings, app.updates) { com.namm.meteo.widget.Widgets.updateAll(app) }
             }
         }
     }

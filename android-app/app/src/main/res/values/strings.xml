@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">No Ad Météo</string>
-    <string name="widget_description">Température et pluie à venir</string>
+    <string name="widget_mini_label">Météo · mini</string>
+    <string name="widget_mini_description">Icône, température et lieu</string>
+    <string name="widget_rain_label">Météo · pluie</string>
+    <string name="widget_rain_description">Température et pluie des 2 prochaines heures</string>
+    <string name="widget_day_label">Météo · journée</string>
+    <string name="widget_day_description">Météo actuelle et 6 prochaines heures</string>
+    <string name="widget_week_label">Météo · semaine</string>
+    <string name="widget_week_description">Météo actuelle et 5 jours</string>
+    <string name="widget_map_label">Carte de pluie</string>
+    <string name="widget_map_description">Carte de pluie autour de vous</string>
 </resources>

@@ -26,14 +26,59 @@
         </activity>
 
         <receiver
-            android:name=".widget.WeatherWidgetReceiver"
+            android:name=".widget.MiniWidgetReceiver"
+            android:label="@string/widget_mini_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/weather_widget" />
+                android:resource="@xml/widget_mini" />
+        </receiver>
+        <receiver
+            android:name=".widget.RainWidgetReceiver"
+            android:label="@string/widget_rain_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_rain" />
+        </receiver>
+        <receiver
+            android:name=".widget.DayWidgetReceiver"
+            android:label="@string/widget_day_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_day" />
+        </receiver>
+        <receiver
+            android:name=".widget.WeekWidgetReceiver"
+            android:label="@string/widget_week_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week" />
+        </receiver>
+        <receiver
+            android:name=".widget.MapWidgetReceiver"
+            android:label="@string/widget_map_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_map" />
         </receiver>
 
         <provider

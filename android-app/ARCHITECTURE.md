@@ -49,7 +49,7 @@ Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à 
 - Réseau : **Retrofit + OkHttp + kotlinx.serialization** (`Network`)
 - Cache hors-ligne : dernière prévision en JSON (`ForecastCache`) ; préférences et lieux enregistrés : **DataStore**
 - Arrière-plan : **WorkManager** (`RefreshWorker`, 30 min) : cache, widget, alerte « pluie dans l'heure », vérification de mise à jour
-- Widget : **Jetpack Glance** (`WeatherWidget`)
+- Widgets : **Jetpack Glance** (`widget/`) — 5 variantes ; la carte est une image (fond OSM en cache disque + pluie) recalculée toutes les 30 min
 - Localisation : `LocationManager` natif (fused/GPS/réseau), sans Google Play Services → compatible F-Droid
 - Carte : **osmdroid**
 - Mise à jour : `UpdateManager` (GitHub Releases → DownloadManager → installateur Android via FileProvider)
@@ -81,4 +81,5 @@ com.namm.meteo
 6. ✅ Widget Glance + notification « pluie dans l'heure »
 7. ✅ Mise à jour automatique depuis GitHub Releases
 8. ✅ Thème clair (Système / Sombre / Clair)
-9. À venir : publication F-Droid, alertes vigilance Météo-France
+9. ✅ Widgets : mini, pluie, journée, semaine, carte de pluie (suivent le thème et le lieu)
+10. À venir : publication F-Droid, alertes vigilance Météo-France

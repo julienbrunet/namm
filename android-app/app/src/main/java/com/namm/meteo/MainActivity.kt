@@ -38,6 +38,18 @@ private enum class Screen { Forecast, Map, Settings }
 
 class MainActivity : ComponentActivity() {
 
+    /** Écran demandé par un widget (« map » pour le widget carte). */
+    private val requestedScreen = androidx.compose.runtime.mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        requestedScreen.value = intent.getStringExtra(EXTRA_SCREEN)
+    }
+
+    companion object {
+        const val EXTRA_SCREEN = "screen"
+    }
+
     override fun onResume() {
         super.onResume()
         // Retour au premier plan : nouvelle version publiée entre-temps ? (au plus toutes les 30 min)
@@ -48,6 +60,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as MeteoApp
+        requestedScreen.value = intent?.getStringExtra(EXTRA_SCREEN)
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             val mode = settings?.theme ?: ThemeMode.SYSTEM
@@ -72,6 +85,16 @@ class MainActivity : ComponentActivity() {
                     if (app.settings.current().useLocation && !app.location.hasPermission()) {
                         permission.launch(LocationProvider.PERMISSIONS)
                     }
+                }
+
+                // Ouverture depuis un widget : on va directement à l'écran demandé.
+                val requested = requestedScreen.value
+                LaunchedEffect(requested) {
+                    when (requested) {
+                        "map" -> screen = Screen.Map
+                        "forecast" -> screen = Screen.Forecast
+                    }
+                    requestedScreen.value = null
                 }
 
                 BackHandler(enabled = screen != Screen.Forecast) { screen = Screen.Forecast }
