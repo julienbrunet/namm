@@ -63,8 +63,8 @@ class SettingsViewModel(
                     AromePiSource.Companion.CredentialType.JWT -> "API Key ou jeton"
                     AromePiSource.Companion.CredentialType.APPLICATION_ID -> "Application ID"
                 }
-                if (it is InvalidKeyException) "Identifiant ($type probable) refusé après essai de toutes les méthodes : ${it.message}. " +
-                    "Vérifiez que l'application est abonnée à AROME-PI sur le portail, puis régénérez la clé."
+                if (it is InvalidKeyException) "Refusé ($type probable, ${AromePiSource.normalizeKey(key).length} caractères). " +
+                    "Détail : ${it.message}"
                 else "Vérification impossible : ${it.message}"
             },
         )

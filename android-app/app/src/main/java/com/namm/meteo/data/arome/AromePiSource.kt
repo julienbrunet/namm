@@ -105,15 +105,17 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
      *   (client_credentials) et le renouvelle avant expiration.
      * Un JWT pouvant être l'un ou l'autre, on essaie `apikey` puis `Bearer`.
      */
-    private fun attempts(rawKey: String): List<suspend (Request.Builder) -> Unit> {
+    private fun attempts(rawKey: String): List<Pair<String, suspend (Request.Builder) -> Unit>> {
         val key = normalizeKey(rawKey)
         // On ne se fie pas au type deviné : on essaie chaque méthode, la plus probable d'abord.
-        val apiKey: suspend (Request.Builder) -> Unit = { b -> b.header("apikey", key) }
-        val bearer: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer $key") }
-        val viaToken: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = false)}") }
-        val viaNewToken: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = true)}") }
+        val apiKeyAuth: suspend (Request.Builder) -> Unit = { b -> b.header("apikey", key) }
+        val bearerAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer $key") }
+        val tokenAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = true)}") }
+        val apiKey = "API Key" to apiKeyAuth
+        val bearer = "jeton" to bearerAuth
+        val viaToken = "Application ID" to tokenAuth
         return when (credentialType(key)) {
-            CredentialType.APPLICATION_ID -> listOf(viaToken, viaNewToken, apiKey, bearer)
+            CredentialType.APPLICATION_ID -> listOf(viaToken, apiKey, bearer)
             CredentialType.JWT -> listOf(apiKey, bearer)
             CredentialType.API_KEY -> listOf(apiKey, bearer, viaToken)
         }
@@ -128,7 +130,7 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
             .build()
         client.newCall(request).execute().use { r ->
             val body = r.body?.string().orEmpty()
-            if (!r.isSuccessful) throw InvalidKeyException("Application ID refusé (${r.code}) ${errorMessage(body)}".trim())
+            if (!r.isSuccessful) throw InvalidKeyException("demande de jeton ${r.code} ${errorMessage(body)}".trim())
             val access = Regex(""""access_token"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
                 ?: throw IOException("Jeton Météo-France introuvable dans la réponse")
             val expires = Regex(""""expires_in"\s*:\s*(\d+)""").find(body)?.groupValues?.get(1)?.toLong() ?: 3600
@@ -138,13 +140,13 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
     }
 
     private suspend fun get(key: String, url: String): ByteArray {
-        var refused: String? = null
-        for (auth in attempts(key)) {
-            // Une méthode qui échoue avant même l'appel (ex. jeton refusé) passe à la suivante.
+        // Résultat de chaque méthode, pour un diagnostic lisible si toutes échouent.
+        val refusals = mutableListOf<String>()
+        for ((name, auth) in attempts(key)) {
             val request = try {
                 Request.Builder().url(url).also { auth(it) }.build()
             } catch (e: IOException) {
-                refused = e.message
+                refusals += "$name : ${e.message}"
                 continue
             }
             val result = withContext(Dispatchers.IO) {
@@ -152,13 +154,13 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
                     if (r.isSuccessful) return@use r.body?.bytes() ?: throw IOException("Réponse vide")
                     val body = r.body?.string().orEmpty()
                     if (r.code != 401 && r.code != 403) throw IOException("Météo-France : HTTP ${r.code} ${errorMessage(body)}".trim())
-                    refused = "(${r.code}) ${errorMessage(body)}"
+                    refusals += "$name : ${r.code} ${errorMessage(body)}"
                     null
                 }
             }
             if (result != null) return result
         }
-        throw InvalidKeyException("Refusé par Météo-France ${refused.orEmpty()}".trim())
+        throw InvalidKeyException(refusals.joinToString(" · "))
     }
 
     companion object {
@@ -179,7 +181,7 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
 
         /** Message lisible extrait d'une erreur JSON / XML du portail. */
         internal fun errorMessage(body: String): String =
-            Regex(""""(?:description|message)"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
+            Regex(""""(?:error_description|description|message)"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
                 ?: Regex("""<(?:\w+:)?ExceptionText>([^<]+)<""").find(body)?.groupValues?.get(1)
                 ?: body.take(120).replace(Regex("\\s+"), " ")
 
