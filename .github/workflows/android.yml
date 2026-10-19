@@ -58,6 +58,15 @@ jobs:
           ./gradlew assembleRelease
           cp app/build/outputs/apk/release/app-release.apk no-ad-meteo.apk
 
+      # Garde-fou : R8 ne doit pas fusionner les classes de widgets (sinon tous les widgets
+      # affichent la même variante). Chaque classe doit rester présente sous son nom.
+      - name: Vérifier les classes de widgets dans l'APK release
+        run: |
+          for w in Mini Rain Day Week Map; do
+            grep -q "^com.namm.meteo.widget.${w}Widget -> com.namm.meteo.widget.${w}Widget:" \
+              app/build/outputs/mapping/release/mapping.txt || { echo "Classe ${w}Widget fusionnée par R8"; exit 1; }
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: apk-and-screenshots
