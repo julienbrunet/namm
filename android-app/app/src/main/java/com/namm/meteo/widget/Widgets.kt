@@ -42,7 +42,9 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
             ThemeMode.SYSTEM -> (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
         }
-        val colors = WidgetColors(if (dark) DarkSlate else LightSlate, settings.widgetBackground.alpha)
+        // Réglages propres à CE widget (fond, couleur du texte).
+        val style = WidgetConfigStore.read(context, GlanceAppWidgetManager(context).getAppWidgetId(id))
+        val colors = WidgetColors(if (dark) DarkSlate else LightSlate, style)
         val map = if (kind == WidgetKind.MAP) WidgetMapStore.read(context) else null
         val open = openAction(context, kind)
         provideContent {
@@ -66,12 +68,20 @@ class DayWidget : MeteoWidget(WidgetKind.DAY)
 class WeekWidget : MeteoWidget(WidgetKind.WEEK)
 class MapWidget : MeteoWidget(WidgetKind.MAP)
 
-class MiniWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = MiniWidget() }
-class RainWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = RainWidget() }
-class DayWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = DayWidget() }
-class WeekWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget = WeekWidget() }
+/** Supprime les réglages d'un widget retiré de l'écran d'accueil. */
+abstract class MeteoWidgetReceiver : GlanceAppWidgetReceiver() {
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        WidgetConfigStore.delete(context, appWidgetIds)
+    }
+}
 
-class MapWidgetReceiver : GlanceAppWidgetReceiver() {
+class MiniWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = MiniWidget() }
+class RainWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = RainWidget() }
+class DayWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = DayWidget() }
+class WeekWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = WeekWidget() }
+
+class MapWidgetReceiver : MeteoWidgetReceiver() {
     override val glanceAppWidget = MapWidget()
 
     override fun onEnabled(context: Context) {

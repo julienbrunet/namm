@@ -108,7 +108,6 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         onSaveAromeKey = { viewModel.testAndSaveAromeKey(it) },
         onRemoveAromeKey = { viewModel.removeAromeKey() },
         onTheme = viewModel::setTheme,
-        onWidgetBackground = viewModel::setWidgetBackground,
     )
 }
 
@@ -130,7 +129,6 @@ fun SettingsContent(
     onSaveAromeKey: (String) -> Unit = {},
     onRemoveAromeKey: () -> Unit = {},
     onTheme: (ThemeMode) -> Unit = {},
-    onWidgetBackground: (WidgetBackground) -> Unit = {},
 ) {
     Column(
         Modifier
@@ -218,12 +216,12 @@ fun SettingsContent(
         ThemeSelector(settings.theme, onTheme)
 
         Spacer(Modifier.height(24.dp))
-        SectionLabel("WIDGETS · FOND")
-        Segmented(
-            options = WidgetBackground.entries,
-            selected = settings.widgetBackground,
-            label = { it.label },
-            onSelect = onWidgetBackground,
+        SectionLabel("WIDGETS")
+        Text(
+            "Fond et couleur du texte se règlent pour chaque widget : appui long sur le widget → Paramètres.",
+            color = Slate.Secondary,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 2.dp),
         )
 
         Spacer(Modifier.height(24.dp))

@@ -71,8 +71,11 @@ class WidgetScreenshotTest {
         capture("widget_mini", 160, 80) { WidgetFrame(dark, open) { MiniContent(data, dark) } }
         capture("widget_pluie", 340, 80) { WidgetFrame(dark, open) { RainContent(data, dark) } }
         capture("widget_journee", 340, 170) { WidgetFrame(dark, open) { DayContent(data, dark) } }
-        val translucent = WidgetColors(DarkSlate, com.namm.meteo.data.local.WidgetBackground.TRANSLUCENT.alpha)
-        capture("widget_journee_transparent", 340, 170) { WidgetFrame(translucent, open) { DayContent(data, translucent) } }
+        val transparent = WidgetColors(
+            DarkSlate,
+            com.namm.meteo.widget.WidgetStyle(com.namm.meteo.widget.WidgetOpacity.TRANSPARENT, com.namm.meteo.widget.WidgetTextColor.LIGHT),
+        )
+        capture("widget_journee_transparent", 340, 170) { WidgetFrame(transparent, open) { DayContent(data, transparent) } }
         capture("widget_semaine", 340, 250) { WidgetFrame(light, open) { WeekContent(data, light) } }
         val map = Fixtures.rainMap()
         val frame = map.frames.filterIsInstance<MapFrame.Forecast>()[3]

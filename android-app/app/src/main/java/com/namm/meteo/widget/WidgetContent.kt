@@ -40,15 +40,24 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /** Couleurs d'un widget, issues de la palette ardoise (sombre ou claire). */
-class WidgetColors(p: SlatePalette, backgroundAlpha: Float = 1f) {
-    val background = p.background.copy(alpha = backgroundAlpha)
+class WidgetColors(p: SlatePalette, style: WidgetStyle = WidgetStyle()) {
+    private val text = when (style.text) {
+        WidgetTextColor.AUTO -> Triple(p.primary, p.secondary, p.muted)
+        WidgetTextColor.LIGHT -> WidgetTextPalettes.light
+        WidgetTextColor.DARK -> WidgetTextPalettes.dark
+    }
+    val background = p.background.copy(alpha = style.opacity.alpha)
     val tile = p.tile
-    val primary = ColorProvider(p.primary)
-    val secondary = ColorProvider(p.secondary)
-    val muted = ColorProvider(p.muted)
-    val rain = ColorProvider(p.rain)
-    val rainColor = p.rain
-    val track = p.tileHighlight
+    val primary = ColorProvider(text.first)
+    val secondary = ColorProvider(text.second)
+    val muted = ColorProvider(text.third)
+    val rainColor = when (style.text) {
+        WidgetTextColor.AUTO -> p.rain
+        WidgetTextColor.LIGHT -> WidgetTextPalettes.lightRain
+        WidgetTextColor.DARK -> WidgetTextPalettes.darkRain
+    }
+    val rain = ColorProvider(rainColor)
+    val track = if (style.opacity == WidgetOpacity.OPAQUE) p.tileHighlight else text.third.copy(alpha = 0.35f)
 }
 
 fun WeatherCondition.widgetIcon(): Int = when (this) {

@@ -119,6 +119,15 @@ class ScreenshotTest {
     }
 
     @Test
+    fun reglagesWidget() = capture("widget_reglages") {
+        com.namm.meteo.widget.WidgetConfigContent(
+            initial = com.namm.meteo.widget.WidgetStyle(com.namm.meteo.widget.WidgetOpacity.LOW, com.namm.meteo.widget.WidgetTextColor.LIGHT),
+            isMap = false,
+            onSave = {},
+        )
+    }
+
+    @Test
     fun carte() = capture("carte") {
         val map = Fixtures.rainMap()
         MapContent(MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3, loadedAt = 1_792_180_800_000L), online = false)
