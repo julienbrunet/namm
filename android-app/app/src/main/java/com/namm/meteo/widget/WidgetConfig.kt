@@ -21,6 +21,8 @@ data class WidgetStyle(
     val opacity: WidgetOpacity = WidgetOpacity.OPAQUE,
     val text: WidgetTextColor = WidgetTextColor.AUTO,
     val background: WidgetBgColor = WidgetBgColor.AUTO,
+    /** Heures de prévision affichées (widgets Journée / 12 h) ; null = défaut du widget. */
+    val hours: Int? = null,
 )
 
 /** Réglages propres à chaque widget posé (clé = appWidgetId Android). */
@@ -36,6 +38,7 @@ object WidgetConfigStore {
                 ?: WidgetTextColor.AUTO,
             background = p.getString("bg_$appWidgetId", null)?.let { runCatching { WidgetBgColor.valueOf(it) }.getOrNull() }
                 ?: WidgetBgColor.AUTO,
+            hours = p.getInt("hours_$appWidgetId", 0).takeIf { it > 0 },
         )
     }
 
@@ -44,12 +47,13 @@ object WidgetConfigStore {
             .putString("opacity_$appWidgetId", style.opacity.name)
             .putString("text_$appWidgetId", style.text.name)
             .putString("bg_$appWidgetId", style.background.name)
+            .apply { style.hours?.let { putInt("hours_$appWidgetId", it) } }
             .apply()
     }
 
     fun delete(context: Context, appWidgetIds: IntArray) {
         val e = prefs(context).edit()
-        appWidgetIds.forEach { e.remove("opacity_$it").remove("text_$it").remove("bg_$it") }
+        appWidgetIds.forEach { e.remove("opacity_$it").remove("text_$it").remove("bg_$it").remove("hours_$it") }
         e.apply()
     }
 }

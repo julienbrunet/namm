@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
+import androidx.glance.layout.Alignment
 import androidx.glance.action.Action
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -48,14 +49,21 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
         val map = if (kind == WidgetKind.MAP) WidgetMapStore.read(context) else null
         val open = openAction(context, kind)
         provideContent {
-            WidgetFrame(colors, open, padding = if (kind == WidgetKind.MAP) 10.dp else 14.dp) {
+            val oneLine = kind == WidgetKind.MINI || kind == WidgetKind.RAIN
+            WidgetFrame(
+                colors, open,
+                padding = if (kind == WidgetKind.MAP) 10.dp else 14.dp,
+                alignment = if (oneLine) Alignment.CenterStart else Alignment.TopStart,
+            ) {
                 when {
                     kind == WidgetKind.MAP -> MapContent(map?.first, map?.second, colors)
                     data == null -> EmptyContent(colors)
                     kind == WidgetKind.MINI -> MiniContent(data, colors)
                     kind == WidgetKind.RAIN -> RainContent(data, colors)
-                    kind == WidgetKind.DAY -> DayContent(data, colors)
-                    kind == WidgetKind.TWELVE -> TwelveHoursContent(data, colors)
+                    // Journée / 12 h : nombre d'heures réglable par widget (6 ou 12).
+                    kind == WidgetKind.DAY || kind == WidgetKind.TWELVE ->
+                        if ((style.hours ?: if (kind == WidgetKind.TWELVE) 12 else 6) == 12) TwelveHoursContent(data, colors)
+                        else DayContent(data, colors)
                     else -> WeekContent(data, colors)
                 }
             }

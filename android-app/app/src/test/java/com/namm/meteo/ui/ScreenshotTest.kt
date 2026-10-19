@@ -119,9 +119,10 @@ class ScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w411dp-h1100dp-xxhdpi")
     fun reglagesWidget() = capture("widget_reglages") {
         com.namm.meteo.widget.WidgetConfigContent(
-            initial = com.namm.meteo.widget.WidgetStyle(com.namm.meteo.widget.WidgetOpacity.LOW, com.namm.meteo.widget.WidgetTextColor.LIGHT),
+            initial = com.namm.meteo.widget.WidgetStyle(com.namm.meteo.widget.WidgetOpacity.LOW, com.namm.meteo.widget.WidgetTextColor.LIGHT, hours = 12),
             isMap = false,
             onSave = {},
         )

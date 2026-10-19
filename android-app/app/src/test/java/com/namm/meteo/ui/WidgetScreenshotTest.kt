@@ -90,7 +90,7 @@ class WidgetScreenshotTest {
     fun widgets() {
         capture("widget_mini", 170, 80) { WidgetFrame(dark, open) { MiniContent(data, dark) } }
         capture("widget_pluie", 360, 80) { WidgetFrame(dark, open) { RainContent(data, dark) } }
-        capture("widget_journee", 360, 170) { WidgetFrame(dark, open) { DayContent(data, dark) } }
+        capture("widget_journee", 360, 200) { WidgetFrame(dark, open) { DayContent(data, dark) } }
         val clair70 = style(WidgetBgColor.LIGHT, WidgetOpacity.HIGH)
         capture("widget_journee_clair_70", 360, 170) { WidgetFrame(clair70, open) { DayContent(data, clair70) } }
         val transparentFonce = style(WidgetBgColor.LIGHT, WidgetOpacity.TRANSPARENT, WidgetTextColor.DARK)

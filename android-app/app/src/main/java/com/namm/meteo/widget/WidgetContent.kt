@@ -95,10 +95,17 @@ private fun Icon(res: Int, color: ColorProvider, size: Dp) =
 
 /** Fond arrondi commun ; un appui ouvre l'app. Contenu compact, centré verticalement. */
 @Composable
-fun WidgetFrame(c: WidgetColors, onClick: Action, padding: Dp = 14.dp, content: @Composable () -> Unit) {
+fun WidgetFrame(
+    c: WidgetColors,
+    onClick: Action,
+    padding: Dp = 14.dp,
+    /** En haut par défaut (le contenu reste là où on a posé le widget) ; centré pour les widgets d'une ligne. */
+    alignment: Alignment = Alignment.TopStart,
+    content: @Composable () -> Unit,
+) {
     Box(
         GlanceModifier.fillMaxSize().background(c.background).cornerRadius(22.dp).padding(padding).clickable(onClick),
-        contentAlignment = Alignment.CenterStart,
+        contentAlignment = alignment,
     ) { content() }
 }
 
@@ -210,15 +217,15 @@ private fun HourColumn(h: HourlyForecast, c: WidgetColors, modifier: GlanceModif
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             h.time.substringAfter('T').take(2) + if (compact) "" else "h",
-            style = TextStyle(color = c.secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            style = TextStyle(color = c.secondary, fontSize = if (compact) 13.sp else 14.sp, fontWeight = FontWeight.Bold),
         )
         Spacer(GlanceModifier.height(2.dp))
-        Icon(WeatherCondition.fromWmo(h.weatherCode).widgetIcon(), c.primary, if (compact) 18.dp else 22.dp)
+        Icon(WeatherCondition.fromWmo(h.weatherCode).widgetIcon(), c.primary, if (compact) 20.dp else 26.dp)
         Spacer(GlanceModifier.height(2.dp))
-        Text("${h.temperature.roundToInt()}°", style = TextStyle(color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+        Text("${h.temperature.roundToInt()}°", style = TextStyle(color = c.primary, fontSize = if (compact) 15.sp else 17.sp, fontWeight = FontWeight.Bold))
         Text(
             if (compact) "${h.precipitationProbability}" else "${h.precipitationProbability} %",
-            style = TextStyle(color = c.secondary, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+            style = TextStyle(color = c.secondary, fontSize = if (compact) 12.sp else 13.sp, fontWeight = FontWeight.Bold),
         )
     }
 }
