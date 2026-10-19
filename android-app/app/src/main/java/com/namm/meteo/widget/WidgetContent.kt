@@ -34,30 +34,48 @@ import com.namm.meteo.data.repository.LocalForecast
 import com.namm.meteo.domain.WeatherCondition
 import com.namm.meteo.domain.minutesUntilRain
 import com.namm.meteo.ui.theme.SlatePalette
+import com.namm.meteo.ui.theme.DarkSlate
+import com.namm.meteo.ui.theme.LightSlate
+import com.namm.meteo.domain.HourlyForecast
+import android.util.TypedValue
+import android.widget.RemoteViews
+import androidx.compose.ui.graphics.toArgb
+import androidx.glance.LocalContext
+import androidx.glance.appwidget.AndroidRemoteViews
 import java.time.LocalDate
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** Couleurs d'un widget, issues de la palette ardoise (sombre ou claire). */
-class WidgetColors(p: SlatePalette, style: WidgetStyle = WidgetStyle()) {
+/**
+ * Couleurs d'un widget : le fond suit le réglage du widget (Auto = thème de l'app, Clair, Sombre)
+ * et le texte, en Auto, contraste avec ce fond.
+ */
+class WidgetColors(appPalette: SlatePalette, style: WidgetStyle = WidgetStyle()) {
+    private val base = when (style.background) {
+        WidgetBgColor.AUTO -> appPalette
+        WidgetBgColor.LIGHT -> LightSlate
+        WidgetBgColor.DARK -> DarkSlate
+    }
     private val text = when (style.text) {
-        WidgetTextColor.AUTO -> Triple(p.primary, p.secondary, p.muted)
+        WidgetTextColor.AUTO -> Triple(base.primary, base.secondary, base.muted)
         WidgetTextColor.LIGHT -> WidgetTextPalettes.light
         WidgetTextColor.DARK -> WidgetTextPalettes.dark
     }
-    val background = p.background.copy(alpha = style.opacity.alpha)
-    val tile = p.tile
+    val background = base.background.copy(alpha = style.opacity.alpha)
+    val tile = base.tile
+    val primaryColor = text.first
+    val secondaryColor = text.second
     val primary = ColorProvider(text.first)
     val secondary = ColorProvider(text.second)
     val muted = ColorProvider(text.third)
     val rainColor = when (style.text) {
-        WidgetTextColor.AUTO -> p.rain
+        WidgetTextColor.AUTO -> base.rain
         WidgetTextColor.LIGHT -> WidgetTextPalettes.lightRain
         WidgetTextColor.DARK -> WidgetTextPalettes.darkRain
     }
     val rain = ColorProvider(rainColor)
-    val track = if (style.opacity == WidgetOpacity.OPAQUE) p.tileHighlight else text.third.copy(alpha = 0.35f)
+    val track = if (style.opacity == WidgetOpacity.OPAQUE) base.tileHighlight else text.third.copy(alpha = 0.35f)
 }
 
 fun WeatherCondition.widgetIcon(): Int = when (this) {
@@ -75,7 +93,7 @@ fun WeatherCondition.widgetIcon(): Int = when (this) {
 private fun Icon(res: Int, color: ColorProvider, size: Dp) =
     Image(ImageProvider(res), null, GlanceModifier.size(size), colorFilter = ColorFilter.tint(color))
 
-/** Fond arrondi commun ; un appui ouvre l'app. */
+/** Fond arrondi commun ; un appui ouvre l'app. Contenu compact, centré verticalement. */
 @Composable
 fun WidgetFrame(c: WidgetColors, onClick: Action, padding: Dp = 14.dp, content: @Composable () -> Unit) {
     Box(
@@ -98,21 +116,53 @@ private fun rainText(data: LocalForecast): String {
     }
 }
 
-/** Icône + température (+ lieu). */
+/**
+ * Date (petite) + heure (grande) toujours à jour : TextClock Android inséré dans le widget,
+ * indépendant des rafraîchissements (toutes les 15 min).
+ */
+@Composable
+private fun Clock(c: WidgetColors, timeSize: Float = 28f, width: Dp = 104.dp) {
+    // Boîte de largeur fixe alignée à droite : une vue Android insérée (AndroidRemoteViews)
+    // ne se combine pas bien avec les poids Glance.
+    Box(GlanceModifier.width(width), contentAlignment = Alignment.CenterEnd) { ClockViews(c, timeSize) }
+}
+
+@Composable
+private fun ClockViews(c: WidgetColors, timeSize: Float) {
+    val context = LocalContext.current
+    val views = RemoteViews(context.packageName, R.layout.widget_clock).apply {
+        setTextColor(R.id.clock_date, c.secondaryColor.toArgb())
+        setTextColor(R.id.clock_time, c.primaryColor.toArgb())
+        setTextViewTextSize(R.id.clock_time, TypedValue.COMPLEX_UNIT_SP, timeSize)
+    }
+    AndroidRemoteViews(views)
+}
+
+/** Icône + température + lieu. */
 @Composable
 private fun CurrentBlock(data: LocalForecast, c: WidgetColors, big: Boolean) {
     val cur = data.forecast.current
     val condition = WeatherCondition.fromWmo(cur.weatherCode)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(condition.widgetIcon(), c.primary, if (big) 40.dp else 28.dp)
+        Icon(condition.widgetIcon(), c.primary, if (big) 34.dp else 28.dp)
         Spacer(GlanceModifier.width(10.dp))
         Column {
             Text(
                 "${cur.temperature.roundToInt()}°",
-                style = TextStyle(color = c.primary, fontSize = if (big) 34.sp else 26.sp, fontWeight = FontWeight.Normal),
+                style = TextStyle(color = c.primary, fontSize = if (big) 30.sp else 26.sp, fontWeight = FontWeight.Normal),
             )
-            Text(data.place.name, style = TextStyle(color = c.secondary, fontSize = 12.sp), maxLines = 1)
+            Text(data.place.name, style = TextStyle(color = c.secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
         }
+    }
+}
+
+/** En-tête commun : météo actuelle à gauche, date + heure à droite. */
+@Composable
+private fun Header(data: LocalForecast, c: WidgetColors) {
+    Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        CurrentBlock(data, c, big = true)
+        Spacer(GlanceModifier.defaultWeight())
+        Clock(c)
     }
 }
 
@@ -120,17 +170,19 @@ private fun CurrentBlock(data: LocalForecast, c: WidgetColors, big: Boolean) {
 @Composable
 fun MiniContent(data: LocalForecast, c: WidgetColors) = CurrentBlock(data, c, big = false)
 
-/** Pluie (4 × 1) : température + pluie dans les 2 h en barres. */
+/** Pluie (4 × 1) : température, pluie dans les 2 h en barres, heure. */
 @Composable
 fun RainContent(data: LocalForecast, c: WidgetColors) {
     Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         CurrentBlock(data, c, big = false)
-        Spacer(GlanceModifier.width(16.dp))
+        Spacer(GlanceModifier.width(14.dp))
         Column(GlanceModifier.defaultWeight()) {
-            Text(rainText(data), style = TextStyle(color = c.rain, fontSize = 13.sp, fontWeight = FontWeight.Medium))
+            Text(rainText(data), style = TextStyle(color = c.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold))
             Spacer(GlanceModifier.height(6.dp))
             RainBars(data, c, maxHeight = 22)
         }
+        Spacer(GlanceModifier.width(8.dp))
+        Clock(c, timeSize = 22f, width = 72.dp)
     }
 }
 
@@ -152,60 +204,83 @@ private fun RainBars(data: LocalForecast, c: WidgetColors, maxHeight: Int) {
     }
 }
 
-/** Journée (4 × 2) : météo actuelle + 6 prochaines heures. */
+/** Une colonne horaire : heure, icône, température, probabilité de pluie (texte épais, couleurs du texte). */
+@Composable
+private fun HourColumn(h: HourlyForecast, c: WidgetColors, modifier: GlanceModifier, compact: Boolean) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            h.time.substringAfter('T').take(2) + if (compact) "" else "h",
+            style = TextStyle(color = c.secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+        )
+        Spacer(GlanceModifier.height(2.dp))
+        Icon(WeatherCondition.fromWmo(h.weatherCode).widgetIcon(), c.primary, if (compact) 18.dp else 22.dp)
+        Spacer(GlanceModifier.height(2.dp))
+        Text("${h.temperature.roundToInt()}°", style = TextStyle(color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+        Text(
+            if (compact) "${h.precipitationProbability}" else "${h.precipitationProbability} %",
+            style = TextStyle(color = c.secondary, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+        )
+    }
+}
+
+/** Journée (4 × 2) : en-tête + 6 prochaines heures, compact. */
 @Composable
 fun DayContent(data: LocalForecast, c: WidgetColors) {
-    Column(GlanceModifier.fillMaxSize()) {
-        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            CurrentBlock(data, c, big = true)
-            Spacer(GlanceModifier.defaultWeight())
-            Text(rainText(data), style = TextStyle(color = c.rain, fontSize = 12.sp))
-        }
-        Spacer(GlanceModifier.defaultWeight())
+    Column(GlanceModifier.fillMaxWidth()) {
+        Header(data, c)
+        Spacer(GlanceModifier.height(6.dp))
         Row(GlanceModifier.fillMaxWidth()) {
-            data.forecast.hours.take(6).forEach { h ->
-                Column(GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(h.time.substringAfter('T').take(2) + "h", style = TextStyle(color = c.muted, fontSize = 11.sp))
-                    Spacer(GlanceModifier.height(2.dp))
-                    Icon(WeatherCondition.fromWmo(h.weatherCode).widgetIcon(), c.primary, 20.dp)
-                    Text("${h.temperature.roundToInt()}°", style = TextStyle(color = c.primary, fontSize = 13.sp))
-                    Text(
-                        "${h.precipitationProbability} %",
-                        style = TextStyle(color = if (h.precipitationProbability >= 30) c.rain else c.muted, fontSize = 10.sp),
-                    )
+            data.forecast.hours.take(6).forEach { HourColumn(it, c, GlanceModifier.defaultWeight(), compact = false) }
+        }
+    }
+}
+
+/**
+ * 12 heures (4 × 2) sur une ligne. Glance limite une ligne à 10 enfants : deux demi-lignes de 6.
+ * Colonnes étroites : heure sans « h », probabilité sans « % » (légende à gauche du bloc).
+ */
+@Composable
+fun TwelveHoursContent(data: LocalForecast, c: WidgetColors) {
+    val hours = data.forecast.hours.take(12)
+    Column(GlanceModifier.fillMaxWidth()) {
+        Header(data, c)
+        Spacer(GlanceModifier.height(6.dp))
+        Row(GlanceModifier.fillMaxWidth()) {
+            hours.chunked(6).forEach { half ->
+                Row(GlanceModifier.defaultWeight()) {
+                    half.forEach { HourColumn(it, c, GlanceModifier.defaultWeight(), compact = true) }
                 }
             }
         }
     }
 }
 
-/** Semaine (4 × 3) : météo actuelle + 5 jours. */
+/** Semaine (4 × 3) : en-tête + 5 jours. */
 @Composable
 fun WeekContent(data: LocalForecast, c: WidgetColors) {
-    Column(GlanceModifier.fillMaxSize()) {
-        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            CurrentBlock(data, c, big = true)
-            Spacer(GlanceModifier.defaultWeight())
-            Text(rainText(data), style = TextStyle(color = c.rain, fontSize = 12.sp))
-        }
+    Column(GlanceModifier.fillMaxWidth()) {
+        Header(data, c)
         Spacer(GlanceModifier.height(8.dp))
         data.forecast.days.take(5).forEach { d ->
             Row(GlanceModifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     LocalDate.parse(d.date).dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.FRENCH)
                         .replaceFirstChar { it.uppercase() },
-                    style = TextStyle(color = c.primary, fontSize = 13.sp),
+                    style = TextStyle(color = c.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium),
                     modifier = GlanceModifier.width(46.dp),
                 )
-                Icon(WeatherCondition.fromWmo(d.weatherCode).widgetIcon(), c.secondary, 18.dp)
+                Icon(WeatherCondition.fromWmo(d.weatherCode).widgetIcon(), c.primary, 18.dp)
                 Spacer(GlanceModifier.defaultWeight())
                 if (d.precipitationSum > 0) {
-                    Text("%.1f mm".format(Locale.FRENCH, d.precipitationSum), style = TextStyle(color = c.rain, fontSize = 12.sp))
+                    Text(
+                        "%.1f mm".format(Locale.FRENCH, d.precipitationSum),
+                        style = TextStyle(color = c.secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                    )
                     Spacer(GlanceModifier.width(10.dp))
                 }
-                Text("${d.tempMin.roundToInt()}°", style = TextStyle(color = c.secondary, fontSize = 13.sp))
+                Text("${d.tempMin.roundToInt()}°", style = TextStyle(color = c.secondary, fontSize = 13.sp, fontWeight = FontWeight.Medium))
                 Spacer(GlanceModifier.width(8.dp))
-                Text("${d.tempMax.roundToInt()}°", style = TextStyle(color = c.primary, fontSize = 13.sp))
+                Text("${d.tempMax.roundToInt()}°", style = TextStyle(color = c.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold))
             }
         }
     }
@@ -230,8 +305,7 @@ fun MapContent(image: Bitmap?, label: String?, c: WidgetColors) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Icon(R.drawable.ic_w_drop, c.rain, 14.dp)
             Spacer(GlanceModifier.width(4.dp))
-            Text(label ?: "Pluie", style = TextStyle(color = c.secondary, fontSize = 12.sp), maxLines = 1)
+            Text(label ?: "Pluie", style = TextStyle(color = c.secondary, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
         }
     }
 }
-

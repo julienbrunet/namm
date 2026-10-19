@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Date + heure toujours à jour (TextClock), insérées dans les widgets Glance via AndroidRemoteViews. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="end"
+    android:orientation="vertical">
+
+    <TextClock
+        android:id="@+id/clock_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="EEE d MMM"
+        android:format24Hour="EEE d MMM"
+        android:fontFamily="sans-serif-medium"
+        android:textSize="12sp" />
+
+    <TextClock
+        android:id="@+id/clock_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="HH:mm"
+        android:format24Hour="HH:mm"
+        android:fontFamily="sans-serif-light"
+        android:includeFontPadding="false"
+        android:textSize="30sp" />
+</LinearLayout>

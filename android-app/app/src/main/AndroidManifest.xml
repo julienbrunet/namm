@@ -70,6 +70,17 @@
                 android:resource="@xml/widget_day" />
         </receiver>
         <receiver
+            android:name=".widget.TwelveHoursWidgetReceiver"
+            android:label="@string/widget_twelve_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_twelve" />
+        </receiver>
+        <receiver
             android:name=".widget.WeekWidgetReceiver"
             android:label="@string/widget_week_label"
             android:exported="true">

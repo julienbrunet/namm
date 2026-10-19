@@ -62,7 +62,7 @@ jobs:
       # affichent la même variante). Chaque classe doit rester présente sous son nom.
       - name: Vérifier les classes de widgets dans l'APK release
         run: |
-          for w in Mini Rain Day Week Map; do
+          for w in Mini Rain Day TwelveHours Week Map; do
             grep -q "^com.namm.meteo.widget.${w}Widget -> com.namm.meteo.widget.${w}Widget:" \
               app/build/outputs/mapping/release/mapping.txt || { echo "Classe ${w}Widget fusionnée par R8"; exit 1; }
           done

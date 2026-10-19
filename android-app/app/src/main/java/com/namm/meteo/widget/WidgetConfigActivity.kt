@@ -97,6 +97,7 @@ class WidgetConfigActivity : ComponentActivity() {
 fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetStyle) -> Unit) {
     var opacity by remember { mutableStateOf(initial.opacity) }
     var text by remember { mutableStateOf(initial.text) }
+    var bg by remember { mutableStateOf(initial.background) }
     Column(
         Modifier.fillMaxSize().background(Slate.Background).safeDrawingPadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
@@ -111,10 +112,14 @@ fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetSty
 
         Spacer(Modifier.height(24.dp))
         SectionLabel("APERÇU")
-        Preview(WidgetStyle(opacity, text), isMap)
+        Preview(WidgetStyle(opacity, text, bg), isMap)
 
         Spacer(Modifier.height(24.dp))
-        SectionLabel("FOND")
+        SectionLabel("COULEUR DU FOND")
+        Choice(WidgetBgColor.entries, bg, { it.label }) { bg = it }
+
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("OPACITÉ DU FOND")
         Choice(WidgetOpacity.entries, opacity, { it.label }) { opacity = it }
 
         Spacer(Modifier.height(20.dp))
@@ -124,7 +129,7 @@ fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetSty
         Spacer(Modifier.height(32.dp))
         Box(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Slate.Primary)
-                .clickable { onSave(WidgetStyle(opacity, text)) }.padding(vertical = 16.dp),
+                .clickable { onSave(WidgetStyle(opacity, text, bg)) }.padding(vertical = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text("Valider", color = Slate.Background, style = MaterialTheme.typography.titleMedium)
@@ -137,11 +142,7 @@ fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetSty
 private fun Preview(style: WidgetStyle, isMap: Boolean) {
     val palette = LocalSlate.current
     val colors = WidgetColors(palette, style)
-    val text = when (style.text) {
-        WidgetTextColor.AUTO -> Triple(palette.primary, palette.secondary, palette.muted)
-        WidgetTextColor.LIGHT -> WidgetTextPalettes.light
-        WidgetTextColor.DARK -> WidgetTextPalettes.dark
-    }
+    val text = Triple(colors.primaryColor, colors.secondaryColor, colors.secondaryColor)
     Box(
         Modifier.fillMaxWidth().height(150.dp).clip(TileShape)
             .background(Brush.linearGradient(listOf(Color(0xFFE7B47C), Color(0xFF6D8FB5), Color(0xFF2E4A3B)))),

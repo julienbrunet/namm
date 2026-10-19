@@ -24,7 +24,7 @@ import com.namm.meteo.ui.theme.ThemeMode
 import com.namm.meteo.work.RefreshWorker
 import java.io.File
 
-enum class WidgetKind { MINI, RAIN, DAY, WEEK, MAP }
+enum class WidgetKind { MINI, RAIN, DAY, TWELVE, WEEK, MAP }
 
 /**
  * Widget générique : lit la dernière prévision en cache (rafraîchie par [RefreshWorker])
@@ -55,6 +55,7 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
                     kind == WidgetKind.MINI -> MiniContent(data, colors)
                     kind == WidgetKind.RAIN -> RainContent(data, colors)
                     kind == WidgetKind.DAY -> DayContent(data, colors)
+                    kind == WidgetKind.TWELVE -> TwelveHoursContent(data, colors)
                     else -> WeekContent(data, colors)
                 }
             }
@@ -66,6 +67,7 @@ class MiniWidget : MeteoWidget(WidgetKind.MINI)
 class RainWidget : MeteoWidget(WidgetKind.RAIN)
 class DayWidget : MeteoWidget(WidgetKind.DAY)
 class WeekWidget : MeteoWidget(WidgetKind.WEEK)
+class TwelveHoursWidget : MeteoWidget(WidgetKind.TWELVE)
 class MapWidget : MeteoWidget(WidgetKind.MAP)
 
 /** Supprime les réglages d'un widget retiré de l'écran d'accueil. */
@@ -80,6 +82,7 @@ class MiniWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget 
 class RainWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = RainWidget() }
 class DayWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = DayWidget() }
 class WeekWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = WeekWidget() }
+class TwelveHoursWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = TwelveHoursWidget() }
 
 class MapWidgetReceiver : MeteoWidgetReceiver() {
     override val glanceAppWidget = MapWidget()
@@ -122,6 +125,7 @@ object Widgets {
         RainWidget().updateAll(context)
         DayWidget().updateAll(context)
         WeekWidget().updateAll(context)
+        TwelveHoursWidget().updateAll(context)
         MapWidget().updateAll(context)
     }
 

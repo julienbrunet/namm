@@ -11,12 +11,16 @@ enum class WidgetOpacity(val label: String, val alpha: Float) {
     TRANSPARENT("Transparent", 0f),
 }
 
-/** Couleur du texte et des icônes d'un widget. */
+/** Couleur du fond d'un widget (Auto = thème de l'app). */
+enum class WidgetBgColor(val label: String) { AUTO("Auto"), LIGHT("Clair"), DARK("Sombre") }
+
+/** Couleur du texte et des icônes d'un widget (Auto = contraste avec le fond choisi). */
 enum class WidgetTextColor(val label: String) { AUTO("Auto"), LIGHT("Blanc"), DARK("Foncé") }
 
 data class WidgetStyle(
     val opacity: WidgetOpacity = WidgetOpacity.OPAQUE,
     val text: WidgetTextColor = WidgetTextColor.AUTO,
+    val background: WidgetBgColor = WidgetBgColor.AUTO,
 )
 
 /** Réglages propres à chaque widget posé (clé = appWidgetId Android). */
@@ -30,6 +34,8 @@ object WidgetConfigStore {
                 ?: WidgetOpacity.OPAQUE,
             text = p.getString("text_$appWidgetId", null)?.let { runCatching { WidgetTextColor.valueOf(it) }.getOrNull() }
                 ?: WidgetTextColor.AUTO,
+            background = p.getString("bg_$appWidgetId", null)?.let { runCatching { WidgetBgColor.valueOf(it) }.getOrNull() }
+                ?: WidgetBgColor.AUTO,
         )
     }
 
@@ -37,12 +43,13 @@ object WidgetConfigStore {
         prefs(context).edit()
             .putString("opacity_$appWidgetId", style.opacity.name)
             .putString("text_$appWidgetId", style.text.name)
+            .putString("bg_$appWidgetId", style.background.name)
             .apply()
     }
 
     fun delete(context: Context, appWidgetIds: IntArray) {
         val e = prefs(context).edit()
-        appWidgetIds.forEach { e.remove("opacity_$it").remove("text_$it") }
+        appWidgetIds.forEach { e.remove("opacity_$it").remove("text_$it").remove("bg_$it") }
         e.apply()
     }
 }

@@ -22,6 +22,11 @@ import com.namm.meteo.widget.MapContent
 import com.namm.meteo.widget.MiniContent
 import com.namm.meteo.widget.RainContent
 import com.namm.meteo.widget.WeekContent
+import com.namm.meteo.widget.TwelveHoursContent
+import com.namm.meteo.widget.WidgetBgColor
+import com.namm.meteo.widget.WidgetOpacity
+import com.namm.meteo.widget.WidgetStyle
+import com.namm.meteo.widget.WidgetTextColor
 import com.namm.meteo.widget.WidgetColors
 import com.namm.meteo.widget.WidgetFrame
 import com.namm.meteo.widget.WidgetMapRenderer
@@ -49,34 +54,51 @@ class WidgetScreenshotTest {
         val result = runBlocking {
             GlanceRemoteViews().compose(context, DpSize(width.dp, height.dp)) { content() }
         }
-        val parent = FrameLayout(context)
-        val view = result.remoteViews.apply(context, parent)
+        // Vue attachée à une vraie fenêtre (activité Robolectric) : sinon les TextClock restent vides.
+        val activity = org.robolectric.Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        val parent = FrameLayout(activity)
+        val view = result.remoteViews.apply(activity, parent)
         val density = context.resources.displayMetrics.density
         val w = (width * density).toInt()
         val h = (height * density).toInt()
         parent.addView(view, ViewGroup.LayoutParams(w, h))
+        activity.setContentView(parent, ViewGroup.LayoutParams(w, h))
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
         parent.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
         parent.layout(0, 0, w, h)
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        bmp.eraseColor(0xFF7A8090.toInt()) // fond d'écran d'accueil fictif
-        parent.draw(Canvas(bmp))
+        // Faux fond d'écran (ciel au couchant) pour juger la lisibilité des fonds transparents.
+        val canvas = Canvas(bmp)
+        canvas.drawPaint(android.graphics.Paint().apply {
+            shader = android.graphics.LinearGradient(
+                0f, 0f, 0f, h.toFloat(),
+                intArrayOf(0xFF9FB4CC.toInt(), 0xFFE9DCC8.toInt(), 0xFFF2C27A.toInt()), null,
+                android.graphics.Shader.TileMode.CLAMP,
+            )
+        })
+        parent.draw(canvas)
         File("screenshots").mkdirs()
         File("screenshots/$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     private val open = actionStartActivity(android.content.ComponentName("com.namm.meteo", "com.namm.meteo.MainActivity"))
 
+    private fun style(bg: WidgetBgColor, opacity: WidgetOpacity, text: WidgetTextColor = WidgetTextColor.AUTO) =
+        WidgetColors(DarkSlate, WidgetStyle(opacity, text, bg))
+
     @Test
     fun widgets() {
-        capture("widget_mini", 160, 80) { WidgetFrame(dark, open) { MiniContent(data, dark) } }
-        capture("widget_pluie", 340, 80) { WidgetFrame(dark, open) { RainContent(data, dark) } }
-        capture("widget_journee", 340, 170) { WidgetFrame(dark, open) { DayContent(data, dark) } }
-        val transparent = WidgetColors(
-            DarkSlate,
-            com.namm.meteo.widget.WidgetStyle(com.namm.meteo.widget.WidgetOpacity.TRANSPARENT, com.namm.meteo.widget.WidgetTextColor.LIGHT),
-        )
-        capture("widget_journee_transparent", 340, 170) { WidgetFrame(transparent, open) { DayContent(data, transparent) } }
-        capture("widget_semaine", 340, 250) { WidgetFrame(light, open) { WeekContent(data, light) } }
+        capture("widget_mini", 170, 80) { WidgetFrame(dark, open) { MiniContent(data, dark) } }
+        capture("widget_pluie", 360, 80) { WidgetFrame(dark, open) { RainContent(data, dark) } }
+        capture("widget_journee", 360, 170) { WidgetFrame(dark, open) { DayContent(data, dark) } }
+        val clair70 = style(WidgetBgColor.LIGHT, WidgetOpacity.HIGH)
+        capture("widget_journee_clair_70", 360, 170) { WidgetFrame(clair70, open) { DayContent(data, clair70) } }
+        val transparentFonce = style(WidgetBgColor.LIGHT, WidgetOpacity.TRANSPARENT, WidgetTextColor.DARK)
+        capture("widget_journee_transparent", 360, 170) { WidgetFrame(transparentFonce, open) { DayContent(data, transparentFonce) } }
+        capture("widget_12h", 360, 170) { WidgetFrame(dark, open) { TwelveHoursContent(data, dark) } }
+        val sombre40 = style(WidgetBgColor.DARK, WidgetOpacity.LOW, WidgetTextColor.LIGHT)
+        capture("widget_12h_sombre_40", 360, 170) { WidgetFrame(sombre40, open) { TwelveHoursContent(data, sombre40) } }
+        capture("widget_semaine", 360, 250) { WidgetFrame(light, open) { WeekContent(data, light) } }
         val map = Fixtures.rainMap()
         val frame = map.frames.filterIsInstance<MapFrame.Forecast>()[3]
         val z = WidgetMapRenderer.zoomFor(Fixtures.paris.latitude, 720)
