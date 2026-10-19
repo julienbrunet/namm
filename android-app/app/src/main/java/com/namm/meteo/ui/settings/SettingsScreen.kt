@@ -57,6 +57,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.namm.meteo.data.local.Settings
+import com.namm.meteo.data.local.WidgetBackground
+import androidx.compose.foundation.layout.Box
 import com.namm.meteo.data.location.LocationProvider
 import com.namm.meteo.domain.Place
 import com.namm.meteo.ui.components.RoundIconButton
@@ -106,6 +108,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         onSaveAromeKey = { viewModel.testAndSaveAromeKey(it) },
         onRemoveAromeKey = { viewModel.removeAromeKey() },
         onTheme = viewModel::setTheme,
+        onWidgetBackground = viewModel::setWidgetBackground,
     )
 }
 
@@ -127,6 +130,7 @@ fun SettingsContent(
     onSaveAromeKey: (String) -> Unit = {},
     onRemoveAromeKey: () -> Unit = {},
     onTheme: (ThemeMode) -> Unit = {},
+    onWidgetBackground: (WidgetBackground) -> Unit = {},
 ) {
     Column(
         Modifier
@@ -214,6 +218,15 @@ fun SettingsContent(
         ThemeSelector(settings.theme, onTheme)
 
         Spacer(Modifier.height(24.dp))
+        SectionLabel("WIDGETS · FOND")
+        Segmented(
+            options = WidgetBackground.entries,
+            selected = settings.widgetBackground,
+            label = { it.label },
+            onSelect = onWidgetBackground,
+        )
+
+        Spacer(Modifier.height(24.dp))
         SectionLabel("CARTE DE PLUIE · MÉTÉO-FRANCE")
         AromeKeyCard(settings.aromeApiKey, aromeStatus, onSaveAromeKey, onRemoveAromeKey)
 
@@ -237,6 +250,35 @@ fun SettingsContent(
             color = Slate.Muted,
             style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+/** Sélecteur segmenté générique (texte seul). */
+@Composable
+private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(TileShape).background(Slate.Tile).padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (isSelected) Slate.TileHighlight else Slate.Tile)
+                    .clickable { onSelect(option) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label(option),
+                    color = if (isSelected) Slate.Primary else Slate.Secondary,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

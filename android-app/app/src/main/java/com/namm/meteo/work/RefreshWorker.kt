@@ -11,7 +11,7 @@ import androidx.work.WorkerParameters
 import com.namm.meteo.MeteoApp
 import com.namm.meteo.domain.minutesUntilRain
 import androidx.compose.ui.graphics.toArgb
-import com.namm.meteo.domain.MapFrame
+import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.ui.theme.DarkSlate
 import com.namm.meteo.ui.theme.LightSlate
 import com.namm.meteo.ui.theme.ThemeMode
@@ -21,7 +21,7 @@ import com.namm.meteo.widget.Widgets
 import java.util.concurrent.TimeUnit
 
 /**
- * Toutes les 30 min : rafraîchit la prévision (cache + widget), prévient si la pluie
+ * Toutes les 15 min (minimum Android, retardable en veille) : rafraîchit la prévision (cache + widget), prévient si la pluie
  * arrive dans l'heure, et vérifie une fois par jour la présence d'une nouvelle version.
  */
 class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -59,12 +59,23 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         return Result.success()
     }
 
-    /** Image du widget carte : prévision de pluie actuelle autour du lieu. */
+    /**
+     * Image du widget carte : pluie actuelle sur ≈ 50 km autour du lieu, au format du widget.
+     * Avec AROME-PI : à chaque passage (15 min, 1-2 requêtes) ; sans clé, Open-Meteo toutes les 30 min.
+     */
     private suspend fun renderMapWidget(app: MeteoApp, place: com.namm.meteo.domain.Place) {
-        val map = app.rainMapRepository.load(place)
-        val now = System.currentTimeMillis() / 1000
-        val frame = map.frames.filterIsInstance<MapFrame.Forecast>().firstOrNull { it.time + 15 * 60 > now }
+        val prefs = applicationContext.getSharedPreferences("widget_map", Context.MODE_PRIVATE)
         val settings = app.settings.current()
+        val nowMs = System.currentTimeMillis()
+        val allowOpenMeteo = nowMs - prefs.getLong("last_open_meteo", 0) > TimeUnit.MINUTES.toMillis(29)
+
+        val (width, height) = Widgets.mapWidgetSizePx(applicationContext)
+        val z = WidgetMapRenderer.zoomFor(place.latitude, height)
+        val grid = RainMapRepository.gridFor(WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z))
+        val frame = app.rainMapRepository.currentFrame(grid, allowOpenMeteo)
+        if (frame == null && !allowOpenMeteo) return // on garde l'image précédente
+        if (frame?.source == com.namm.meteo.domain.ForecastSource.OPEN_METEO) prefs.edit().putLong("last_open_meteo", nowMs).apply()
+
         val dark = when (settings.theme) {
             ThemeMode.DARK -> true
             ThemeMode.LIGHT -> false
@@ -73,28 +84,29 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         }
         val tiles = WidgetMapRenderer.TileCache(java.io.File(applicationContext.cacheDir, "widget_tiles"))
         val bitmap = WidgetMapRenderer.render(
-            width = 600, height = 480, lat = place.latitude, lon = place.longitude, frame = frame, dark = dark,
+            width = width, height = height, lat = place.latitude, lon = place.longitude, z = z, frame = frame, dark = dark,
             background = (if (dark) DarkSlate else LightSlate).tile.toArgb(),
-        ) { z, x, y -> tiles.get(z, x, y) }
-        val time = frame?.let {
-            java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-                .format(java.time.Instant.ofEpochSecond(it.time).atZone(java.time.ZoneId.systemDefault()))
-        }
+        ) { tz, x, y -> tiles.get(tz, x, y) }
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+        val zone = java.time.ZoneId.systemDefault()
         val label = buildString {
             append(place.name)
-            if (time != null) append(" · pluie à $time")
-            frame?.let { append(" · ").append(if (it.source == com.namm.meteo.domain.ForecastSource.AROME_PI) "AROME-PI" else "Open-Meteo") }
+            frame?.let {
+                append(" · pluie à ").append(fmt.format(java.time.Instant.ofEpochSecond(it.time).atZone(zone)))
+                append(" · ").append(if (it.source == com.namm.meteo.domain.ForecastSource.AROME_PI) "AROME-PI" else "Open-Meteo")
+            }
+            append(" · maj ").append(fmt.format(java.time.Instant.ofEpochMilli(nowMs).atZone(zone)))
         }
         WidgetMapStore.write(applicationContext, bitmap, label)
     }
 
     companion object {
         fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<RefreshWorker>(30, TimeUnit.MINUTES)
+            val request = PeriodicWorkRequestBuilder<RefreshWorker>(15, TimeUnit.MINUTES) // minimum Android
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
             WorkManager.getInstance(context)
-                .enqueueUniquePeriodicWork("refresh", ExistingPeriodicWorkPolicy.KEEP, request)
+                .enqueueUniquePeriodicWork("refresh", ExistingPeriodicWorkPolicy.UPDATE, request)
         }
     }
 }

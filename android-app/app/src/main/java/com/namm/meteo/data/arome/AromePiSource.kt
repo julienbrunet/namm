@@ -59,11 +59,17 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
     }
 
     /** Images de prévision (≤ 6 h) sur l'emprise de [area], à partir du quart d'heure en cours. */
-    suspend fun forecast(key: String, area: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> =
+    suspend fun forecast(
+        key: String,
+        area: ForecastGrid,
+        now: Long = System.currentTimeMillis() / 1000,
+        /** Nombre max d'images (le widget n'a besoin que de la pluie actuelle). */
+        maxFrames: Int = MAX_STEPS,
+    ): List<MapFrame> =
         coroutineScope {
             val layer = latestLayer(key)
             val runSec = layer.run.epochSecond
-            val steps = (1..MAX_STEPS).map { runSec + it * STEP }.filter { it + STEP > now }
+            val steps = (1..MAX_STEPS).map { runSec + it * STEP }.filter { it + STEP > now }.take(maxFrames)
             if (steps.isEmpty()) return@coroutineScope emptyList()
             // Couche cumulée : il faut aussi le pas précédent pour faire la différence.
             val needed = if (layer.kind == PrecipKind.CUMULATIVE) listOf(steps.first() - STEP) + steps else steps

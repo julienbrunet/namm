@@ -21,8 +21,28 @@ import kotlin.math.tan
  * prévision de pluie par-dessus et point de position. Projection Web Mercator.
  */
 object WidgetMapRenderer {
-    const val ZOOM = 8
     private const val TILE = 256
+
+    /** Zoom qui montre ≈ [spanKm] km sur la hauteur de l'image. */
+    fun zoomFor(lat: Double, heightPx: Int, spanKm: Double = 50.0): Int {
+        val metersPerPxAtZ0 = 156_543.03 * kotlin.math.cos(Math.toRadians(lat))
+        return kotlin.math.round(kotlin.math.log2(metersPerPxAtZ0 * heightPx / (spanKm * 1000))).toInt().coerceIn(6, 13)
+    }
+
+    /** Emprise géographique de l'image centrée sur (lat, lon). */
+    fun bounds(lat: Double, lon: Double, width: Int, height: Int, z: Int): com.namm.meteo.data.repository.Bounds {
+        val world = TILE * (1 shl z).toDouble()
+        val cx = worldX(lon, z)
+        val cy = worldY(lat, z)
+        fun lonAt(x: Double) = x / world * 360 - 180
+        fun latAt(y: Double) = Math.toDegrees(kotlin.math.atan(kotlin.math.sinh(PI * (1 - 2 * y / world))))
+        return com.namm.meteo.data.repository.Bounds(
+            south = latAt(cy + height / 2.0),
+            west = lonAt(cx - width / 2.0),
+            north = latAt(cy - height / 2.0),
+            east = lonAt(cx + width / 2.0),
+        )
+    }
 
     private fun worldX(lon: Double, z: Int) = (lon + 180) / 360 * TILE * (1 shl z)
     private fun worldY(lat: Double, z: Int): Double {
@@ -35,6 +55,7 @@ object WidgetMapRenderer {
         height: Int,
         lat: Double,
         lon: Double,
+        z: Int,
         frame: MapFrame.Forecast?,
         dark: Boolean,
         background: Int,
@@ -43,7 +64,6 @@ object WidgetMapRenderer {
         val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         canvas.drawColor(background)
-        val z = ZOOM
         val cx = worldX(lon, z)
         val cy = worldY(lat, z)
         val left = cx - width / 2.0

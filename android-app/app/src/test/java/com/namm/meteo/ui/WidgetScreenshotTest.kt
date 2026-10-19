@@ -71,11 +71,14 @@ class WidgetScreenshotTest {
         capture("widget_mini", 160, 80) { WidgetFrame(dark, open) { MiniContent(data, dark) } }
         capture("widget_pluie", 340, 80) { WidgetFrame(dark, open) { RainContent(data, dark) } }
         capture("widget_journee", 340, 170) { WidgetFrame(dark, open) { DayContent(data, dark) } }
+        val translucent = WidgetColors(DarkSlate, com.namm.meteo.data.local.WidgetBackground.TRANSLUCENT.alpha)
+        capture("widget_journee_transparent", 340, 170) { WidgetFrame(translucent, open) { DayContent(data, translucent) } }
         capture("widget_semaine", 340, 250) { WidgetFrame(light, open) { WeekContent(data, light) } }
         val map = Fixtures.rainMap()
         val frame = map.frames.filterIsInstance<MapFrame.Forecast>()[3]
-        val image = WidgetMapRenderer.render(600, 480, Fixtures.paris.latitude, Fixtures.paris.longitude, frame, true, 0xFF2F333D.toInt()) { _, _, _ -> null }
-        capture("widget_carte", 340, 250) {
+        val z = WidgetMapRenderer.zoomFor(Fixtures.paris.latitude, 720)
+        val image = WidgetMapRenderer.render(500, 720, Fixtures.paris.latitude, Fixtures.paris.longitude, z, frame, true, 0xFF2F333D.toInt()) { _, _, _ -> null }
+        capture("widget_carte", 300, 460) {
             WidgetFrame(dark, open, padding = 10.dp) { MapContent(image, "Paris · pluie à 20:45 · AROME-PI", dark) }
         }
     }

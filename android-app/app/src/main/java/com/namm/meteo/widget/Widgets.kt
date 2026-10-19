@@ -42,7 +42,7 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
             ThemeMode.SYSTEM -> (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
         }
-        val colors = WidgetColors(if (dark) DarkSlate else LightSlate)
+        val colors = WidgetColors(if (dark) DarkSlate else LightSlate, settings.widgetBackground.alpha)
         val map = if (kind == WidgetKind.MAP) WidgetMapStore.read(context) else null
         val open = openAction(context, kind)
         provideContent {
@@ -113,6 +113,26 @@ object Widgets {
         DayWidget().updateAll(context)
         WeekWidget().updateAll(context)
         MapWidget().updateAll(context)
+    }
+
+    /**
+     * Taille en pixels de l'image du widget carte, d'après la taille réelle du (premier) widget posé,
+     * plafonnée à 720 px (limite mémoire des widgets).
+     */
+    suspend fun mapWidgetSizePx(context: Context): Pair<Int, Int> {
+        val manager = GlanceAppWidgetManager(context)
+        val id = manager.getGlanceIds(MapWidget::class.java).firstOrNull()
+        val options = id?.let {
+            android.appwidget.AppWidgetManager.getInstance(context).getAppWidgetOptions(manager.getAppWidgetId(it))
+        }
+        val portrait = context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        // En portrait : largeur mini et hauteur maxi ; marges et légende du widget déduites.
+        val wDp = (options?.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH) ?: 0).takeIf { it > 0 } ?: 320
+        val hDp = (options?.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) ?: 0).takeIf { it > 0 } ?: 240
+        val w = (wDp - 20).coerceAtLeast(80).toDouble()
+        val h = (hDp - 44).coerceAtLeast(80).toDouble()
+        val scale = 720.0 / maxOf(w, h)
+        return (w * scale).toInt() to (h * scale).toInt()
     }
 
     suspend fun hasMapWidget(context: Context) =

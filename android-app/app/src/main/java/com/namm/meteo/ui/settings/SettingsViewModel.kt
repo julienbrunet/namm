@@ -114,6 +114,11 @@ class SettingsViewModel(
     fun chooseCurrentLocation() = viewModelScope.launch { store.selectCurrentLocation() }
     fun remove(place: Place) = viewModelScope.launch { store.removePlace(place) }
     fun setRainAlerts(value: Boolean) = viewModelScope.launch { store.setRainAlerts(value) }
+    fun setWidgetBackground(value: com.namm.meteo.data.local.WidgetBackground) = viewModelScope.launch {
+        store.setWidgetBackground(value)
+        onThemeChanged()
+    }
+
     fun setTheme(value: ThemeMode) = viewModelScope.launch {
         store.setTheme(value)
         onThemeChanged()

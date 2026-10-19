@@ -40,8 +40,8 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /** Couleurs d'un widget, issues de la palette ardoise (sombre ou claire). */
-class WidgetColors(p: SlatePalette) {
-    val background = p.background
+class WidgetColors(p: SlatePalette, backgroundAlpha: Float = 1f) {
+    val background = p.background.copy(alpha = backgroundAlpha)
     val tile = p.tile
     val primary = ColorProvider(p.primary)
     val secondary = ColorProvider(p.secondary)

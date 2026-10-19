@@ -128,3 +128,15 @@ class RainMapCacheTest {
         assertEquals(null, repo.cachedFor(Bounds(40.0, -5.0, 42.0, -2.0), now = 1_000_100L))
     }
 }
+
+class WidgetMapGeometryTest {
+    @Test
+    fun widgetMapShowsAboutFiftyKilometres() {
+        val lat = 45.78
+        val z = com.namm.meteo.widget.WidgetMapRenderer.zoomFor(lat, 720)
+        val b = com.namm.meteo.widget.WidgetMapRenderer.bounds(lat, 3.08, 500, 720, z)
+        val heightKm = (b.north - b.south) * 111
+        assertTrue("hauteur $heightKm km", heightKm in 30.0..90.0)
+        assertTrue(b.south < lat && b.north > lat && b.west < 3.08 && b.east > 3.08)
+    }
+}

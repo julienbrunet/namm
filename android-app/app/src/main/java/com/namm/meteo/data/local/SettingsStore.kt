@@ -25,7 +25,15 @@ data class Settings(
     /** Clé d'API Météo-France (AROME-PI) ; vide = Open-Meteo seul. */
     val aromeApiKey: String = "",
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    val widgetBackground: WidgetBackground = WidgetBackground.OPAQUE,
 )
+
+/** Fond des widgets (réglage commun). */
+enum class WidgetBackground(val label: String, val alpha: Float) {
+    OPAQUE("Opaque", 1f),
+    TRANSLUCENT("Translucide", 0.6f),
+    TRANSPARENT("Transparent", 0f),
+}
 
 private val Context.dataStore by preferencesDataStore("settings")
 private val placeList = ListSerializer(Place.serializer())
@@ -40,6 +48,7 @@ class SettingsStore(private val context: Context) {
         val autoUpdate = booleanPreferencesKey("auto_update")
         val aromeApiKey = stringPreferencesKey("arome_api_key")
         val theme = stringPreferencesKey("theme")
+        val widgetBackground = stringPreferencesKey("widget_background")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -50,6 +59,8 @@ class SettingsStore(private val context: Context) {
             rainAlerts = p[Keys.rainAlerts] ?: true,
             autoUpdate = p[Keys.autoUpdate] ?: true,
             aromeApiKey = p[Keys.aromeApiKey] ?: "",
+            widgetBackground = p[Keys.widgetBackground]?.let { runCatching { WidgetBackground.valueOf(it) }.getOrNull() }
+                ?: WidgetBackground.OPAQUE,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
         )
     }
@@ -78,6 +89,7 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setRainAlerts(value: Boolean) = context.dataStore.edit { it[Keys.rainAlerts] = value }
     suspend fun setAromeApiKey(value: String) = context.dataStore.edit { it[Keys.aromeApiKey] = value.filterNot { c -> c.isWhitespace() } }
+    suspend fun setWidgetBackground(value: WidgetBackground) = context.dataStore.edit { it[Keys.widgetBackground] = value.name }
     suspend fun setTheme(value: ThemeMode) = context.dataStore.edit { it[Keys.theme] = value.name }
     suspend fun setAutoUpdate(value: Boolean) = context.dataStore.edit { it[Keys.autoUpdate] = value }
 

@@ -83,6 +83,20 @@ class RainMapRepository(
             frames.also { if (!lastPartial) cacheFrames(grid, it, now) }
         }
 
+    /**
+     * Pluie actuelle sur [grid] pour le widget carte : une seule image AROME-PI si une clé est
+     * active (1-2 requêtes), sinon Open-Meteo sur une grille grossière (80 points) si [allowOpenMeteo].
+     */
+    suspend fun currentFrame(grid: ForecastGrid, allowOpenMeteo: Boolean, now: Long = System.currentTimeMillis() / 1000): MapFrame.Forecast? {
+        val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
+        if (key != null) {
+            runCatching { arome.forecast(key, grid, now, maxFrames = 1) }.getOrNull()
+                ?.filterIsInstance<MapFrame.Forecast>()?.firstOrNull()?.let { return it }
+        }
+        if (!allowOpenMeteo) return null
+        return openMeteoFrames(coarse(grid), now).filterIsInstance<MapFrame.Forecast>().firstOrNull()
+    }
+
     private fun cacheFrames(grid: ForecastGrid, frames: List<MapFrame>, now: Long) {
         if (frames.isNotEmpty()) synchronized(cache) {
             cache.addFirst(CachedGrid(grid, frames, now))
