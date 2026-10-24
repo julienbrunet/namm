@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.compose.runtime.DisposableEffect
 import com.namm.meteo.ui.theme.ThemeMode
+import com.namm.meteo.ui.theme.ThemeStyle
+import com.namm.meteo.ui.theme.screenBackground
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -64,7 +66,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             val mode = settings?.theme ?: ThemeMode.SYSTEM
-            MeteoTheme(mode) {
+            MeteoTheme(mode, settings?.style ?: ThemeStyle.ARDOISE) {
                 // Icônes de la barre d'état claires sur fond sombre, foncées sur fond clair.
                 val dark = Slate.isDark
                 DisposableEffect(dark) {
@@ -98,7 +100,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 BackHandler(enabled = screen != Screen.Forecast) { screen = Screen.Forecast }
-                Box(Modifier.fillMaxSize().background(Slate.Background).safeDrawingPadding()) {
+                Box(Modifier.fillMaxSize().screenBackground().safeDrawingPadding()) {
                     when (screen) {
                         Screen.Forecast -> ForecastScreen(
                             viewModel = forecastViewModel,

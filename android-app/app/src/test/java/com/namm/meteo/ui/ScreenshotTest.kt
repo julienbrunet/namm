@@ -16,6 +16,7 @@ import com.namm.meteo.ui.settings.SearchState
 import com.namm.meteo.ui.settings.SettingsContent
 import com.namm.meteo.ui.theme.MeteoTheme
 import com.namm.meteo.ui.theme.ThemeMode
+import com.namm.meteo.ui.theme.ThemeStyle
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,9 +37,10 @@ class ScreenshotTest {
     private fun capture(
         name: String,
         mode: ThemeMode = ThemeMode.DARK,
+        style: ThemeStyle = ThemeStyle.ARDOISE,
         content: @androidx.compose.runtime.Composable () -> Unit,
     ) {
-        compose.setContent { MeteoTheme(mode, content) }
+        compose.setContent { MeteoTheme(mode, style, content) }
         compose.onRoot().captureRoboImage("screenshots/$name.png")
     }
 
@@ -101,6 +103,25 @@ class ScreenshotTest {
 
     @Test
     fun accueilClair() = capture("accueil_clair", ThemeMode.LIGHT) { ForecastContent(Fixtures.localForecast()) }
+
+    @Test
+    fun accueilCiel() = capture("accueil_ciel", style = ThemeStyle.CIEL) { ForecastContent(Fixtures.localForecast()) }
+
+    @Test
+    fun accueilPastel() = capture("accueil_pastel", style = ThemeStyle.PASTEL) { ForecastContent(Fixtures.localForecast()) }
+
+    @Test
+    fun accueilAurore() = capture("accueil_aurore", style = ThemeStyle.AURORE) { ForecastContent(Fixtures.localForecast()) }
+
+    @Test
+    fun parametresAurore() = capture("parametres_aurore", style = ThemeStyle.AURORE) {
+        SettingsContent(
+            settings = Settings(style = ThemeStyle.AURORE, savedPlaces = listOf(Place("Brest", 48.39, -4.49, "Bretagne, France"))),
+            search = SearchState(),
+            versionName = "0.1.14",
+            updateStatus = null,
+        )
+    }
 
     @Test
     fun parametresClair() = capture("parametres_clair", ThemeMode.LIGHT) {

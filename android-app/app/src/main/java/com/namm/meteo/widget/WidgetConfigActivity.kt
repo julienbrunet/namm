@@ -49,6 +49,8 @@ import com.namm.meteo.ui.theme.LocalSlate
 import com.namm.meteo.ui.theme.MeteoTheme
 import com.namm.meteo.ui.theme.Slate
 import com.namm.meteo.ui.theme.ThemeMode
+import com.namm.meteo.ui.theme.ThemeStyle
+import com.namm.meteo.ui.theme.screenBackground
 import kotlinx.coroutines.launch
 
 /**
@@ -82,7 +84,7 @@ class WidgetConfigActivity : ComponentActivity() {
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             val scope = rememberCoroutineScope()
-            MeteoTheme(settings?.theme ?: ThemeMode.SYSTEM) {
+            MeteoTheme(settings?.theme ?: ThemeMode.SYSTEM, settings?.style ?: ThemeStyle.ARDOISE) {
                 WidgetConfigContent(
                     initial = initial.copy(hours = initial.hours ?: defaultHours),
                     isMap = isMap,
@@ -106,7 +108,7 @@ fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetSty
     var bg by remember { mutableStateOf(initial.background) }
     var hours by remember { mutableStateOf(initial.hours) }
     Column(
-        Modifier.fillMaxSize().background(Slate.Background).safeDrawingPadding()
+        Modifier.fillMaxSize().screenBackground().safeDrawingPadding()
             .verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
         Text("Réglages du widget", style = MaterialTheme.typography.headlineLarge, color = Slate.Primary)

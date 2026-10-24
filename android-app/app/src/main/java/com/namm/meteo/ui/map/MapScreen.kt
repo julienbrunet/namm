@@ -55,6 +55,7 @@ import com.namm.meteo.domain.RainMap
 import com.namm.meteo.ui.components.RoundIconButton
 import com.namm.meteo.ui.components.TileShape
 import com.namm.meteo.ui.theme.Slate
+import com.namm.meteo.ui.theme.screenBackground
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -80,10 +81,10 @@ fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
         }
     }
     when (val s = state) {
-        MapUiState.Loading -> Box(Modifier.fillMaxSize().background(Slate.Background), Alignment.Center) {
+        MapUiState.Loading -> Box(Modifier.fillMaxSize().screenBackground(), Alignment.Center) {
             CircularProgressIndicator(color = Slate.Secondary)
         }
-        is MapUiState.Error -> Box(Modifier.fillMaxSize().background(Slate.Background), Alignment.Center) {
+        is MapUiState.Error -> Box(Modifier.fillMaxSize().screenBackground(), Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Carte indisponible", color = Slate.Primary)
                 Text(s.message, color = Slate.Secondary, style = MaterialTheme.typography.bodyMedium)
@@ -107,7 +108,7 @@ fun MapContent(
     onViewportChanged: (Bounds) -> Unit = {},
     online: Boolean = true,
 ) {
-    Box(Modifier.fillMaxSize().background(Slate.Background)) {
+    Box(Modifier.fillMaxSize().screenBackground()) {
         RainMapView(state.place, state.map, state.map.frames.getOrNull(state.index), online, onViewportChanged)
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
@@ -149,7 +150,7 @@ private fun RainMapView(
     }
     val radarOverlay = remember { RadarOverlay(mapView) }
     // Thème sombre : tuiles OSM assombries par le filtre ardoise ; thème clair : tuiles d'origine.
-    val dark = Slate.isDark
+    val dark = Slate.DarkMap
     val background = Slate.Tile.toArgb()
     LaunchedEffect(dark) {
         mapView.setBackgroundColor(background)
