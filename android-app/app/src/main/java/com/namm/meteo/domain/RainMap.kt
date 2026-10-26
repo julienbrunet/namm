@@ -34,6 +34,12 @@ class CloudLayer(val grid: ForecastGrid, val cover: FloatArray) {
     operator fun get(row: Int, col: Int): Float = cover[row * grid.cols + col]
 }
 
+/**
+ * Vent à 10 m sur une grille (rangé ligne par ligne, ligne 0 = sud) : vitesse et rafales en km/h,
+ * direction d'où vient le vent en degrés (0 = nord, 90 = est).
+ */
+class WindFrame(val time: Long, val grid: ForecastGrid, val speed: FloatArray, val direction: FloatArray, val gusts: FloatArray)
+
 enum class ForecastSource(val label: String) {
     OPEN_METEO("Prévision Open-Meteo (AROME / ICON)"),
     AROME_PI("Prévision Météo-France AROME-PI"),

@@ -57,4 +57,19 @@ object Fixtures {
         }
         return RainMap(grid, radar + forecast)
     }
+
+    /** Vent synthétique : sud-ouest qui forcit vers le nord de la grille, sur une grille grossière. */
+    fun wind(grid: com.namm.meteo.domain.ForecastGrid): List<com.namm.meteo.domain.WindFrame> {
+        val g = RainMapRepository.coarse(grid)
+        val n = g.rows * g.cols
+        return listOf(
+            com.namm.meteo.domain.WindFrame(
+                time = 1_792_180_800L - 3600,
+                grid = g,
+                speed = FloatArray(n) { k -> 5f + (k / g.cols) * 9f + (k % g.cols) * 2f },
+                direction = FloatArray(n) { k -> 200f + (k % g.cols) * 8f },
+                gusts = FloatArray(n) { 0f },
+            ),
+        )
+    }
 }
