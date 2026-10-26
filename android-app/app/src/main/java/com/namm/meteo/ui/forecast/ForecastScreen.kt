@@ -60,6 +60,7 @@ import com.namm.meteo.ui.components.TileShape
 import com.namm.meteo.ui.components.WeatherIcons
 import com.namm.meteo.ui.components.icon
 import com.namm.meteo.ui.theme.Slate
+import com.namm.meteo.ui.theme.screenBackground
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.TextStyle
@@ -79,7 +80,7 @@ fun ForecastScreen(
     val update by viewModel.update.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val pullState = rememberPullToRefreshState()
-    Box(Modifier.fillMaxSize().background(Slate.Background), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().screenBackground(), contentAlignment = Alignment.Center) {
         when (val s = state) {
             ForecastUiState.Loading -> CircularProgressIndicator(color = Slate.Secondary)
             is ForecastUiState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -127,14 +128,20 @@ fun ForecastContent(
     val forecast = data.forecast
     val now = LocalDateTime.parse(forecast.current.time)
     val condition = WeatherCondition.fromWmo(forecast.current.weatherCode)
-    Box(Modifier.fillMaxSize().background(Slate.Background)) {
+    Box(Modifier.fillMaxSize().screenBackground()) {
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp),
     ) {
-        // Météo actuelle : icône + température, puis le lieu juste en dessous.
+        // Météo actuelle : icône + température, puis le lieu juste en dessous
+        // (sur une carte dégradée pour les thèmes qui en ont une).
+        val hero = Slate.HeroBrush
+        Column(
+            if (hero == null) Modifier
+            else Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(hero).padding(20.dp),
+        ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(condition.icon(), condition.label, tint = Slate.Primary, modifier = Modifier.size(72.dp))
             Spacer(Modifier.width(20.dp))
@@ -175,6 +182,7 @@ fun ForecastContent(
                     .format(java.time.Instant.ofEpochMilli(data.fetchedAtMillis).atZone(java.time.ZoneId.systemDefault()))
                 Pill("données de $time · ${reason.label}")
             }
+        }
         }
 
         UpdateBanner(update, onUpdateAction)
@@ -235,14 +243,14 @@ private fun BottomBar(onOpenMap: () -> Unit, onOpenSettings: () -> Unit, modifie
         Row(
             Modifier
                 .clip(RoundedCornerShape(50))
-                .background(Slate.Primary)
+                .background(Slate.ButtonBrush)
                 .clickable(onClick = onOpenMap)
                 .padding(horizontal = 22.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Map, null, tint = Slate.Background, modifier = Modifier.size(20.dp))
+            Icon(Icons.Outlined.Map, null, tint = Slate.OnButton, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Carte de pluie", color = Slate.Background, style = MaterialTheme.typography.titleMedium)
+            Text("Carte de pluie", color = Slate.OnButton, style = MaterialTheme.typography.titleMedium)
         }
         Spacer(Modifier.width(6.dp))
         Box(
@@ -328,11 +336,16 @@ private data class TileData(val icon: ImageVector, val value: String, val label:
 @Composable
 private fun TileGrid(tiles: List<TileData>) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        tiles.chunked(3).forEach { row ->
+        tiles.chunked(3).forEachIndexed { r, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { tile ->
+                row.forEachIndexed { i, tile ->
                     Column(
-                        Modifier.weight(1f).aspectRatio(1f).clip(TileShape).background(Slate.Tile).padding(14.dp),
+                        Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .clip(TileShape)
+                            .background(Slate.TileTints.getOrElse(r * 3 + i) { Slate.Tile })
+                            .padding(14.dp),
                         verticalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Icon(tile.icon, null, tint = Slate.Primary, modifier = Modifier.size(20.dp))

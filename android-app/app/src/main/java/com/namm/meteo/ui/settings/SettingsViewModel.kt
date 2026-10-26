@@ -16,6 +16,7 @@ import com.namm.meteo.data.repository.PlaceRepository
 import com.namm.meteo.data.update.UpdateController
 import com.namm.meteo.domain.Place
 import com.namm.meteo.ui.theme.ThemeMode
+import com.namm.meteo.ui.theme.ThemeStyle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,6 +122,11 @@ class SettingsViewModel(
 
     fun setTheme(value: ThemeMode) = viewModelScope.launch {
         store.setTheme(value)
+        onThemeChanged()
+    }
+
+    fun setStyle(value: ThemeStyle) = viewModelScope.launch {
+        store.setStyle(value)
         onThemeChanged()
     }
     fun setAutoUpdate(value: Boolean) = viewModelScope.launch { store.setAutoUpdate(value) }

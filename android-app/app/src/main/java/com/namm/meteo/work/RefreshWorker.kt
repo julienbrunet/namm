@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.toArgb
 import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.ui.theme.DarkSlate
 import com.namm.meteo.ui.theme.LightSlate
-import com.namm.meteo.ui.theme.ThemeMode
 import com.namm.meteo.widget.WidgetMapRenderer
 import com.namm.meteo.widget.WidgetMapStore
 import com.namm.meteo.widget.Widgets
@@ -78,12 +77,11 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         if (frame == null && !allowOpenMeteo) return // on garde l'image précédente
         if (frame?.source == com.namm.meteo.domain.ForecastSource.OPEN_METEO) prefs.edit().putLong("last_open_meteo", nowMs).apply()
 
-        val dark = when (settings.theme) {
-            ThemeMode.DARK -> true
-            ThemeMode.LIGHT -> false
-            ThemeMode.SYSTEM -> (applicationContext.resources.configuration.uiMode and
-                android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        }
+        val dark = settings.style.widgetDark(
+            settings.theme,
+            (applicationContext.resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES,
+        )
         val tiles = WidgetMapRenderer.TileCache(java.io.File(applicationContext.cacheDir, "widget_tiles"))
         val bitmap = WidgetMapRenderer.render(
             width = width, height = height, lat = place.latitude, lon = place.longitude, z = z, frame = frame, dark = dark,

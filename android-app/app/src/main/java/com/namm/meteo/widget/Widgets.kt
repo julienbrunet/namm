@@ -21,7 +21,6 @@ import com.namm.meteo.MainActivity
 import com.namm.meteo.MeteoApp
 import com.namm.meteo.ui.theme.DarkSlate
 import com.namm.meteo.ui.theme.LightSlate
-import com.namm.meteo.ui.theme.ThemeMode
 import com.namm.meteo.work.RefreshWorker
 import java.io.File
 
@@ -37,12 +36,10 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
         val app = context.applicationContext as MeteoApp
         val data = app.forecastRepository.cached()
         val settings = app.settings.current()
-        val dark = when (settings.theme) {
-            ThemeMode.DARK -> true
-            ThemeMode.LIGHT -> false
-            ThemeMode.SYSTEM -> (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
-        }
+        val dark = settings.style.widgetDark(
+            settings.theme,
+            (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
+        )
         // Réglages propres à CE widget (fond, couleur du texte).
         val style = WidgetConfigStore.read(context, GlanceAppWidgetManager(context).getAppWidgetId(id))
         val colors = WidgetColors(if (dark) DarkSlate else LightSlate, style)

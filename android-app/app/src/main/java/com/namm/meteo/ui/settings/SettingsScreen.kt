@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +27,10 @@ import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.namm.meteo.ui.theme.DarkSlate
+import com.namm.meteo.ui.theme.LightSlate
 import com.namm.meteo.ui.theme.ThemeMode
+import com.namm.meteo.ui.theme.ThemeStyle
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Place
@@ -65,6 +70,7 @@ import com.namm.meteo.ui.components.RoundIconButton
 import com.namm.meteo.ui.components.SectionLabel
 import com.namm.meteo.ui.components.TileShape
 import com.namm.meteo.ui.theme.Slate
+import com.namm.meteo.ui.theme.screenBackground
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
@@ -108,6 +114,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         onSaveAromeKey = { viewModel.testAndSaveAromeKey(it) },
         onRemoveAromeKey = { viewModel.removeAromeKey() },
         onTheme = viewModel::setTheme,
+        onStyle = viewModel::setStyle,
     )
 }
 
@@ -129,11 +136,12 @@ fun SettingsContent(
     onSaveAromeKey: (String) -> Unit = {},
     onRemoveAromeKey: () -> Unit = {},
     onTheme: (ThemeMode) -> Unit = {},
+    onStyle: (ThemeStyle) -> Unit = {},
 ) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(Slate.Background)
+            .screenBackground()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp),
     ) {
@@ -213,7 +221,11 @@ fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
         SectionLabel("APPARENCE")
-        ThemeSelector(settings.theme, onTheme)
+        StyleSelector(settings.style, onStyle)
+        if (settings.style == ThemeStyle.ARDOISE) {
+            Spacer(Modifier.height(10.dp))
+            ThemeSelector(settings.theme, onTheme)
+        }
 
         Spacer(Modifier.height(24.dp))
         SectionLabel("WIDGETS")
@@ -278,6 +290,69 @@ private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, o
                 )
             }
         }
+    }
+}
+
+/** Choix du thème : une pastille d'aperçu (fond + tuile) au-dessus du nom. */
+@Composable
+private fun StyleSelector(current: ThemeStyle, onSelect: (ThemeStyle) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(TileShape).background(Slate.Tile).padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        ThemeStyle.entries.forEach { style ->
+            val selected = style == current
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) Slate.TileHighlight else Slate.Tile)
+                    .clickable { onSelect(style) }
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                StyleSwatch(style)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    style.label,
+                    color = if (selected) Slate.Primary else Slate.Secondary,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Aperçu rond d'un thème : son fond, avec une tuile et une touche de couleur. */
+@Composable
+private fun StyleSwatch(style: ThemeStyle) {
+    // Ardoise : moitié sombre, moitié claire (le mode se choisit en dessous).
+    val palette = style.palette(ThemeMode.DARK, systemDark = true)
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(
+                when {
+                    style == ThemeStyle.ARDOISE ->
+                        Brush.linearGradient(0.5f to DarkSlate.background, 0.5f to LightSlate.background)
+                    palette.heroBrush != null -> palette.heroBrush
+                    // Halos du fond (Aurore) autour de la couleur de fond.
+                    palette.glows.size >= 2 -> Brush.linearGradient(
+                        listOf(palette.glows[1].color.copy(alpha = 1f), palette.background, palette.glows[0].color.copy(alpha = 1f)),
+                    )
+                    else -> palette.backgroundBrush
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(if (style == ThemeStyle.PASTEL) palette.background else palette.rain),
+        )
     }
 }
 

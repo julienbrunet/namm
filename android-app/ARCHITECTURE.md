@@ -82,4 +82,5 @@ com.namm.meteo
 7. ✅ Mise à jour automatique depuis GitHub Releases
 8. ✅ Thème clair (Système / Sombre / Clair)
 9. ✅ Widgets : mini, pluie, journée, semaine, carte de pluie (suivent le thème et le lieu)
-10. À venir : publication F-Droid, alertes vigilance Météo-France
+10. ✅ Thèmes colorés au choix : Ardoise (Système / Sombre / Clair), Ciel, Pastel, Aurore
+11. À venir : publication F-Droid, alertes vigilance Météo-France

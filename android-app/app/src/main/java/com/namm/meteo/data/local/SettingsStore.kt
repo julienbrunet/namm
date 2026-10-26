@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.namm.meteo.data.remote.Network
 import com.namm.meteo.domain.Place
 import com.namm.meteo.ui.theme.ThemeMode
+import com.namm.meteo.ui.theme.ThemeStyle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -25,6 +26,7 @@ data class Settings(
     /** Clé d'API Météo-France (AROME-PI) ; vide = Open-Meteo seul. */
     val aromeApiKey: String = "",
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    val style: ThemeStyle = ThemeStyle.ARDOISE,
     val widgetBackground: WidgetBackground = WidgetBackground.OPAQUE,
 )
 
@@ -48,6 +50,7 @@ class SettingsStore(private val context: Context) {
         val autoUpdate = booleanPreferencesKey("auto_update")
         val aromeApiKey = stringPreferencesKey("arome_api_key")
         val theme = stringPreferencesKey("theme")
+        val style = stringPreferencesKey("theme_style")
         val widgetBackground = stringPreferencesKey("widget_background")
     }
 
@@ -62,6 +65,7 @@ class SettingsStore(private val context: Context) {
             widgetBackground = p[Keys.widgetBackground]?.let { runCatching { WidgetBackground.valueOf(it) }.getOrNull() }
                 ?: WidgetBackground.OPAQUE,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+            style = p[Keys.style]?.let { runCatching { ThemeStyle.valueOf(it) }.getOrNull() } ?: ThemeStyle.ARDOISE,
         )
     }
 
@@ -91,6 +95,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setAromeApiKey(value: String) = context.dataStore.edit { it[Keys.aromeApiKey] = value.filterNot { c -> c.isWhitespace() } }
     suspend fun setWidgetBackground(value: WidgetBackground) = context.dataStore.edit { it[Keys.widgetBackground] = value.name }
     suspend fun setTheme(value: ThemeMode) = context.dataStore.edit { it[Keys.theme] = value.name }
+    suspend fun setStyle(value: ThemeStyle) = context.dataStore.edit { it[Keys.style] = value.name }
     suspend fun setAutoUpdate(value: Boolean) = context.dataStore.edit { it[Keys.autoUpdate] = value }
 
     private inline fun <T> decode(block: () -> T): T? = runCatching(block).getOrNull()
