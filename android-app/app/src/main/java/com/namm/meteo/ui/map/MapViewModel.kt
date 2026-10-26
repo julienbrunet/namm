@@ -13,6 +13,9 @@ import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
 import com.namm.meteo.widget.WidgetMapRenderer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.namm.meteo.domain.MapFrame
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -34,8 +37,19 @@ sealed interface MapUiState {
         val refreshing: Boolean = false,
         /** Prévision incomplète (Open-Meteo saturé) : nouvel essai dès la minute suivante. */
         val partial: Boolean = false,
+        /** Pendant la lecture : transition en cours vers l'image suivante (null à l'arrêt). */
+        val blend: Blend? = null,
     ) : MapUiState
     data class Error(val message: String) : MapUiState
+}
+
+/**
+ * Image intermédiaire de l'animation : [t] ∈ ]0, 1[ entre l'image courante et [next] ;
+ * [tween] = prévision interpolée (null entre deux images radar : fondu enchaîné).
+ */
+data class Blend(val next: MapFrame, val t: Float, val tween: MapFrame.Forecast?) {
+    /** Heure affichée, qui défile en continu. */
+    fun time(from: MapFrame): Long = from.time + ((next.time - from.time) * t).toLong()
 }
 
 /** Couche « Vent » : masquée par défaut, chargée au premier affichage. */
@@ -198,28 +212,61 @@ class MapViewModel(
 
     fun select(index: Int) {
         val s = _state.value as? MapUiState.Ready ?: return
-        _state.value = s.copy(index = index.coerceIn(0, s.map.frames.lastIndex))
+        _state.value = s.copy(index = index.coerceIn(0, s.map.frames.lastIndex), blend = null)
     }
 
     fun togglePlay() {
         val s = _state.value as? MapUiState.Ready ?: return
         if (s.playing) {
             player?.cancel()
-            _state.value = s.copy(playing = false)
+            _state.value = s.copy(playing = false, blend = null)
             return
         }
         _state.value = s.copy(playing = true)
         player = viewModelScope.launch {
             while (isActive) {
-                delay(700)
+                val start = _state.value as? MapUiState.Ready ?: break
+                val from = start.map.frames.getOrNull(start.index) ?: break
+                val nextIndex = (start.index + 1) % start.map.frames.size
+                val to = start.map.frames[nextIndex]
+                // Entre deux prévisions de la même grille : images intermédiaires (pluie déplacée).
+                val tweenable = from is MapFrame.Forecast && to is MapFrame.Forecast && from.grid == to.grid && nextIndex != 0
+                // Entre deux radars : fondu enchaîné, dessiné directement par la carte.
+                val fade = from is MapFrame.Radar && to is MapFrame.Radar
+                if (tweenable || fade) {
+                    val motion = if (tweenable) {
+                        withContext(Dispatchers.Default) { FrameInterpolation.motion(from as MapFrame.Forecast, to as MapFrame.Forecast) }
+                    } else null
+                    for (step in 1 until STEPS) {
+                        delay(FRAME_MS / STEPS)
+                        val t = step.toFloat() / STEPS
+                        val tween = motion?.let { m ->
+                            withContext(Dispatchers.Default) {
+                                FrameInterpolation.between(from as MapFrame.Forecast, to as MapFrame.Forecast, t, m)
+                                    .also { ForecastBitmaps.get(it) } // image prête avant l'affichage
+                            }
+                        }
+                        val cur = _state.value as? MapUiState.Ready ?: return@launch
+                        if (!cur.playing || cur.index != start.index || cur.map !== start.map) break
+                        _state.value = cur.copy(blend = Blend(to, t, tween))
+                    }
+                    delay(FRAME_MS / STEPS)
+                } else {
+                    delay(FRAME_MS)
+                }
                 val cur = _state.value as? MapUiState.Ready ?: break
-                _state.value = cur.copy(index = (cur.index + 1) % cur.map.frames.size)
+                if (!cur.playing) break
+                _state.value = cur.copy(index = (cur.index + 1) % cur.map.frames.size, blend = null)
             }
         }
     }
 
     companion object {
         const val REFRESH_MS = 10 * 60 * 1000L
+
+        /** Durée d'affichage d'un pas de 15 min pendant la lecture, découpée en [STEPS] images. */
+        const val FRAME_MS = 700L
+        const val STEPS = 6
 
         /** Zoom à l'ouverture de la carte. */
         const val INITIAL_ZOOM = 8

@@ -84,6 +84,9 @@ const val RADAR_MAX_ZOOM = 7
  */
 class RadarOverlay(private val view: MapView) : Overlay() {
     var frame: MapFrame.Radar? = null
+    /** Image radar suivante, en fondu enchaîné pendant l'animation ([mix] : 0 = [frame], 1 = [next]). */
+    var next: MapFrame.Radar? = null
+    var mix: Float = 0f
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val pending = mutableSetOf<String>()
@@ -97,6 +100,17 @@ class RadarOverlay(private val view: MapView) : Overlay() {
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow) return
         val f = frame ?: return
+        val n2 = next
+        if (n2 == null || mix <= 0f) {
+            drawFrame(canvas, mapView, f, 210)
+        } else {
+            drawFrame(canvas, mapView, f, (210 * (1 - mix)).toInt())
+            drawFrame(canvas, mapView, n2, (210 * mix).toInt())
+        }
+    }
+
+    private fun drawFrame(canvas: Canvas, mapView: MapView, f: MapFrame.Radar, alpha: Int) {
+        paint.alpha = alpha
         val z = min(RADAR_MAX_ZOOM, floor(mapView.zoomLevelDouble).toInt()).coerceAtLeast(0)
         val box = mapView.boundingBox
         val n = 1 shl z

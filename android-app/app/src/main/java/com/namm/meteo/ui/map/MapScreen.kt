@@ -123,7 +123,7 @@ fun MapContent(
     val frame = state.map.frames.getOrNull(state.index)
     val windFrame = if (wind.visible && frame != null) wind.frames.at(frame.time) else null
     Box(Modifier.fillMaxSize().screenBackground()) {
-        RainMapView(state.place, state.map, frame, online, onViewportChanged, windFrame)
+        RainMapView(state.place, state.map, frame, online, onViewportChanged, windFrame, state.blend)
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
@@ -149,6 +149,7 @@ private fun RainMapView(
     online: Boolean,
     onViewportChanged: (Bounds) -> Unit,
     windFrame: com.namm.meteo.domain.WindFrame? = null,
+    blend: Blend? = null,
 ) {
     val context = LocalContext.current
     val gridOverlay = remember { ForecastGridOverlay() }
@@ -229,11 +230,13 @@ private fun RainMapView(
         } else when (frame) {
             is MapFrame.Radar -> {
                 radarOverlay.frame = frame
+                radarOverlay.next = blend?.next as? MapFrame.Radar
+                radarOverlay.mix = blend?.t ?: 0f
                 view.overlays.add(0, radarOverlay)
                 satelliteOverlay?.let { it.time = frame.time; view.overlays.add(0, it) } // nuages sous la pluie
             }
             is MapFrame.Forecast -> {
-                gridOverlay.frame = frame
+                gridOverlay.frame = blend?.tween ?: frame
                 view.overlays.add(0, gridOverlay)
             }
             null -> Unit
@@ -258,7 +261,7 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    frame?.let { HourFormat.format(Instant.ofEpochSecond(it.time).atZone(ZoneId.systemDefault())) } ?: "--:--",
+                    frame?.let { HourFormat.format(Instant.ofEpochSecond(state.blend?.time(it) ?: it.time).atZone(ZoneId.systemDefault())) } ?: "--:--",
                     color = Slate.Primary,
                     style = MaterialTheme.typography.headlineLarge,
                 )
