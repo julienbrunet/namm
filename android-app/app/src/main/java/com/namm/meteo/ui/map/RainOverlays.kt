@@ -54,6 +54,26 @@ val SlateMapFilter = ColorMatrixColorFilter(
     },
 )
 
+/**
+ * Thèmes clairs : tuiles OSM en gris, éclaircies vers un blanc cassé (55 %), pour que la pluie
+ * ressorte nettement sur un fond qui garde routes et noms de villes lisibles.
+ */
+val FadedMapFilter = ColorMatrixColorFilter(
+    ColorMatrix().apply {
+        setSaturation(0f)
+        postConcat(
+            ColorMatrix(
+                floatArrayOf(
+                    0.45f, 0f, 0f, 0f, 132f,
+                    0f, 0.45f, 0f, 0f, 132.5f,
+                    0f, 0f, 0.45f, 0f, 133.5f,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            ),
+        )
+    },
+)
+
 /** RainViewer ne sert plus de tuiles au-delà du zoom 7 (image « zoom not supported »). */
 const val RADAR_MAX_ZOOM = 7
 

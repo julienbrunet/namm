@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import com.namm.meteo.domain.MapFrame
+import com.namm.meteo.ui.map.FadedMapFilter
 import com.namm.meteo.ui.map.SlateMapFilter
 import com.namm.meteo.ui.map.renderForecast
 import okhttp3.OkHttpClient
@@ -70,7 +71,7 @@ object WidgetMapRenderer {
         val top = cy - height / 2.0
 
         // Fond de carte
-        val tilePaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { if (dark) colorFilter = SlateMapFilter }
+        val tilePaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = if (dark) SlateMapFilter else FadedMapFilter }
         for (tx in floor(left / TILE).toInt()..floor((left + width) / TILE).toInt()) {
             for (ty in floor(top / TILE).toInt()..floor((top + height) / TILE).toInt()) {
                 val t = tile(z, tx, ty) ?: continue

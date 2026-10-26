@@ -159,7 +159,7 @@ private fun RainMapView(
     LaunchedEffect(dark) {
         mapView.setBackgroundColor(background)
         mapView.overlayManager.tilesOverlay.apply {
-            setColorFilter(if (dark) SlateMapFilter else null)
+            setColorFilter(if (dark) SlateMapFilter else FadedMapFilter)
             // Le filtre inverse les couleurs : en sombre, un fond clair devient ardoise sombre.
             loadingBackgroundColor = if (dark) 0xFFD8D8DC.toInt() else 0xFFE9EBEF.toInt()
             loadingLineColor = loadingBackgroundColor
