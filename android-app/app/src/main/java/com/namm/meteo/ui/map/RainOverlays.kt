@@ -10,6 +10,7 @@ import android.graphics.Point
 import android.graphics.RectF
 import android.util.LruCache
 import com.namm.meteo.data.remote.Network
+import com.namm.meteo.domain.CloudLayer
 import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.MapFrame
 import kotlinx.coroutines.CoroutineScope
@@ -195,6 +196,9 @@ class ForecastGridOverlay : Overlay() {
     private var bitmap: Bitmap? = null
     private val paint = Paint().apply { isFilterBitmap = false } // contours nets, pas de flou
     /** Couleur des pointillés de la zone de prévision (selon le thème). */
+    /** Teinte des nuages (blanc en sombre, gris ardoise sur le fond clair). */
+    var cloudPaint = cloudPaint(dark = true)
+
     var outlineColor: Int = 0x55F2F3F5
         set(value) {
             field = value
@@ -221,6 +225,13 @@ class ForecastGridOverlay : Overlay() {
         projection.toPixels(GeoPoint(north, grid.west - grid.lonStep / 2), a)
         projection.toPixels(GeoPoint(grid.south - grid.latStep / 2, east), b)
         val rect = RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat())
+        // Nuages prévus sous la pluie.
+        f.clouds?.let { c ->
+            val cg = c.grid
+            projection.toPixels(GeoPoint(cg.south + (cg.rows - 0.5) * cg.latStep, cg.west - cg.lonStep / 2), a)
+            projection.toPixels(GeoPoint(cg.south - cg.latStep / 2, cg.west + (cg.cols - 0.5) * cg.lonStep), b)
+            canvas.drawBitmap(ForecastBitmaps.clouds(c), null, RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat()), cloudPaint)
+        }
         canvas.drawBitmap(bmp, null, rect, paint)
         canvas.drawRect(rect, outline) // limite de la zone de prévision
     }
@@ -237,8 +248,13 @@ object ForecastBitmaps {
     fun get(frame: MapFrame.Forecast): Bitmap =
         synchronized(cache) { cache[frame] } ?: renderForecast(frame).also { synchronized(cache) { cache[frame] = it } }
 
+    private val clouds = java.util.WeakHashMap<CloudLayer, Bitmap>()
+
+    fun clouds(layer: CloudLayer): Bitmap =
+        synchronized(clouds) { clouds[layer] } ?: renderClouds(layer).also { synchronized(clouds) { clouds[layer] = it } }
+
     suspend fun prepare(frames: List<MapFrame>) = withContext(Dispatchers.Default) {
-        frames.filterIsInstance<MapFrame.Forecast>().forEach { get(it) }
+        frames.filterIsInstance<MapFrame.Forecast>().forEach { f -> get(f); f.clouds?.let(::clouds) }
     }
 }
 
@@ -315,4 +331,98 @@ private fun neighbours(pixels: Int, k: Int, cells: Int, flip: Boolean): Neighbou
         }
     }
     return Neighbours(index, weight)
+}
+
+/**
+ * Voile nuageux (blanc, opacité selon la couverture : rien sous 20 %, ≈ 70 % à 100 %),
+ * lissé par noyau gaussien sur une image ≈ 8 fois plus fine que la grille.
+ */
+internal fun renderClouds(layer: CloudLayer): Bitmap {
+    val grid = layer.grid
+    val k = (240 / maxOf(grid.cols, grid.rows)).coerceIn(1, 8)
+    val w = grid.cols * k
+    val h = grid.rows * k
+    val pixels = IntArray(w * h)
+    val sigma2 = 2 * 0.8 * 0.8
+    for (py in 0 until h) {
+        val gy = (h - py - 0.5) / k - 0.5 // ligne 0 = sud = bas de l'image
+        val r0 = floor(gy).toInt()
+        for (px in 0 until w) {
+            val gx = (px + 0.5) / k - 0.5
+            val c0 = floor(gx).toInt()
+            var sum = 0.0
+            var weights = 0.0
+            for (r in r0 - 1..r0 + 2) {
+                if (r !in 0 until grid.rows) continue
+                for (c in c0 - 1..c0 + 2) {
+                    if (c !in 0 until grid.cols) continue
+                    val wgt = exp(-((gx - c) * (gx - c) + (gy - r) * (gy - r)) / sigma2)
+                    sum += wgt * layer[r, c]
+                    weights += wgt
+                }
+            }
+            val cover = if (weights > 0) sum / weights else 0.0
+            pixels[py * w + px] = (((cover - 20) / 80).coerceIn(0.0, 1.0) * 180).toInt() shl 24 or 0xFFFFFF
+        }
+    }
+    return Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)
+}
+
+/** Pinceau des nuages : garde l'opacité du voile, en blanc (thème sombre) ou gris ardoise (thème clair). */
+fun cloudPaint(dark: Boolean) = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+    colorFilter = android.graphics.PorterDuffColorFilter(
+        if (dark) 0xFFF2F3F5.toInt() else 0xFF5F6878.toInt(),
+        android.graphics.PorterDuff.Mode.SRC_IN,
+    )
+}
+
+/**
+ * Nuages observés (satellite Meteosat) pour les images radar : un carré de ± 400 km autour
+ * du lieu, téléchargé une fois par quart d'heure de prise de vue puis gardé en mémoire.
+ */
+class SatelliteOverlay(
+    private val view: MapView,
+    private val source: com.namm.meteo.data.satellite.SatelliteSource,
+) : Overlay() {
+    var time: Long? = null
+    var box: com.namm.meteo.data.satellite.MercatorBox? = null
+    var paint = cloudPaint(dark = true)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val pending = mutableSetOf<String>()
+    private val a = Point()
+    private val b = Point()
+
+    /** Télécharge à l'avance les images des heures données (animation fluide). */
+    fun prefetch(times: List<Long>) {
+        val bx = box ?: return
+        times.map { com.namm.meteo.data.satellite.SatelliteSource.slot(it) }.distinct().forEach { load(bx, it) }
+    }
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val t = time ?: return
+        val bx = box ?: return
+        val bmp = source.cached(bx, t) ?: run { load(bx, com.namm.meteo.data.satellite.SatelliteSource.slot(t)); null } ?: return
+        val projection = mapView.projection
+        projection.toPixels(GeoPoint(mercLat(bx.maxY), mercLon(bx.minX)), a)
+        projection.toPixels(GeoPoint(mercLat(bx.minY), mercLon(bx.maxX)), b)
+        canvas.drawBitmap(bmp, null, RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat()), paint)
+    }
+
+    private fun load(bx: com.namm.meteo.data.satellite.MercatorBox, slot: Long) {
+        if (!pending.add("${bx.minX}_$slot")) return
+        scope.launch {
+            val bmp = source.clouds(bx, slot)
+            pending.remove("${bx.minX}_$slot")
+            if (bmp != null) view.invalidate()
+        }
+    }
+
+    override fun onDetach(mapView: MapView) {
+        scope.cancel()
+    }
+
+    private fun mercLon(x: Double) = x / com.namm.meteo.data.satellite.MercatorBox.HALF * 180
+    private fun mercLat(y: Double) = Math.toDegrees(2 * atan(exp(y / com.namm.meteo.data.satellite.MercatorBox.HALF * PI)) - PI / 2)
 }

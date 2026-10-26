@@ -155,6 +155,14 @@ private fun RainMapView(
         }
     }
     val radarOverlay = remember { RadarOverlay(mapView) }
+    // Nuages observés : satellite partagé par l'appli (cache commun) ; absent en aperçu / test.
+    val satelliteOverlay = remember {
+        (context.applicationContext as? com.namm.meteo.MeteoApp)?.let { SatelliteOverlay(mapView, it.satellite) }
+    }
+    LaunchedEffect(place.latitude, place.longitude, map) {
+        satelliteOverlay?.box = com.namm.meteo.data.satellite.MercatorBox.around(place.latitude, place.longitude, 400.0)
+        if (online) satelliteOverlay?.prefetch(map.frames.filterIsInstance<MapFrame.Radar>().map { it.time })
+    }
     // Thème sombre : tuiles OSM assombries par le filtre ardoise ; thème clair : tuiles d'origine.
     val dark = Slate.DarkMap
     val background = Slate.Tile.toArgb()
@@ -167,6 +175,8 @@ private fun RainMapView(
             loadingLineColor = loadingBackgroundColor
         }
         gridOverlay.outlineColor = if (dark) 0x55F2F3F5 else 0x662B2F38
+        gridOverlay.cloudPaint = cloudPaint(dark)
+        satelliteOverlay?.paint = cloudPaint(dark)
         mapView.invalidate()
     }
     val viewportCallback by rememberUpdatedState(onViewportChanged)
@@ -192,11 +202,12 @@ private fun RainMapView(
     }
     AndroidView({ mapView }, Modifier.fillMaxSize()) { view ->
         // Une seule couche de pluie visible : radar (passé) ou grille de prévision (futur).
-        view.overlays.removeAll { it is RadarOverlay || it is ForecastGridOverlay }
+        view.overlays.removeAll { it is RadarOverlay || it is ForecastGridOverlay || it is SatelliteOverlay }
         when (frame) {
             is MapFrame.Radar -> {
                 radarOverlay.frame = frame
                 view.overlays.add(0, radarOverlay)
+                satelliteOverlay?.let { it.time = frame.time; view.overlays.add(0, it) } // nuages sous la pluie
             }
             is MapFrame.Forecast -> {
                 gridOverlay.frame = frame
@@ -230,7 +241,7 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
                 )
                 Text(
                     when (frame) {
-                        is MapFrame.Radar -> "Radar observé"
+                        is MapFrame.Radar -> "Radar et nuages satellite observés"
                         is MapFrame.Forecast -> frame.source.label
                         null -> "Aucune donnée"
                     },

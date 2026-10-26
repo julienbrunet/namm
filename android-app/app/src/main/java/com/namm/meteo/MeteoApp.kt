@@ -34,6 +34,7 @@ class MeteoApp : Application() {
     }
     val placeRepository by lazy { PlaceRepository(GeocodingApi.create()) }
     val aromePi by lazy { AromePiSource() }
+    val satellite by lazy { com.namm.meteo.data.satellite.SatelliteSource() }
     val rainMapRepository by lazy {
         RainMapRepository(openMeteo, RainViewerApi.create(), aromePi) { settings.current().aromeApiKey.ifBlank { null } }
     }

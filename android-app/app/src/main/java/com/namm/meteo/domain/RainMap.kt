@@ -18,6 +18,8 @@ sealed interface MapFrame {
         val values: FloatArray,
         val grid: ForecastGrid,
         val source: ForecastSource = ForecastSource.OPEN_METEO,
+        /** Couverture nuageuse prévue (Open-Meteo) à cette heure, sur sa propre grille. */
+        val clouds: CloudLayer? = null,
     ) : MapFrame {
         init {
             require(values.size == grid.rows * grid.cols) { "Grille ${grid.rows}×${grid.cols} mais ${values.size} valeurs" }
@@ -25,6 +27,11 @@ sealed interface MapFrame {
 
         operator fun get(row: Int, col: Int): Float = values[row * grid.cols + col]
     }
+}
+
+/** Couverture nuageuse (%) rangée ligne par ligne comme [MapFrame.Forecast.values] ; égalité par identité. */
+class CloudLayer(val grid: ForecastGrid, val cover: FloatArray) {
+    operator fun get(row: Int, col: Int): Float = cover[row * grid.cols + col]
 }
 
 enum class ForecastSource(val label: String) {

@@ -12,6 +12,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.namm.meteo.MeteoApp
 import com.namm.meteo.data.repository.RainMapRepository
+import com.namm.meteo.data.satellite.MercatorBox
 import com.namm.meteo.domain.ForecastSource
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.minutesUntilRain
@@ -88,10 +89,15 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             settings.theme,
             (applicationContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
+        // Nuages observés par Meteosat sur l'emprise exacte du widget.
+        val b = WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z)
+        val box = MercatorBox(MercatorBox.x(b.west), MercatorBox.y(b.south), MercatorBox.x(b.east), MercatorBox.y(b.north))
+        val scale = minOf(1.0, 640.0 / maxOf(width, height))
+        val satellite = app.satellite.clouds(box, nowMs / 1000, (width * scale).toInt().coerceAtLeast(1), (height * scale).toInt().coerceAtLeast(1))
         val tiles = WidgetMapRenderer.TileCache(File(applicationContext.cacheDir, "widget_tiles")).also { it.purge() }
         val bitmap = WidgetMapRenderer.render(
             width = width, height = height, lat = place.latitude, lon = place.longitude, z = z, frame = frame, dark = dark,
-            background = (if (dark) DarkSlate else LightSlate).tile.toArgb(),
+            background = (if (dark) DarkSlate else LightSlate).tile.toArgb(), satellite = satellite,
         ) { tz, x, y -> tiles.get(tz, x, y) }
         val fmt = DateTimeFormatter.ofPattern("HH:mm")
         val zone = ZoneId.systemDefault()

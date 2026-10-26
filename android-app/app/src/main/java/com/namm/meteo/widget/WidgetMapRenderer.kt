@@ -9,6 +9,8 @@ import com.namm.meteo.data.remote.Network
 import com.namm.meteo.domain.MapFrame
 import com.namm.meteo.ui.map.FadedMapFilter
 import com.namm.meteo.ui.map.SlateMapFilter
+import com.namm.meteo.ui.map.cloudPaint
+import com.namm.meteo.ui.map.renderClouds
 import com.namm.meteo.ui.map.renderForecast
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -61,6 +63,8 @@ object WidgetMapRenderer {
         frame: MapFrame.Forecast?,
         dark: Boolean,
         background: Int,
+        /** Nuages satellite couvrant exactement l'image (sinon : nuages prévus de [frame]). */
+        satellite: Bitmap? = null,
         tile: (z: Int, x: Int, y: Int) -> Bitmap?,
     ): Bitmap {
         val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -80,6 +84,24 @@ object WidgetMapRenderer {
                 val y = (ty * TILE - top).toFloat()
                 canvas.drawBitmap(t, null, RectF(x, y, x + TILE, y + TILE), tilePaint)
             }
+        }
+
+        // Nuages : satellite (observé) de préférence, sinon prévision Open-Meteo.
+        val clouds = cloudPaint(dark)
+        if (satellite != null) {
+            canvas.drawBitmap(satellite, null, RectF(0f, 0f, width.toFloat(), height.toFloat()), clouds)
+        } else frame?.clouds?.let { c ->
+            val g = c.grid
+            canvas.drawBitmap(
+                renderClouds(c), null,
+                RectF(
+                    (worldX(g.west - g.lonStep / 2, z) - left).toFloat(),
+                    (worldY(g.south + (g.rows - 0.5) * g.latStep, z) - top).toFloat(),
+                    (worldX(g.west + (g.cols - 0.5) * g.lonStep, z) - left).toFloat(),
+                    (worldY(g.south - g.latStep / 2, z) - top).toFloat(),
+                ),
+                clouds,
+            )
         }
 
         // Pluie

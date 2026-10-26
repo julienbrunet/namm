@@ -6,6 +6,7 @@ import com.namm.meteo.data.remote.OpenMeteoQuota
 import com.namm.meteo.data.remote.OpenMeteoApi
 import com.namm.meteo.data.remote.RainViewerApi
 import com.namm.meteo.data.remote.RainViewerMapsDto
+import com.namm.meteo.domain.CloudLayer
 import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.MapFrame
 import com.namm.meteo.domain.Place
@@ -88,7 +89,13 @@ class RainMapRepository(
             val openMeteoFrames = runCatching { openMeteoFrames(openMeteoGrid, now) }
             val precise = aromeFrames?.await().orEmpty()
             val after = precise.lastOrNull()?.time ?: Long.MIN_VALUE
-            val frames = precise + openMeteoFrames.getOrNull().orEmpty().filter { it.time > after }
+            // AROME-PI ne donne pas les nuages : on reprend ceux d'Open-Meteo pour la même heure.
+            val cloudsByHour = openMeteoFrames.getOrNull().orEmpty().filterIsInstance<MapFrame.Forecast>()
+                .associate { it.time - Math.floorMod(it.time, 3600L) to it.clouds }
+            val withClouds = precise.map { f ->
+                if (f is MapFrame.Forecast && f.clouds == null) MapFrame.Forecast(f.time, f.values, f.grid, f.source, cloudsByHour[f.time - Math.floorMod(f.time, 3600L)]) else f
+            }
+            val frames = withClouds + openMeteoFrames.getOrNull().orEmpty().filter { it.time > after }
             if (frames.isEmpty()) openMeteoFrames.getOrThrow()
             // Prévision incomplète (Open-Meteo saturé) : non mise en cache, et nouvel essai rapide.
             val partial = openMeteoFrames.isFailure
@@ -215,6 +222,11 @@ internal fun RainViewerMapsDto.toFrames(): List<MapFrame> = radar.past.map {
 internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now: Long): List<MapFrame> {
     if (points.size != grid.rows * grid.cols) return emptyList()
     val times = points.first().minutely15.time
+    // Nuages : valeurs horaires, partagées par les 4 quarts d'heure de chaque heure.
+    val hours = points.first().hourly?.time.orEmpty()
+    val cloudsByHour = hours.indices.associate { h ->
+        hours[h] to CloudLayer(grid, FloatArray(grid.rows * grid.cols) { k -> (points[k].hourly?.cloudCover?.getOrNull(h) ?: 0.0).toFloat() })
+    }
     return times.indices
         .filter { times[it] + 15 * 60 > now }
         .map { i ->
@@ -224,6 +236,7 @@ internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now:
                 values = FloatArray(grid.rows * grid.cols) { k ->
                     (points[k].minutely15.precipitation.getOrNull(i) ?: 0.0).toFloat()
                 },
+                clouds = cloudsByHour[times[i] - Math.floorMod(times[i], 3600L)],
             )
         }
 }
