@@ -223,6 +223,7 @@ fun SettingsContent(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 2.dp),
         )
+        BackgroundRefreshCard()
 
         Spacer(Modifier.height(24.dp))
         SectionLabel("CARTE DE PLUIE · MÉTÉO-FRANCE")
@@ -439,3 +440,46 @@ private fun SwitchRow(icon: ImageVector?, title: String, subtitle: String, check
     }
 }
 
+
+/**
+ * Android (surtout Samsung, Xiaomi…) retarde fortement les tâches de fond des applis « optimisées » :
+ * les widgets restent alors figés. Propose de lever l'optimisation de batterie pour l'appli.
+ */
+@Composable
+private fun BackgroundRefreshCard() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val power = context.getSystemService(android.os.PowerManager::class.java)
+    var unrestricted by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(power.isIgnoringBatteryOptimizations(context.packageName))
+    }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        unrestricted = power.isIgnoringBatteryOptimizations(context.packageName)
+        onPauseOrDispose { }
+    }
+    Spacer(Modifier.height(10.dp))
+    Card {
+        Row(
+            Modifier.fillMaxWidth().clickable(enabled = !unrestricted) {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            android.net.Uri.parse("package:${context.packageName}"),
+                        ),
+                    )
+                }
+            }.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Actualisation en arrière-plan", color = Slate.Primary, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (unrestricted) "Autorisée : les widgets se mettent à jour toutes les 15 min"
+                    else "Limitée par l'économie de batterie : les widgets peuvent rester figés plusieurs heures. Appuyer pour autoriser.",
+                    color = if (unrestricted) Slate.Secondary else Slate.Rain,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}

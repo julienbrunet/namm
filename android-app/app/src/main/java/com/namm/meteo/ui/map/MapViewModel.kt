@@ -75,6 +75,7 @@ class MapViewModel(
             // Zone déjà vue récemment : réutilisée sans appel réseau.
             rainMaps.cachedFor(bounds)?.let { (grid, forecast) ->
                 val map = s.map.withForecast(grid, forecast)
+                ForecastBitmaps.prepare(map.frames)
                 _state.value = s.copy(map = map, index = s.index.coerceIn(0, map.frames.lastIndex))
                 return@launch
             }
@@ -86,6 +87,7 @@ class MapViewModel(
                 cur.copy(refreshing = false)
             } else {
                 val map = cur.map.withForecast(grid, forecast)
+                ForecastBitmaps.prepare(map.frames)
                 cur.copy(map = map, index = cur.index.coerceIn(0, map.frames.lastIndex), refreshing = false)
             }
         }
@@ -97,6 +99,7 @@ class MapViewModel(
         _state.value = runCatching {
             val place = place ?: forecasts.resolvePlace()
             val map = rainMaps.load(place, viewport?.let(RainMapRepository::gridFor) ?: RainMapRepository.gridAround(place))
+            ForecastBitmaps.prepare(map.frames) // images calculées hors du thread principal
             // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
             val index = when {
                 previous == null || previous.index == previous.map.nowIndex -> map.nowIndex

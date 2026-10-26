@@ -84,6 +84,12 @@ abstract class MeteoWidgetReceiver : GlanceAppWidgetReceiver() {
         super.onDeleted(context, appWidgetIds)
         WidgetConfigStore.delete(context, appWidgetIds)
     }
+
+    /** Réveil système (≈ 30 min, même en veille) : relance une actualisation si le travail périodique a pris du retard. */
+    override fun onUpdate(context: Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        Widgets.refreshIfStale(context)
+    }
 }
 
 class MiniWidgetReceiver : MeteoWidgetReceiver() { override val glanceAppWidget = MiniWidget() }
@@ -160,11 +166,17 @@ object Widgets {
     suspend fun hasMapWidget(context: Context) =
         GlanceAppWidgetManager(context).getGlanceIds(MapWidget::class.java).isNotEmpty()
 
+    /** Actualisation complète si la dernière date de plus de 10 min (ouverture de l'appli, réveil des widgets). */
+    fun refreshIfStale(context: Context) {
+        val last = context.getSharedPreferences("worker", Context.MODE_PRIVATE).getLong("last_run", 0)
+        if (System.currentTimeMillis() - last > 10 * 60_000L) refreshNow(context, replace = false)
+    }
+
     /** Lance immédiatement une actualisation complète (prévision + image carte). */
-    fun refreshNow(context: Context) {
+    fun refreshNow(context: Context, replace: Boolean = true) {
         WorkManager.getInstance(context).enqueueUniqueWork(
             "refresh-now",
-            ExistingWorkPolicy.REPLACE,
+            if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<RefreshWorker>().build(),
         )
     }

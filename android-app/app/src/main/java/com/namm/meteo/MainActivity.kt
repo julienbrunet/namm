@@ -54,6 +54,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Retour au premier plan : nouvelle version publiée entre-temps ? (au plus toutes les 30 min)
         (application as MeteoApp).updates.checkIfDue()
+        // Widgets en retard (veille Android) : on les remet à jour dès que l'appli est ouverte.
+        com.namm.meteo.widget.Widgets.refreshIfStale(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

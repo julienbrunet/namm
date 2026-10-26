@@ -10,7 +10,9 @@ import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.MapFrame
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.coroutineScope
 import java.util.Locale
 
@@ -30,7 +32,7 @@ class RainMapRepository(
         center: Place,
         grid: ForecastGrid = gridAround(center),
         now: Long = System.currentTimeMillis() / 1000,
-    ): RainMap = coroutineScope {
+    ): RainMap = withContext(Dispatchers.Default) {
         val radar = async { runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList()) }
         val forecast = async { runCatching { forecastFor(grid, now) } }
         // Radar et prévision sont indépendants : l'un peut échouer sans masquer l'autre.
@@ -67,7 +69,8 @@ class RainMapRepository(
      * (maille 1,3 km), Open-Meteo ensuite ; sinon (ou en cas d'échec) Open-Meteo seul.
      */
     suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> =
-        coroutineScope {
+        // Décodage GeoTIFF / JSON coûteux : jamais sur le thread principal (gel de l'appli).
+        withContext(Dispatchers.Default) {
             val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
             val aromeFrames = key?.let { async { runCatching { arome.forecast(it, grid, now) }.getOrDefault(emptyList()) } }
             // Avec AROME-PI, Open-Meteo ne sert qu'au-delà de +6 h : une grille grossière suffit
@@ -87,14 +90,14 @@ class RainMapRepository(
      * Pluie actuelle sur [grid] pour le widget carte : une seule image AROME-PI si une clé est
      * active (1-2 requêtes), sinon Open-Meteo sur une grille grossière (80 points) si [allowOpenMeteo].
      */
-    suspend fun currentFrame(grid: ForecastGrid, allowOpenMeteo: Boolean, now: Long = System.currentTimeMillis() / 1000): MapFrame.Forecast? {
+    suspend fun currentFrame(grid: ForecastGrid, allowOpenMeteo: Boolean, now: Long = System.currentTimeMillis() / 1000): MapFrame.Forecast? = withContext(Dispatchers.Default) {
         val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
         if (key != null) {
             runCatching { arome.forecast(key, grid, now, maxFrames = 1) }.getOrNull()
-                ?.filterIsInstance<MapFrame.Forecast>()?.firstOrNull()?.let { return it }
+                ?.filterIsInstance<MapFrame.Forecast>()?.firstOrNull()?.let { return@withContext it }
         }
-        if (!allowOpenMeteo) return null
-        return openMeteoFrames(coarse(grid), now).filterIsInstance<MapFrame.Forecast>().firstOrNull()
+        if (!allowOpenMeteo) return@withContext null
+        openMeteoFrames(coarse(grid), now).filterIsInstance<MapFrame.Forecast>().firstOrNull()
     }
 
     private fun cacheFrames(grid: ForecastGrid, frames: List<MapFrame>, now: Long) {

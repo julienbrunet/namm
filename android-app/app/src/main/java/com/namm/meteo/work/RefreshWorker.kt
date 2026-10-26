@@ -28,6 +28,8 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
     override suspend fun doWork(): Result {
         val app = applicationContext as MeteoApp
+        applicationContext.getSharedPreferences("worker", Context.MODE_PRIVATE).edit()
+            .putLong("last_run", System.currentTimeMillis()).apply()
         val settings = app.settings.current()
         val result = runCatching { app.forecastRepository.load() }.getOrNull()
         if (result != null && Widgets.hasMapWidget(applicationContext)) {

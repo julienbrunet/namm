@@ -153,7 +153,7 @@ fun rainColor(mmPer15: Double): Int? {
 class ForecastGridOverlay : Overlay() {
     var frame: MapFrame.Forecast? = null
         set(value) {
-            if (value !== field) bitmap = value?.let { renderForecast(it.grid, it.values) }
+            if (value !== field) bitmap = value?.let(ForecastBitmaps::get)
             field = value
         }
     private var bitmap: Bitmap? = null
@@ -187,6 +187,21 @@ class ForecastGridOverlay : Overlay() {
         val rect = RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat())
         canvas.drawBitmap(bmp, null, rect, paint)
         canvas.drawRect(rect, outline) // limite de la zone de prévision
+    }
+}
+
+/**
+ * Images de prévision déjà calculées (une par pas de temps) : préparées en arrière-plan par
+ * [prepare] pour que l'affichage et l'animation ne calculent rien sur le thread principal.
+ */
+object ForecastBitmaps {
+    private val cache = java.util.WeakHashMap<MapFrame.Forecast, Bitmap>()
+
+    fun get(frame: MapFrame.Forecast): Bitmap =
+        synchronized(cache) { cache[frame] } ?: renderForecast(frame.grid, frame.values).also { synchronized(cache) { cache[frame] = it } }
+
+    suspend fun prepare(frames: List<MapFrame>) = withContext(Dispatchers.Default) {
+        frames.filterIsInstance<MapFrame.Forecast>().forEach { get(it) }
     }
 }
 
