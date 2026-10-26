@@ -12,6 +12,8 @@ import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -93,21 +95,41 @@ class MapViewModel(
         }
     }
 
+    /** Étape du chargement en cours, affichée sur l'écran d'attente et la pastille. */
+    val progress: StateFlow<com.namm.meteo.data.repository.LoadProgress?> = rainMaps.progress
+
     fun load() = viewModelScope.launch {
         val previous = _state.value as? MapUiState.Ready
         if (previous == null) _state.value = MapUiState.Loading else _state.value = previous.copy(refreshing = true)
         _state.value = runCatching {
-            val place = place ?: forecasts.resolvePlace()
-            val map = rainMaps.load(place, viewport?.let(RainMapRepository::gridFor) ?: RainMapRepository.gridAround(place))
-            ForecastBitmaps.prepare(map.frames) // images calculées hors du thread principal
-            // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
-            val index = when {
-                previous == null || previous.index == previous.map.nowIndex -> map.nowIndex
-                else -> map.frames.indexOfFirst { it.time >= previous.map.frames[previous.index].time }
-                    .takeIf { it >= 0 } ?: map.nowIndex
+            coroutineScope {
+                val place = place ?: forecasts.resolvePlace()
+                val grid = viewport?.let(RainMapRepository::gridFor) ?: RainMapRepository.gridAround(place)
+                val forecast = async { runCatching { rainMaps.forecastFor(grid) } }
+                val radar = rainMaps.radar()
+                // Premier affichage : la carte et le radar apparaissent sans attendre la prévision.
+                if (previous == null && radar.isNotEmpty() && !forecast.isCompleted) {
+                    _state.value = MapUiState.Ready(place, RainMap(grid, radar), radar.lastIndex, loadedAt = clock(), refreshing = true)
+                }
+                val predicted = forecast.await()
+                val frames = radar + predicted.getOrNull().orEmpty()
+                if (frames.isEmpty()) throw predicted.exceptionOrNull() ?: IllegalStateException("Aucune donnée de pluie")
+                val map = RainMap(grid, frames)
+                rainMaps.progress.value = com.namm.meteo.data.repository.LoadProgress("Préparation des images")
+                ForecastBitmaps.prepare(map.frames) // images calculées hors du thread principal
+                // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
+                val shown = _state.value as? MapUiState.Ready ?: previous
+                val index = when {
+                    shown == null || shown.index == shown.map.nowIndex || shown === _state.value && shown.index == shown.map.frames.lastIndex -> map.nowIndex
+                    else -> map.frames.indexOfFirst { it.time >= shown.map.frames[shown.index].time }
+                        .takeIf { it >= 0 } ?: map.nowIndex
+                }
+                MapUiState.Ready(place, map, index, playing = shown?.playing ?: false, loadedAt = clock())
             }
-            MapUiState.Ready(place, map, index, playing = previous?.playing ?: false, loadedAt = clock())
-        }.getOrElse { previous?.copy(refreshing = false) ?: MapUiState.Error(it.message ?: "Erreur réseau") }
+        }.getOrElse {
+            (_state.value as? MapUiState.Ready)?.copy(refreshing = false) ?: MapUiState.Error(it.message ?: "Erreur réseau")
+        }
+        rainMaps.progress.value = null
     }
 
     /** Recharge si les données ont plus de [REFRESH_MS] (radar mis à jour toutes les 10 min). */

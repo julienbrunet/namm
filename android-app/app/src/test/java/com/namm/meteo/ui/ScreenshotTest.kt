@@ -1,5 +1,7 @@
 package com.namm.meteo.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -153,5 +155,15 @@ class ScreenshotTest {
     fun carte() = capture("carte") {
         val map = Fixtures.rainMap()
         MapContent(MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3, loadedAt = 1_792_180_800_000L), online = false)
+    }
+
+    @Test
+    fun carteChargement() = capture("carte_chargement") {
+        androidx.compose.foundation.layout.Box(
+            androidx.compose.ui.Modifier.fillMaxSize().background(com.namm.meteo.ui.theme.Slate.Background),
+            androidx.compose.ui.Alignment.Center,
+        ) {
+            com.namm.meteo.ui.map.LoadingSteps(com.namm.meteo.data.repository.LoadProgress("Prévision Météo-France", 9, 24))
+        }
     }
 }

@@ -65,6 +65,8 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
         now: Long = System.currentTimeMillis() / 1000,
         /** Nombre max d'images (le widget n'a besoin que de la pluie actuelle). */
         maxFrames: Int = MAX_STEPS,
+        /** Avancement (images reçues, total) pour l'écran de chargement. */
+        onProgress: (Int, Int) -> Unit = { _, _ -> },
     ): List<MapFrame> =
         coroutineScope {
             val layer = latestLayer(key)
@@ -73,12 +75,14 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
             if (steps.isEmpty()) return@coroutineScope emptyList()
             // Couche cumulée : il faut aussi le pas précédent pour faire la différence.
             val needed = if (layer.kind == PrecipKind.CUMULATIVE) listOf(steps.first() - STEP) + steps else steps
-            val limiter = Semaphore(4)
+            val limiter = Semaphore(PARALLEL)
+            val done = java.util.concurrent.atomic.AtomicInteger()
+            onProgress(0, needed.size)
             val rasters = needed.map { t ->
                 async {
                     limiter.withPermit {
                         if (t <= runSec) null else downsample(GeoTiff.decode(coverage(key, layer.coverageId, area, t)))
-                    }
+                    }.also { onProgress(done.incrementAndGet(), needed.size) }
                 }
             }.awaitAll()
 
@@ -116,7 +120,7 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
         // On ne se fie pas au type deviné : on essaie chaque méthode, la plus probable d'abord.
         val apiKeyAuth: suspend (Request.Builder) -> Unit = { b -> b.header("apikey", key) }
         val bearerAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer $key") }
-        val tokenAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = true)}") }
+        val tokenAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = false)}") }
         val apiKey = "API Key" to apiKeyAuth
         val bearer = "jeton" to bearerAuth
         val viaToken = "Application ID" to tokenAuth
@@ -194,6 +198,9 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
         const val BASE = "https://public-api.meteofrance.fr/public/aromepi/1.0/wcs/MF-NWP-HIGHRES-AROMEPI-001-FRANCE-WCS"
         const val STEP = 15 * 60L
         const val MAX_STEPS = 24 // +6 h
+
+        /** Téléchargements simultanés (le portail les accepte sans erreur 429). */
+        const val PARALLEL = 8
 
         // Domaine AROME-PI (approx.) : au-delà, on reste sur Open-Meteo.
         const val FRANCE_SOUTH = 37.5

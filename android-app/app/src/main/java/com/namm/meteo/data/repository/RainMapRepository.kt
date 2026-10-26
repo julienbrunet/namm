@@ -28,6 +28,12 @@ class RainMapRepository(
     private val aromeKey: suspend () -> String? = { null },
 ) {
 
+    /** Étape en cours du chargement de la carte (null : rien en cours), affichée à l'écran. */
+    val progress = kotlinx.coroutines.flow.MutableStateFlow<LoadProgress?>(null)
+
+    /** Images radar RainViewer (passé récent), rapides à obtenir. */
+    suspend fun radar(): List<MapFrame> = runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList())
+
     suspend fun load(
         center: Place,
         grid: ForecastGrid = gridAround(center),
@@ -72,7 +78,14 @@ class RainMapRepository(
         // Décodage GeoTIFF / JSON coûteux : jamais sur le thread principal (gel de l'appli).
         withContext(Dispatchers.Default) {
             val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
-            val aromeFrames = key?.let { async { runCatching { arome.forecast(it, grid, now) }.getOrDefault(emptyList()) } }
+            progress.value = LoadProgress(if (key != null) "Prévision Météo-France" else "Prévision Open-Meteo")
+            val aromeFrames = key?.let {
+                async {
+                    runCatching {
+                        arome.forecast(it, grid, now) { done, total -> progress.value = LoadProgress("Prévision Météo-France", done, total) }
+                    }.getOrDefault(emptyList())
+                }
+            }
             // Avec AROME-PI, Open-Meteo ne sert qu'au-delà de +6 h : une grille grossière suffit
             // (≈ 80 points au lieu de 192) et ménage le quota par minute.
             val openMeteoGrid = if (key != null) coarse(grid) else grid
@@ -219,3 +232,6 @@ internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now:
             )
         }
 }
+
+/** Avancement du chargement : libellé de l'étape et, si connu, nombre d'éléments reçus. */
+data class LoadProgress(val label: String, val done: Int = 0, val total: Int = 0)

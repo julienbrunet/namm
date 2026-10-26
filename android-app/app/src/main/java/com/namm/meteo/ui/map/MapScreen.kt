@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import com.namm.meteo.data.repository.Bounds
+import com.namm.meteo.data.repository.LoadProgress
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
@@ -69,6 +70,7 @@ private val HourFormat = DateTimeFormatter.ofPattern("HH:mm")
 fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
     LaunchedEffect(place) { viewModel.show(place) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val progress by viewModel.progress.collectAsStateWithLifecycle()
     // Tant que l'écran est visible (et à chaque retour au premier plan), on vérifie
     // chaque minute si les données ont plus de 10 min et on les recharge si besoin.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -82,7 +84,7 @@ fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
     }
     when (val s = state) {
         MapUiState.Loading -> Box(Modifier.fillMaxSize().screenBackground(), Alignment.Center) {
-            CircularProgressIndicator(color = Slate.Secondary)
+            LoadingSteps(progress)
         }
         is MapUiState.Error -> Box(Modifier.fillMaxSize().screenBackground(), Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -94,6 +96,7 @@ fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
         }
         is MapUiState.Ready -> MapContent(
             s, onBack, viewModel::select, viewModel::togglePlay, { viewModel.load() }, viewModel::onViewportChanged,
+            progress = progress,
         )
     }
 }
@@ -107,13 +110,14 @@ fun MapContent(
     onRefresh: () -> Unit = {},
     onViewportChanged: (Bounds) -> Unit = {},
     online: Boolean = true,
+    progress: LoadProgress? = null,
 ) {
     Box(Modifier.fillMaxSize().screenBackground()) {
         RainMapView(state.place, state.map, state.map.frames.getOrNull(state.index), online, onViewportChanged)
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
             Spacer(Modifier.weight(1f))
-            RefreshPill(state.loadedAt, state.refreshing, onRefresh)
+            RefreshPill(state.loadedAt, state.refreshing, onRefresh, progress)
         }
         Timeline(state, onSelect, onTogglePlay, Modifier.align(Alignment.BottomCenter))
     }
@@ -272,7 +276,7 @@ private fun Legend() {
 
 /** Pastille « Mis à jour à HH:mm » : un appui force le rechargement. */
 @Composable
-private fun RefreshPill(loadedAt: Long, refreshing: Boolean, onRefresh: () -> Unit) {
+private fun RefreshPill(loadedAt: Long, refreshing: Boolean, onRefresh: () -> Unit, progress: LoadProgress? = null) {
     Row(
         Modifier
             .clip(RoundedCornerShape(50))
@@ -288,10 +292,36 @@ private fun RefreshPill(loadedAt: Long, refreshing: Boolean, onRefresh: () -> Un
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            if (refreshing) "Mise à jour…"
+            if (refreshing) progress?.let(::progressText) ?: "Mise à jour…"
             else "Mis à jour à " + HourFormat.format(Instant.ofEpochMilli(loadedAt).atZone(ZoneId.systemDefault())),
             color = Slate.Secondary,
             style = MaterialTheme.typography.labelSmall,
         )
+    }
+}
+
+/** « Prévision Météo-France · 12 / 24 » */
+private fun progressText(p: LoadProgress) =
+    if (p.total > 0) "${p.label} · ${p.done} / ${p.total}" else "${p.label}…"
+
+/** Écran d'attente : étape en cours et barre d'avancement quand le nombre d'images est connu. */
+@Composable
+fun LoadingSteps(progress: LoadProgress?) {
+    Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Carte de pluie", color = Slate.Primary, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(16.dp))
+        val p = progress
+        if (p != null && p.total > 0) {
+            androidx.compose.material3.LinearProgressIndicator(
+                progress = { p.done.toFloat() / p.total },
+                modifier = Modifier.width(220.dp),
+                color = Slate.Rain,
+                trackColor = Slate.Tile,
+            )
+        } else {
+            androidx.compose.material3.LinearProgressIndicator(Modifier.width(220.dp), color = Slate.Rain, trackColor = Slate.Tile)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(p?.let(::progressText) ?: "Localisation et radar…", color = Slate.Secondary, style = MaterialTheme.typography.bodyMedium)
     }
 }
