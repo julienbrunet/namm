@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -68,7 +69,8 @@ private val HourFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
 fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
-    LaunchedEffect(place) { viewModel.show(place) }
+    val configuration = LocalConfiguration.current
+    LaunchedEffect(place) { viewModel.show(place, configuration.screenWidthDp, configuration.screenHeightDp) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     // Tant que l'écran est visible (et à chaque retour au premier plan), on vérifie
@@ -141,7 +143,7 @@ private fun RainMapView(
             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
             minZoomLevel = 5.0
             maxZoomLevel = 12.0
-            controller.setZoom(8.0) // la zone de prévision (~190 km) remplit l'écran
+            controller.setZoom(MapViewModel.INITIAL_ZOOM.toDouble())
             controller.setCenter(GeoPoint(place.latitude, place.longitude))
             isTilesScaledToDpi = true
             overlays.add(Marker(this).apply {

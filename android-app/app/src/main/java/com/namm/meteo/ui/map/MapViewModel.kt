@@ -12,6 +12,7 @@ import com.namm.meteo.data.repository.LoadProgress
 import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
+import com.namm.meteo.widget.WidgetMapRenderer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -54,8 +55,16 @@ class MapViewModel(
     /** Dernière zone visible de la carte, pour y adapter la grille de prévision. */
     private var viewport: Bounds? = null
 
-    /** Affiche la carte centrée sur ce lieu (null : lieu résolu via les paramètres) ; recharge s'il a changé. */
-    fun show(target: Place?) {
+    /** Taille de l'écran (dp), pour connaître la zone visible avant que la carte n'existe. */
+    private var screenDp: Pair<Int, Int>? = null
+
+    /**
+     * Affiche la carte centrée sur ce lieu (null : lieu résolu via les paramètres) ; recharge s'il a changé.
+     * [screenWidthDp] × [screenHeightDp] : taille de la carte, pour charger d'emblée la prévision sur
+     * toute la zone visible (sinon un premier carré réduit puis un second chargement).
+     */
+    fun show(target: Place?, screenWidthDp: Int = 0, screenHeightDp: Int = 0) {
+        if (screenWidthDp > 0 && screenHeightDp > 0) screenDp = screenWidthDp to screenHeightDp
         val current = place
         if (target != null) place = target
         if (_state.value !is MapUiState.Ready || (target != null && (current == null || !current.sameAs(target)))) {
@@ -107,7 +116,8 @@ class MapViewModel(
         _state.value = runCatching {
             coroutineScope {
                 val place = place ?: forecasts.resolvePlace()
-                val grid = viewport?.let(RainMapRepository::gridFor) ?: RainMapRepository.gridAround(place)
+                val grid = (viewport ?: initialViewport(place))?.let(RainMapRepository::gridFor)
+                    ?: RainMapRepository.gridAround(place)
                 val forecast = async { runCatching { rainMaps.forecastFor(grid) } }
                 val radar = rainMaps.radar()
                 // Premier affichage : la carte et le radar apparaissent sans attendre la prévision.
@@ -136,6 +146,14 @@ class MapViewModel(
             (_state.value as? MapUiState.Ready)?.copy(refreshing = false) ?: MapUiState.Error(it.message ?: "Erreur réseau")
         }
         rainMaps.progress.value = null
+    }
+
+    /**
+     * Zone visible à l'ouverture (carte centrée sur le lieu, zoom [INITIAL_ZOOM]). Tuiles à l'échelle
+     * de l'écran (isTilesScaledToDpi) : une tuile de 256 px fait 256 dp, d'où un calcul en dp.
+     */
+    private fun initialViewport(place: Place): Bounds? = screenDp?.let { (w, h) ->
+        WidgetMapRenderer.bounds(place.latitude, place.longitude, w, h, INITIAL_ZOOM)
     }
 
     /** Recharge si les données ont plus de [REFRESH_MS] (radar mis à jour toutes les 10 min). */
@@ -171,6 +189,9 @@ class MapViewModel(
 
     companion object {
         const val REFRESH_MS = 10 * 60 * 1000L
+
+        /** Zoom à l'ouverture de la carte. */
+        const val INITIAL_ZOOM = 8
 
         val Factory = viewModelFactory {
             initializer {
