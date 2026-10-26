@@ -426,3 +426,73 @@ class SatelliteOverlay(
     private fun mercLon(x: Double) = x / com.namm.meteo.data.satellite.MercatorBox.HALF * 180
     private fun mercLat(y: Double) = Math.toDegrees(2 * atan(exp(y / com.namm.meteo.data.satellite.MercatorBox.HALF * PI)) - PI / 2)
 }
+
+/** Paliers de vitesse du vent (km/h) et couleurs des flèches, communs à la carte et à la légende. */
+enum class WindLevel(val minKmh: Float, val color: Int, val label: String) {
+    CALM(0f, 0xFF9AA3B2.toInt(), "0"),
+    LIGHT(15f, 0xFF6CC4B4.toInt(), "15"),
+    MODERATE(30f, 0xFFE8C93A.toInt(), "30"),
+    STRONG(50f, 0xFFF08A2C.toInt(), "50"),
+    STORM(75f, 0xFFE0412E.toInt(), "75"),
+}
+
+fun windColor(kmh: Float): Int = WindLevel.entries.last { kmh >= it.minKmh }.color
+
+/** Image de vent à afficher pour l'heure [time] : la dernière commencée (ou la première s'il est plus tôt). */
+fun List<com.namm.meteo.domain.WindFrame>.at(time: Long): com.namm.meteo.domain.WindFrame? =
+    lastOrNull { it.time <= time } ?: firstOrNull()
+
+/**
+ * Vent : une flèche par point de grille, orientée dans le sens où souffle le vent, plus longue
+ * et plus chaude (gris → vert d'eau → jaune → orange → rouge) quand il forcit.
+ */
+class WindOverlay(private val density: Float) : Overlay() {
+    var frame: com.namm.meteo.domain.WindFrame? = null
+    /** Liseré autour des flèches pour qu'elles restent lisibles sur la pluie et les nuages. */
+    var haloColor: Int = 0x99353A45.toInt()
+
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val p = Point()
+    private val path = android.graphics.Path()
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val f = frame ?: return
+        val g = f.grid
+        val projection = mapView.projection
+        for (r in 0 until g.rows) for (c in 0 until g.cols) {
+            val k = r * g.cols + c
+            val speed = f.speed[k]
+            projection.toPixels(GeoPoint(g.south + r * g.latStep, g.west + c * g.lonStep), p)
+            // Direction « d'où vient le vent » → la flèche pointe vers où il va.
+            val rad = Math.toRadians(f.direction[k] + 180.0)
+            val len = density * (12f + (speed.coerceAtMost(80f) / 80f) * 20f)
+            val dx = (kotlin.math.sin(rad) * len / 2).toFloat()
+            val dy = (-kotlin.math.cos(rad) * len / 2).toFloat()
+            val x0 = p.x - dx
+            val y0 = p.y - dy
+            val x1 = p.x + dx
+            val y1 = p.y + dy
+            // Pointe : deux traits à ± 150° de la direction.
+            val head = density * 6f
+            path.reset()
+            path.moveTo(x0, y0)
+            path.lineTo(x1, y1)
+            for (s in listOf(-1, 1)) {
+                val a = rad + Math.toRadians(180.0 + s * 30)
+                path.moveTo(x1, y1)
+                path.lineTo(x1 + (kotlin.math.sin(a) * head).toFloat(), y1 - (kotlin.math.cos(a) * head).toFloat())
+            }
+            stroke.color = haloColor
+            stroke.strokeWidth = density * 4.5f
+            canvas.drawPath(path, stroke)
+            stroke.color = windColor(speed)
+            stroke.strokeWidth = density * 2.2f
+            canvas.drawPath(path, stroke)
+        }
+    }
+}

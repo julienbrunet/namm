@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
@@ -73,6 +74,7 @@ fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
     LaunchedEffect(place) { viewModel.show(place, configuration.screenWidthDp, configuration.screenHeightDp) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val progress by viewModel.progress.collectAsStateWithLifecycle()
+    val wind by viewModel.wind.collectAsStateWithLifecycle()
     // Tant que l'écran est visible (et à chaque retour au premier plan), on vérifie
     // chaque minute si les données ont plus de 10 min et on les recharge si besoin.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -99,6 +101,8 @@ fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
         is MapUiState.Ready -> MapContent(
             s, onBack, viewModel::select, viewModel::togglePlay, { viewModel.load() }, viewModel::onViewportChanged,
             progress = progress,
+            wind = wind,
+            onToggleWind = viewModel::toggleWind,
         )
     }
 }
@@ -113,15 +117,27 @@ fun MapContent(
     onViewportChanged: (Bounds) -> Unit = {},
     online: Boolean = true,
     progress: LoadProgress? = null,
+    wind: WindUiState = WindUiState(),
+    onToggleWind: () -> Unit = {},
 ) {
+    val frame = state.map.frames.getOrNull(state.index)
+    val windFrame = if (wind.visible && frame != null) wind.frames.at(frame.time) else null
     Box(Modifier.fillMaxSize().screenBackground()) {
-        RainMapView(state.place, state.map, state.map.frames.getOrNull(state.index), online, onViewportChanged)
-        Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
-            Spacer(Modifier.weight(1f))
-            RefreshPill(state.loadedAt, state.refreshing, onRefresh, progress)
+        RainMapView(state.place, state.map, frame, online, onViewportChanged, windFrame)
+        Column(Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RoundIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Retour", onBack)
+                Spacer(Modifier.weight(1f))
+                RefreshPill(state.loadedAt, state.refreshing, onRefresh, progress)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                if (wind.visible && (wind.loading || wind.error != null || wind.frames.isEmpty())) WindLegend(wind)
+                Spacer(Modifier.width(8.dp))
+                WindButton(wind.visible, onToggleWind)
+            }
         }
-        Timeline(state, onSelect, onTogglePlay, Modifier.align(Alignment.BottomCenter))
+        Timeline(state, onSelect, onTogglePlay, Modifier.align(Alignment.BottomCenter), windShown = windFrame != null)
     }
 }
 
@@ -132,6 +148,7 @@ private fun RainMapView(
     frame: MapFrame?,
     online: Boolean,
     onViewportChanged: (Bounds) -> Unit,
+    windFrame: com.namm.meteo.domain.WindFrame? = null,
 ) {
     val context = LocalContext.current
     val gridOverlay = remember { ForecastGridOverlay() }
@@ -155,6 +172,7 @@ private fun RainMapView(
         }
     }
     val radarOverlay = remember { RadarOverlay(mapView) }
+    val windOverlay = remember { WindOverlay(context.resources.displayMetrics.density) }
     // Nuages observés : satellite partagé par l'appli (cache commun) ; absent en aperçu / test.
     val satelliteOverlay = remember {
         (context.applicationContext as? com.namm.meteo.MeteoApp)?.let { SatelliteOverlay(mapView, it.satellite) }
@@ -177,6 +195,7 @@ private fun RainMapView(
         gridOverlay.outlineColor = if (dark) 0x55F2F3F5 else 0x662B2F38
         gridOverlay.cloudPaint = cloudPaint(dark)
         satelliteOverlay?.paint = cloudPaint(dark)
+        windOverlay.haloColor = if (dark) 0x99353A45.toInt() else 0xCCF8F9FA.toInt()
         mapView.invalidate()
     }
     val viewportCallback by rememberUpdatedState(onViewportChanged)
@@ -202,8 +221,12 @@ private fun RainMapView(
     }
     AndroidView({ mapView }, Modifier.fillMaxSize()) { view ->
         // Une seule couche de pluie visible : radar (passé) ou grille de prévision (futur).
-        view.overlays.removeAll { it is RadarOverlay || it is ForecastGridOverlay || it is SatelliteOverlay }
-        when (frame) {
+        view.overlays.removeAll { it is RadarOverlay || it is ForecastGridOverlay || it is SatelliteOverlay || it is WindOverlay }
+        // Carte des vents : affichée seule (sans pluie ni nuages) pour rester lisible.
+        if (windFrame != null) {
+            windOverlay.frame = windFrame
+            view.overlays.add(0, windOverlay)
+        } else when (frame) {
             is MapFrame.Radar -> {
                 radarOverlay.frame = frame
                 view.overlays.add(0, radarOverlay)
@@ -220,7 +243,7 @@ private fun RainMapView(
 }
 
 @Composable
-private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onTogglePlay: () -> Unit, modifier: Modifier) {
+private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onTogglePlay: () -> Unit, modifier: Modifier, windShown: Boolean = false) {
     val frames = state.map.frames
     val frame = frames.getOrNull(state.index)
     Column(
@@ -240,7 +263,7 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
                     style = MaterialTheme.typography.headlineLarge,
                 )
                 Text(
-                    when (frame) {
+                    if (windShown) "Vent prévu à 10 m (Open-Meteo)" else when (frame) {
                         is MapFrame.Radar -> "Radar et nuages satellite observés"
                         is MapFrame.Forecast -> frame.source.label
                         null -> "Aucune donnée"
@@ -270,7 +293,23 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
             }
         }
         Spacer(Modifier.height(12.dp))
-        Legend()
+        if (windShown) WindScale() else Legend()
+    }
+}
+
+/** Légende du vent : paliers de vitesse (km/h) des flèches. */
+@Composable
+private fun WindScale() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        WindLevel.entries.forEach { level ->
+            Column(Modifier.weight(1f)) {
+                Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(level.color)))
+                Text(
+                    if (level == WindLevel.entries.last()) "${level.label}+ km/h" else "${level.label} km/h",
+                    color = Slate.Muted, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -336,5 +375,51 @@ fun LoadingSteps(progress: LoadProgress?) {
         }
         Spacer(Modifier.height(12.dp))
         Text(p?.let(::progressText) ?: "Localisation et radar…", color = Slate.Secondary, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** Bouton « Vent » : couche masquée par défaut, surlignée quand elle est affichée. */
+@Composable
+private fun WindButton(visible: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape)
+            .background(if (visible) Slate.Rain else Slate.Tile)
+            .clickable(onClick = onClick),
+        Alignment.Center,
+    ) {
+        Icon(
+            Icons.Outlined.Air,
+            if (visible) "Masquer le vent" else "Afficher le vent",
+            tint = if (visible) Slate.Background else Slate.Primary,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/** Légende du vent (km/h) ou état du chargement. */
+@Composable
+private fun WindLegend(wind: WindUiState) {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(Slate.Background.copy(alpha = 0.92f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when {
+            wind.loading -> {
+                CircularProgressIndicator(Modifier.size(14.dp), color = Slate.Primary, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Vent…", color = Slate.Secondary, style = MaterialTheme.typography.labelSmall)
+            }
+            wind.error != null -> Text(wind.error, color = Slate.Secondary, style = MaterialTheme.typography.labelSmall)
+            else -> {
+                WindLevel.entries.forEach { level ->
+                    Box(Modifier.size(width = 14.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(level.color)))
+                    Spacer(Modifier.width(3.dp))
+                    Text(level.label, color = Slate.Secondary, style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text("km/h", color = Slate.Secondary, style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }

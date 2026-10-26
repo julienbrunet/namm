@@ -33,6 +33,16 @@ interface OpenMeteoApi {
         @Query("timeformat") timeFormat: String = "unixtime",
     ): List<GridPointDto>
 
+    /** Vent sur une grille multi-points (chargé seulement quand la couche « Vent » est affichée). */
+    @GET("v1/forecast")
+    suspend fun windGrid(
+        @Query("latitude") latitudes: String,
+        @Query("longitude") longitudes: String,
+        @Query("minutely_15") minutely15: String = "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
+        @Query("forecast_minutely_15") steps: Int = 96,
+        @Query("timeformat") timeFormat: String = "unixtime",
+    ): List<WindPointDto>
+
     companion object {
         fun create(): OpenMeteoApi = Network.create("https://api.open-meteo.com/")
     }
@@ -70,6 +80,17 @@ data class GridPointDto(
     val longitude: Double,
     @SerialName("minutely_15") val minutely15: GridSeriesDto,
     val hourly: GridHourlyDto? = null,
+)
+
+@Serializable
+data class WindPointDto(@SerialName("minutely_15") val minutely15: WindSeriesDto)
+
+@Serializable
+data class WindSeriesDto(
+    val time: List<Long>,
+    @SerialName("wind_speed_10m") val speed: List<Double?> = emptyList(),
+    @SerialName("wind_direction_10m") val direction: List<Double?> = emptyList(),
+    @SerialName("wind_gusts_10m") val gusts: List<Double?> = emptyList(),
 )
 
 @Serializable

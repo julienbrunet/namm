@@ -11,6 +11,7 @@ import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.MapFrame
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
+import com.namm.meteo.domain.WindFrame
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -138,6 +139,19 @@ class RainMapRepository(
         )
     }
 
+    /** Vent sur une grille grossière (≈ 80 points) couvrant [grid], 24 h au pas de 15 min. */
+    suspend fun wind(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<WindFrame> =
+        withContext(Dispatchers.Default) {
+            if (OpenMeteoQuota.isBlocked) throw java.io.IOException("Open-Meteo saturé, nouvel essai dans une minute")
+            val g = coarse(grid)
+            val points = g.coordinates()
+            val dto = openMeteo.windGrid(
+                latitudes = points.joinToString(",") { "%.4f".format(Locale.ROOT, it.first) },
+                longitudes = points.joinToString(",") { "%.4f".format(Locale.ROOT, it.second) },
+            )
+            windFrames(g, dto, now)
+        }
+
     companion object {
         // 12 × 16 points (format portrait) par appel Open-Meteo ; chaque point compte comme un
         // appel dans le quota gratuit, d'où une grille modeste recalculée seulement si besoin.
@@ -246,3 +260,18 @@ data class ForecastFrames(val frames: List<MapFrame>, val partial: Boolean = fal
 
 /** Avancement du chargement : libellé de l'étape et, si connu, nombre d'éléments reçus. */
 data class LoadProgress(val label: String, val done: Int = 0, val total: Int = 0)
+
+/** Points Open-Meteo (ordre de [ForecastGrid.coordinates]) → une image de vent par quart d'heure à venir. */
+internal fun windFrames(grid: ForecastGrid, points: List<com.namm.meteo.data.remote.WindPointDto>, now: Long): List<WindFrame> {
+    if (points.size != grid.rows * grid.cols) return emptyList()
+    val times = points.first().minutely15.time
+    return times.indices.filter { times[it] + 15 * 60 > now }.map { i ->
+        WindFrame(
+            time = times[i],
+            grid = grid,
+            speed = FloatArray(points.size) { k -> (points[k].minutely15.speed.getOrNull(i) ?: 0.0).toFloat() },
+            direction = FloatArray(points.size) { k -> (points[k].minutely15.direction.getOrNull(i) ?: 0.0).toFloat() },
+            gusts = FloatArray(points.size) { k -> (points[k].minutely15.gusts.getOrNull(i) ?: 0.0).toFloat() },
+        )
+    }
+}

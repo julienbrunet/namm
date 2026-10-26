@@ -229,4 +229,14 @@ class ScreenshotTest {
             com.namm.meteo.ui.map.LoadingSteps(com.namm.meteo.data.repository.LoadProgress("Prévision Météo-France", 9, 24))
         }
     }
+
+    @Test
+    fun carteVent() = capture("carte_vent") {
+        val map = Fixtures.rainMap()
+        MapContent(
+            MapUiState.Ready(Fixtures.paris, map, map.nowIndex + 3, loadedAt = 1_792_180_800_000L),
+            online = false,
+            wind = com.namm.meteo.ui.map.WindUiState(visible = true, frames = Fixtures.wind(map.grid)),
+        )
+    }
 }

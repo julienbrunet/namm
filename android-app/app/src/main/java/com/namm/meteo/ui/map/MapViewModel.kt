@@ -38,6 +38,15 @@ sealed interface MapUiState {
     data class Error(val message: String) : MapUiState
 }
 
+/** Couche « Vent » : masquée par défaut, chargée au premier affichage. */
+data class WindUiState(
+    val visible: Boolean = false,
+    val loading: Boolean = false,
+    val frames: List<com.namm.meteo.domain.WindFrame> = emptyList(),
+    val loadedAt: Long = 0,
+    val error: String? = null,
+)
+
 class MapViewModel(
     private val forecasts: ForecastRepository,
     private val rainMaps: RainMapRepository,
@@ -163,6 +172,28 @@ class MapViewModel(
         val maxAge = if (s is MapUiState.Ready && s.partial) 60_000L else REFRESH_MS
         if (s is MapUiState.Ready && !s.refreshing && clock() - s.loadedAt >= maxAge) load()
         if (s is MapUiState.Error) load()
+    }
+
+    private val _wind = MutableStateFlow(WindUiState())
+    val wind: StateFlow<WindUiState> = _wind
+
+    /** Affiche / masque le vent ; le télécharge (un appel Open-Meteo) s'il manque ou date de plus de 30 min. */
+    fun toggleWind() {
+        val w = _wind.value
+        if (w.visible) {
+            _wind.value = w.copy(visible = false)
+            return
+        }
+        _wind.value = w.copy(visible = true, error = null)
+        if (w.frames.isNotEmpty() && clock() - w.loadedAt < 30 * 60_000L) return
+        val s = _state.value as? MapUiState.Ready ?: return
+        viewModelScope.launch {
+            _wind.value = _wind.value.copy(loading = true)
+            _wind.value = runCatching { rainMaps.wind(s.map.grid) }.fold(
+                { _wind.value.copy(loading = false, frames = it, loadedAt = clock()) },
+                { _wind.value.copy(loading = false, error = it.message ?: "Vent indisponible") },
+            )
+        }
     }
 
     fun select(index: Int) {
