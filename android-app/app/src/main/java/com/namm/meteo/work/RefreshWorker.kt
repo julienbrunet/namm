@@ -82,10 +82,18 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             (applicationContext.resources.configuration.uiMode and
                 android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES,
         )
+        // Nuages observés par Meteosat sur l'emprise exacte du widget.
+        val b = WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z)
+        val box = com.namm.meteo.data.satellite.MercatorBox(
+            com.namm.meteo.data.satellite.MercatorBox.x(b.west), com.namm.meteo.data.satellite.MercatorBox.y(b.south),
+            com.namm.meteo.data.satellite.MercatorBox.x(b.east), com.namm.meteo.data.satellite.MercatorBox.y(b.north),
+        )
+        val scale = minOf(1.0, 640.0 / maxOf(width, height))
+        val satellite = app.satellite.clouds(box, nowMs / 1000, (width * scale).toInt().coerceAtLeast(1), (height * scale).toInt().coerceAtLeast(1))
         val tiles = WidgetMapRenderer.TileCache(java.io.File(applicationContext.cacheDir, "widget_tiles"))
         val bitmap = WidgetMapRenderer.render(
             width = width, height = height, lat = place.latitude, lon = place.longitude, z = z, frame = frame, dark = dark,
-            background = (if (dark) DarkSlate else LightSlate).tile.toArgb(),
+            background = (if (dark) DarkSlate else LightSlate).tile.toArgb(), satellite = satellite,
         ) { tz, x, y -> tiles.get(tz, x, y) }
         val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
         val zone = java.time.ZoneId.systemDefault()

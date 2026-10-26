@@ -28,6 +28,8 @@ interface OpenMeteoApi {
         @Query("longitude") longitudes: String,
         @Query("minutely_15") minutely15: String = "precipitation",
         @Query("forecast_minutely_15") steps: Int = 96, // 24 h au pas de 15 min
+        @Query("hourly") hourly: String = "cloud_cover",
+        @Query("forecast_hours") hours: Int = 26,
         @Query("timeformat") timeFormat: String = "unixtime",
     ): List<GridPointDto>
 
@@ -67,7 +69,11 @@ data class GridPointDto(
     val latitude: Double,
     val longitude: Double,
     @SerialName("minutely_15") val minutely15: GridSeriesDto,
+    val hourly: GridHourlyDto? = null,
 )
+
+@Serializable
+data class GridHourlyDto(val time: List<Long>, @SerialName("cloud_cover") val cloudCover: List<Double?> = emptyList())
 
 @Serializable
 data class GridSeriesDto(val time: List<Long>, val precipitation: List<Double?>)

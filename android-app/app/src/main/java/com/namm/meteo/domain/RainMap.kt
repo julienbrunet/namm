@@ -16,8 +16,13 @@ sealed interface MapFrame {
         val values: List<List<Double>>,
         val grid: ForecastGrid,
         val source: ForecastSource = ForecastSource.OPEN_METEO,
+        /** Couverture nuageuse prévue (Open-Meteo) à cette heure, sur sa propre grille. */
+        val clouds: CloudLayer? = null,
     ) : MapFrame
 }
+
+/** Couverture nuageuse (%) sur une grille, indexée [ligne][colonne] ; ligne 0 = sud. */
+data class CloudLayer(val grid: ForecastGrid, val cover: List<List<Double>>)
 
 enum class ForecastSource(val label: String) {
     OPEN_METEO("Prévision Open-Meteo (AROME / ICON)"),
