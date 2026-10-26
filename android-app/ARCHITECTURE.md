@@ -44,9 +44,11 @@ Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à 
 - Rendu commun (`renderForecast`) : interpolation à noyau gaussien → taches rondes, contours nets (plus de losanges).
 
 ## Stack Android
-- **Kotlin**, **Jetpack Compose** + Material 3, minSdk 26
+- **Kotlin 2.4**, **Jetpack Compose** + Material 3, minSdk 26, compileSdk 37, targetSdk 35 ; AGP 9 (Kotlin intégré), Gradle 9
 - **MVVM + couches** : `ui` → `domain` → `data`, navigation par état simple (`MainActivity`)
-- Réseau : **Retrofit + OkHttp + kotlinx.serialization** (`Network`)
+- Réseau : **Retrofit 3 + OkHttp 5 + kotlinx.serialization** ; un seul client `Network.client` (pool partagé, cache HTTP disque 20 Mo, tuiles radar gardées 2 h), `Network.uncachedClient` pour AROME-PI et les tuiles OSM du widget
+- Carte de pluie : grilles en `FloatArray`, rendu gaussien séparable (`forecastPixels`, aucun `exp()` par pixel), images en cache par identité (`ForecastBitmaps`)
+- Sécurité : dépendances vérifiées par checksum (`gradle/verification-metadata.xml`), wrapper Gradle vérifié (`distributionSha256Sum`), actions CI figées par SHA, publication dans un job séparé sans secrets, APK de mise à jour vérifié (paquet + signature) avant installation, clé Météo-France hors sauvegarde Android, position arrondie à 0,01° pour Open-Meteo
 - Cache hors-ligne : dernière prévision en JSON (`ForecastCache`) ; préférences et lieux enregistrés : **DataStore**
 - Arrière-plan : **WorkManager** (`RefreshWorker`, 30 min) : cache, widget, alerte « pluie dans l'heure », vérification de mise à jour
 - Widgets : **Jetpack Glance** (`widget/`) — 5 variantes ; la carte est une image (fond OSM en cache disque + pluie) recalculée toutes les 30 min
@@ -83,4 +85,5 @@ com.namm.meteo
 8. ✅ Thème clair (Système / Sombre / Clair)
 9. ✅ Widgets : mini, pluie, journée, semaine, carte de pluie (suivent le thème et le lieu)
 10. ✅ Thèmes colorés au choix : Ardoise (Système / Sombre / Clair), Ciel, Pastel, Aurore
-11. À venir : publication F-Droid, alertes vigilance Météo-France
+11. ✅ Revue performance / sécurité : rendu de pluie séparable, client HTTP unique, vérification des dépendances, CI durcie, dépendances à jour
+12. À venir : publication F-Droid, alertes vigilance Météo-France

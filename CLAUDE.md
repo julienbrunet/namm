@@ -50,11 +50,23 @@ echo "robolectricRepo=https://maven-central.storage-download.googleapis.com/mave
 - Open-Meteo répond parfois 429 depuis la sandbox (IP partagée, quota journalier) : réessayer plus tard ou travailler avec les fixtures.
 - Captures de la page web : Playwright (`npm i playwright` dans le scratchpad, lancer Chromium avec `--no-sandbox`).
 
+## Dépendances (sécurité de la chaîne d'approvisionnement)
+- Gradle vérifie chaque artefact téléchargé (`android-app/gradle/verification-metadata.xml`) et la distribution Gradle (`distributionSha256Sum`).
+- Après tout ajout ou changement de version (dont les PR Dependabot), régénérer les checksums puis relire le diff :
+  ```bash
+  cd android-app
+  ./gradlew --write-verification-metadata sha256 testDebugUnitTest recordRoborazziDebug assembleRelease printVersionName help
+  ```
+- Mise à jour du wrapper : `./gradlew wrapper --gradle-version X --gradle-distribution-sha256-sum <sha publié sur services.gradle.org>`.
+- Actions GitHub figées par SHA de commit (commentaire `# vX.Y.Z`) ; le job `release` est le seul à pouvoir écrire et ne reçoit pas les secrets de signature.
+- Préférer des versions publiées depuis au moins deux semaines (Dependabot : `cooldown` 14 jours).
+
 ## Conventions
 - Code et commentaires en français pour les libellés UI ; noms de code en anglais.
 - Couches : `ui` (Compose + ViewModel) → `domain` (modèles) → `data` (remote / repository). DI manuelle dans `MeteoApp`.
 - Design **sobre « ardoise »** (voir `ui/theme/Theme.kt`) : thèmes `DarkSlate` (fond `#353A45`, tuiles `#2F333D`, bleu pluie `#8FB3D9`) et `LightSlate` (fond `#E9EBEF`, tuiles `#F8F9FA`, bleu `#3F7CC4`), choix Système/Sombre/Clair dans Paramètres. Toujours passer par `Slate.X` (couleurs du thème courant, lisibles seulement dans un composable : les capturer avant un `Canvas`). Grandes typos fines, pastilles discrètes. Thèmes colorés en plus d'Ardoise (`ThemeStyle`, réglage « Apparence ») : `SkySlate` (Ciel, dégradé bleu, tuiles en verre dépoli), `PastelSlate` (fond crème, carte héros dégradée, tuiles teintées), `AuroraSlate` (indigo avec halos corail/violet, accents cyan) ; le mode Système/Sombre/Clair ne concerne qu'Ardoise. Fond d'écran via `Modifier.screenBackground()` (jamais `background(Slate.Background)`), dégradés/teintes via `Slate.HeroBrush`, `TileTints`, `CurveColors`, `ButtonBrush`. Les widgets gardent les palettes Ardoise (`ThemeStyle.widgetDark`). Les captures Roborazzi couvrent tous les thèmes. Le site reprend la palette sombre.
 - Aucune dépendance publicitaire, analytics ou Google Play Services (compatibilité F-Droid).
+- Réseau : toujours `Network.client` / `Network.uncachedClient` (jamais `OkHttpClient()`), User-Agent `Network.userAgent`.
 - Tests : fixtures dans `app/src/test/resources/` (`forecast.json`, `geocoding.json` réelles — bloc `hourly` de `forecast.json` complété ; `grid.json` au format multi-points) ; tout nouvel écran a un test Roborazzi (`ScreenshotTest`, application neutre `android.app.Application` pour éviter WorkManager).
 - Accueil = position GPS par défaut ; lieux préenregistrés gérés dans Paramètres (`SettingsStore`). La carte utilise le même lieu que l'accueil.
 - Carte : fond OSM filtré (`FadedMapFilter` gris estompé en thème clair, `SlateMapFilter` en sombre, carte et widget) ; Open-Meteo par défaut ; AROME-PI (Météo-France) si une clé est enregistrée dans Paramètres. Aucune clé dans le code ni le dépôt.
