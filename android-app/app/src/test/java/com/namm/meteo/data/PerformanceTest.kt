@@ -5,6 +5,7 @@ import com.namm.meteo.data.local.CachedForecast
 import com.namm.meteo.data.local.ForecastCache
 import com.namm.meteo.data.repository.roundCoordinate
 import com.namm.meteo.domain.MapFrame
+import com.namm.meteo.ui.forecast.SCENE_WIDTH
 import com.namm.meteo.ui.map.RainLevel
 import com.namm.meteo.ui.map.forecastImageSize
 import com.namm.meteo.ui.map.forecastPixels
@@ -82,5 +83,19 @@ class PerformanceTest {
     fun `la position envoyée à Open-Meteo est arrondie à 0,01°`() {
         assertEquals(48.86, roundCoordinate(48.85661), 1e-9)
         assertEquals(-1.55, roundCoordinate(-1.5499), 1e-9)
+    }
+
+    @Test
+    fun `le paysage Nature se calcule vite`() {
+        val sun = com.namm.meteo.domain.sunPosition("2026-10-16T13:30", "2026-10-16T08:13", "2026-10-16T18:57")
+        val renderer = com.namm.meteo.ui.forecast.SceneRenderer(com.namm.meteo.domain.WeatherCondition.RAIN, sun)
+        renderer.render(SCENE_WIDTH, 650) // chauffe du JIT
+        val start = System.nanoTime()
+        val pixels = renderer.render(SCENE_WIDTH, 650)
+        val millis = (System.nanoTime() - start) / 1_000_000
+        println("Paysage Nature : $millis ms")
+        assertEquals(SCENE_WIDTH * 650, pixels.size)
+        // Calculé une fois par changement de météo ; large marge pour les machines de CI.
+        assert(millis < 2_000) { "paysage trop lent : $millis ms" }
     }
 }
