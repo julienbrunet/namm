@@ -36,7 +36,7 @@ data class MercatorBox(val minX: Double, val minY: Double, val maxX: Double, val
  * via le WMS public et gratuit d'EUMETSAT (sans clé). Le sommet des nuages, froid, apparaît
  * clair : l'image est convertie en voile blanc dont l'opacité suit cette clarté (sol = transparent).
  */
-class SatelliteSource(private val client: OkHttpClient = OkHttpClient()) {
+class SatelliteSource(private val client: OkHttpClient = com.namm.meteo.data.remote.Network.uncachedClient) {
     private val cache = LruCache<String, Bitmap>(24)
 
     /** Image déjà téléchargée (ou null), sans appel réseau. */
