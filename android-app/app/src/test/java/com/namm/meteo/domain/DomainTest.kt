@@ -41,4 +41,21 @@ class DomainTest {
         assertNull(minutesUntilRain(steps(0.0, 0.0)))
         assertNull(minutesUntilRain(emptyList()))
     }
+
+    @Test
+    fun `moment de la journée pour le décor`() {
+        fun at(t: String) = sunPosition("2026-10-16T$t", "2026-10-16T08:13", "2026-10-16T18:57")
+
+        assertEquals(DayPhase.NIGHT, at("06:30").phase)
+        assertEquals(DayPhase.DAWN, at("07:40").phase)
+        assertEquals(DayPhase.DAWN, at("08:50").phase)
+        assertEquals(DayPhase.DAY, at("13:00").phase)
+        assertEquals(DayPhase.DUSK, at("18:40").phase)
+        assertEquals(DayPhase.NIGHT, at("19:45").phase)
+        assertEquals(0f, at("08:13").progress, 0.001f)
+        assertEquals(1f, at("18:57").progress, 0.001f)
+        // Ancien cache sans lever ni coucher : 7 h – 19 h.
+        assertEquals(DayPhase.DAY, sunPosition("2026-10-16T12:00", null, null).phase)
+        assertEquals(DayPhase.NIGHT, sunPosition("2026-10-16T22:00", null, null).phase)
+    }
 }

@@ -15,7 +15,8 @@ import kotlin.math.exp
 
 /**
  * Données de test : forecast.json et geocoding.json sont de vraies réponses Open-Meteo
- * (le bloc « hourly » de forecast.json a été ajouté, cohérent avec les min/max réels) ;
+ * (le bloc « hourly » de forecast.json a été ajouté, cohérent avec les min/max réels, ainsi que
+ * les heures de lever et de coucher du soleil à Paris) ;
  * grid.json suit le format multi-points documenté (généré, quota sandbox atteint).
  */
 object Fixtures {

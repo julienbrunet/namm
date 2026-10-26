@@ -52,6 +52,8 @@ data class SlatePalette(
     val onButton: Color = background,
     /** Fond de carte assombri. */
     val darkMap: Boolean = isDark,
+    /** Accueil sur un paysage dessiné selon la météo et l'heure (thème Nature). */
+    val scenic: Boolean = false,
 )
 
 /** Thème sombre « ardoise » (design d'origine). */
@@ -136,6 +138,27 @@ val AuroraSlate = SlatePalette(
     onButton = Color.White,
 )
 
+/**
+ * Nature : l'accueil se pose sur un paysage zen (montagnes, lac, pins) qui suit la météo et
+ * l'heure ; tuiles en verre fumé, texte blanc. Ailleurs, fond de lac au crépuscule.
+ */
+val NatureSlate = SlatePalette(
+    background = Color(0xFF243049),
+    tile = Color(0x5C0E1626),
+    tileHighlight = Color(0x2EFFFFFF),
+    primary = Color.White,
+    secondary = Color(0xE6FFFFFF),
+    muted = Color(0xBFFFFFFF),
+    rain = Color(0xFFA8DBFF),
+    isDark = true,
+    backgroundBrush = Brush.verticalGradient(listOf(Color(0xFF1F2A44), Color(0xFF3A4C6B), Color(0xFF7E7F96))),
+    glows = listOf(Glow(0.85f, 0.55f, 0.7f, Color(0x66F2A66E))),
+    curveColors = listOf(Color(0xFFFFD7A8), Color.White, Color(0xFFA8DBFF)),
+    buttonBrush = SolidColor(Color(0xF2FFFFFF)),
+    onButton = Color(0xFF22304A),
+    scenic = true,
+)
+
 val LocalSlate = staticCompositionLocalOf { DarkSlate }
 
 /** Couleurs du thème courant (sombre ou clair), utilisables dans tout composable. */
@@ -154,6 +177,7 @@ object Slate {
     val ButtonBrush: Brush @Composable @ReadOnlyComposable get() = LocalSlate.current.buttonBrush
     val OnButton: Color @Composable @ReadOnlyComposable get() = LocalSlate.current.onButton
     val DarkMap: Boolean @Composable @ReadOnlyComposable get() = LocalSlate.current.darkMap
+    val Scenic: Boolean @Composable @ReadOnlyComposable get() = LocalSlate.current.scenic
 }
 
 /** Fond plein écran du thème courant : couleur ou dégradé, plus ses halos. */
@@ -195,20 +219,21 @@ enum class ThemeMode(val label: String) { SYSTEM("Système"), DARK("Sombre"), LI
 
 /** Thème de l'application ; seul Ardoise a des variantes Système / Sombre / Clair. */
 enum class ThemeStyle(val label: String) {
-    ARDOISE("Ardoise"), CIEL("Ciel"), PASTEL("Pastel"), AURORE("Aurore");
+    ARDOISE("Ardoise"), CIEL("Ciel"), PASTEL("Pastel"), AURORE("Aurore"), NATURE("Nature");
 
     fun palette(mode: ThemeMode, systemDark: Boolean): SlatePalette = when (this) {
         ARDOISE -> if (mode.isDark(systemDark)) DarkSlate else LightSlate
         CIEL -> SkySlate
         PASTEL -> PastelSlate
         AURORE -> AuroraSlate
+        NATURE -> NatureSlate
     }
 
     /** Widgets (palettes Ardoise) : fond sombre seulement pour les thèmes de nuit. */
     fun widgetDark(mode: ThemeMode, systemDark: Boolean): Boolean = when (this) {
         ARDOISE -> mode.isDark(systemDark)
         CIEL, PASTEL -> false
-        AURORE -> true
+        AURORE, NATURE -> true
     }
 }
 

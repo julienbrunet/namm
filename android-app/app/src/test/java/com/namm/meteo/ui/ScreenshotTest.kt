@@ -3,7 +3,11 @@ package com.namm.meteo.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.namm.meteo.Fixtures
 import com.namm.meteo.data.local.Settings
@@ -114,6 +118,65 @@ class ScreenshotTest {
 
     @Test
     fun accueilAurore() = capture("accueil_aurore", style = ThemeStyle.AURORE) { ForecastContent(Fixtures.localForecast()) }
+
+    /** Thème Nature : un paysage par ambiance (heure locale du lieu + code WMO). */
+    private fun nature(name: String, time: String? = null, code: Int? = null) = capture(name, style = ThemeStyle.NATURE) {
+        val data = Fixtures.localForecast()
+        val current = data.forecast.current
+        ForecastContent(
+            data.copy(
+                forecast = data.forecast.copy(
+                    current = current.copy(time = time ?: current.time, weatherCode = code ?: current.weatherCode),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun accueilNature() = nature("accueil_nature") // 19:45, pluie, après le coucher
+
+    @Test
+    fun natureJourSoleil() = nature("nature_jour_soleil", "2026-10-16T13:30", 0)
+
+    @Test
+    fun natureAubeBrume() = nature("nature_aube_brume", "2026-10-16T08:20", 45)
+
+    @Test
+    fun natureMatinEclaircies() = nature("nature_matin_eclaircies", "2026-10-16T10:15", 2)
+
+    @Test
+    fun natureCrepuscule() = nature("nature_crepuscule", "2026-10-16T18:45", 1)
+
+    @Test
+    fun natureNuitClaire() = nature("nature_nuit_claire", "2026-10-16T23:10", 0)
+
+    @Test
+    fun natureNeige() = nature("nature_neige", "2026-10-16T11:00", 73)
+
+    @Test
+    fun natureOrage() = nature("nature_orage", "2026-10-16T16:00", 95)
+
+    @Test
+    fun natureCouvert() = nature("nature_couvert", "2026-10-16T15:00", 3)
+
+    /** Le paysage reste fixe : on fait défiler l'accueil jusqu'aux tuiles du bas. */
+    @Test
+    fun natureDefilement() {
+        compose.setContent { MeteoTheme(ThemeMode.DARK, ThemeStyle.NATURE) { ForecastContent(Fixtures.localForecast()) } }
+        compose.onAllNodes(hasScrollAction()).onFirst().performTouchInput { swipeUp(startY = bottom * 0.9f, endY = top, durationMillis = 400) }
+        compose.onAllNodes(hasScrollAction()).onFirst().performTouchInput { swipeUp(startY = bottom * 0.9f, endY = top, durationMillis = 400) }
+        compose.onRoot().captureRoboImage("screenshots/nature_defilement.png")
+    }
+
+    @Test
+    fun parametresNature() = capture("parametres_nature", style = ThemeStyle.NATURE) {
+        SettingsContent(
+            settings = Settings(style = ThemeStyle.NATURE, savedPlaces = listOf(Place("Brest", 48.39, -4.49, "Bretagne, France"))),
+            search = SearchState(),
+            versionName = "0.1.14",
+            updateStatus = null,
+        )
+    }
 
     @Test
     fun parametresAurore() = capture("parametres_aurore", style = ThemeStyle.AURORE) {

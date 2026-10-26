@@ -117,7 +117,10 @@ internal fun ForecastDto.toDomain(): Forecast {
     }.orEmpty()
     val days = daily?.let { d ->
         d.time.indices.map { i ->
-            DailyForecast(d.time[i], d.tempMin[i], d.tempMax[i], d.precipitationSum[i], d.weatherCode[i])
+            DailyForecast(
+                d.time[i], d.tempMin[i], d.tempMax[i], d.precipitationSum[i], d.weatherCode[i],
+                d.sunrise.getOrNull(i), d.sunset.getOrNull(i),
+            )
         }
     }.orEmpty()
     return Forecast(

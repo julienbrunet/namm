@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -338,6 +339,8 @@ private fun StyleSwatch(style: ThemeStyle) {
                     style == ThemeStyle.ARDOISE ->
                         Brush.linearGradient(0.5f to DarkSlate.background, 0.5f to LightSlate.background)
                     palette.heroBrush != null -> palette.heroBrush
+                    // Nature : ciel d'aube au-dessus des crêtes.
+                    palette.scenic -> Brush.verticalGradient(listOf(Color(0xFF2E3D6B), Color(0xFFA9839F), Color(0xFFF3C6A0)))
                     // Halos du fond (Aurore) autour de la couleur de fond.
                     palette.glows.size >= 2 -> Brush.linearGradient(
                         listOf(palette.glows[1].color.copy(alpha = 1f), palette.background, palette.glows[0].color.copy(alpha = 1f)),
