@@ -52,10 +52,13 @@ echo "robolectricRepo=https://maven-central.storage-download.googleapis.com/mave
 
 ## Dépendances (sécurité de la chaîne d'approvisionnement)
 - Gradle vérifie chaque artefact téléchargé (`android-app/gradle/verification-metadata.xml`) et la distribution Gradle (`distributionSha256Sum`).
-- Après tout ajout ou changement de version (dont les PR Dependabot), régénérer les checksums puis relire le diff :
+- Après tout ajout ou changement de version (dont les PR Dependabot), régénérer les checksums **avec un cache Gradle vierge**
+  (sinon des métadonnées déjà en cache, comme des BOM, sont omises et la CI échoue), puis relire le diff :
   ```bash
   cd android-app
-  ./gradlew --write-verification-metadata sha256 testDebugUnitTest recordRoborazziDebug assembleRelease printVersionName help
+  export GRADLE_USER_HOME=$(mktemp -d) && mkdir -p $GRADLE_USER_HOME/init.d && cp ~/.gradle/init.d/mirror.gradle $GRADLE_USER_HOME/init.d/
+  ./gradlew --write-verification-metadata sha256 printVersionName testDebugUnitTest recordRoborazziDebug assembleRelease help
+  unset GRADLE_USER_HOME
   ```
 - Mise à jour du wrapper : `./gradlew wrapper --gradle-version X --gradle-distribution-sha256-sum <sha publié sur services.gradle.org>`.
 - Actions GitHub figées par SHA de commit (commentaire `# vX.Y.Z`) ; le job `release` est le seul à pouvoir écrire et ne reçoit pas les secrets de signature.
