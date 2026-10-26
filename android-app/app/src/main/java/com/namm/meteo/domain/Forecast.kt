@@ -28,6 +28,9 @@ data class DailyForecast(
     val tempMax: Double,
     val precipitationSum: Double,
     val weatherCode: Int,
+    /** Lever et coucher du soleil, heure locale ISO (absents d'un ancien cache). */
+    val sunrise: String? = null,
+    val sunset: String? = null,
 )
 
 data class HourlyForecast(

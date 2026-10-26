@@ -86,4 +86,5 @@ com.namm.meteo
 9. ✅ Widgets : mini, pluie, journée, semaine, carte de pluie (suivent le thème et le lieu)
 10. ✅ Thèmes colorés au choix : Ardoise (Système / Sombre / Clair), Ciel, Pastel, Aurore
 11. ✅ Revue performance / sécurité : rendu de pluie séparable, client HTTP unique, vérification des dépendances, CI durcie, dépendances à jour
-12. À venir : publication F-Droid, alertes vigilance Météo-France
+12. ✅ Thème Nature : accueil refondu sur un paysage zen qui suit la météo et l'heure (lever/coucher du soleil), course du soleil, semaine en barres min → max
+13. À venir : publication F-Droid, alertes vigilance Météo-France, animation douce du paysage (pluie, nuages) en option

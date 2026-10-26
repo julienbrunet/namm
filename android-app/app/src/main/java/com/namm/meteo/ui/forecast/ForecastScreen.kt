@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -98,7 +101,7 @@ fun ForecastScreen(
                     PullToRefreshDefaults.Indicator(
                         state = pullState,
                         isRefreshing = refreshing,
-                        modifier = Modifier.align(Alignment.TopCenter),
+                        modifier = Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.statusBars),
                         containerColor = Slate.TileHighlight,
                         color = Slate.Primary,
                     )
@@ -125,6 +128,7 @@ fun ForecastContent(
     onOpenSettings: () -> Unit = {},
     onUpdateAction: () -> Unit = {},
 ) {
+    if (Slate.Scenic) return NatureForecastContent(data, update, onOpenMap, onOpenSettings, onUpdateAction)
     val forecast = data.forecast
     val now = LocalDateTime.parse(forecast.current.time)
     val condition = WeatherCondition.fromWmo(forecast.current.weatherCode)
@@ -231,7 +235,7 @@ fun ForecastContent(
 
 /** Barre flottante en bas d'écran, à portée de pouce : carte de pluie + paramètres. */
 @Composable
-private fun BottomBar(onOpenMap: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier) {
+internal fun BottomBar(onOpenMap: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier) {
     Row(
         modifier
             .padding(bottom = 16.dp)
@@ -262,7 +266,7 @@ private fun BottomBar(onOpenMap: () -> Unit, onOpenSettings: () -> Unit, modifie
 }
 
 @Composable
-private fun UpdateBanner(update: UpdateUiState, onAction: () -> Unit) {
+internal fun UpdateBanner(update: UpdateUiState, onAction: () -> Unit) {
     val (title, action, progress) = when (update) {
         UpdateUiState.None -> return
         is UpdateUiState.Available -> Triple("Version ${update.update.version} disponible", "Télécharger", null)
@@ -290,7 +294,7 @@ private fun UpdateBanner(update: UpdateUiState, onAction: () -> Unit) {
 }
 
 @Composable
-private fun NowcastTile(steps: List<PrecipitationStep>, onOpenMap: () -> Unit) {
+internal fun NowcastTile(steps: List<PrecipitationStep>, onOpenMap: () -> Unit) {
     val max = (steps.maxOfOrNull { it.millimeters } ?: 0.0).coerceAtLeast(1.0)
     val total = steps.sumOf { it.millimeters }
     Column(

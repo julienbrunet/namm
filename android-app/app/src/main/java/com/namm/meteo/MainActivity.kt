@@ -102,7 +102,9 @@ class MainActivity : ComponentActivity() {
                 }
 
                 BackHandler(enabled = screen != Screen.Forecast) { screen = Screen.Forecast }
-                Box(Modifier.fillMaxSize().screenBackground().safeDrawingPadding()) {
+                // Thème Nature : le paysage de l'accueil passe sous les barres système.
+                val immersive = screen == Screen.Forecast && Slate.Scenic
+                Box(Modifier.fillMaxSize().screenBackground().then(if (immersive) Modifier else Modifier.safeDrawingPadding())) {
                     when (screen) {
                         Screen.Forecast -> ForecastScreen(
                             viewModel = forecastViewModel,
