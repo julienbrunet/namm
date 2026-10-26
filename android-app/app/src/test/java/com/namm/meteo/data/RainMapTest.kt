@@ -38,7 +38,7 @@ class RainMapTest {
 
         assertEquals(23, frames.size)
         assertEquals(start + 15 * 60, frames.first().time)
-        assertEquals(points[3].minutely15.precipitation[1], (frames.first() as MapFrame.Forecast).values[1][1])
+        assertEquals(points[3].minutely15.precipitation[1]!!.toFloat(), (frames.first() as MapFrame.Forecast)[1, 1])
     }
 
     @Test

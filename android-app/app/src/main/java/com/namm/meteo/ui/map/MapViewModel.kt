@@ -6,8 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.namm.meteo.MeteoApp
-import com.namm.meteo.data.repository.ForecastRepository
 import com.namm.meteo.data.repository.Bounds
+import com.namm.meteo.data.repository.ForecastRepository
+import com.namm.meteo.data.repository.LoadProgress
 import com.namm.meteo.data.repository.RainMapRepository
 import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
@@ -30,6 +31,8 @@ sealed interface MapUiState {
         /** Heure du dernier téléchargement (ms). */
         val loadedAt: Long = 0,
         val refreshing: Boolean = false,
+        /** Prévision incomplète (Open-Meteo saturé) : nouvel essai dès la minute suivante. */
+        val partial: Boolean = false,
     ) : MapUiState
     data class Error(val message: String) : MapUiState
 }
@@ -85,18 +88,18 @@ class MapViewModel(
             _state.value = s.copy(refreshing = true)
             val forecast = runCatching { rainMaps.forecastFor(grid) }.getOrNull()
             val cur = _state.value as? MapUiState.Ready ?: return@launch
-            _state.value = if (forecast.isNullOrEmpty()) {
+            _state.value = if (forecast == null || forecast.frames.isEmpty()) {
                 cur.copy(refreshing = false)
             } else {
-                val map = cur.map.withForecast(grid, forecast)
+                val map = cur.map.withForecast(grid, forecast.frames)
                 ForecastBitmaps.prepare(map.frames)
-                cur.copy(map = map, index = cur.index.coerceIn(0, map.frames.lastIndex), refreshing = false)
+                cur.copy(map = map, index = cur.index.coerceIn(0, map.frames.lastIndex), refreshing = false, partial = forecast.partial)
             }
         }
     }
 
     /** Étape du chargement en cours, affichée sur l'écran d'attente et la pastille. */
-    val progress: StateFlow<com.namm.meteo.data.repository.LoadProgress?> = rainMaps.progress
+    val progress: StateFlow<LoadProgress?> = rainMaps.progress
 
     fun load() = viewModelScope.launch {
         val previous = _state.value as? MapUiState.Ready
@@ -112,10 +115,10 @@ class MapViewModel(
                     _state.value = MapUiState.Ready(place, RainMap(grid, radar), radar.lastIndex, loadedAt = clock(), refreshing = true)
                 }
                 val predicted = forecast.await()
-                val frames = radar + predicted.getOrNull().orEmpty()
+                val frames = radar + predicted.getOrNull()?.frames.orEmpty()
                 if (frames.isEmpty()) throw predicted.exceptionOrNull() ?: IllegalStateException("Aucune donnée de pluie")
                 val map = RainMap(grid, frames)
-                rainMaps.progress.value = com.namm.meteo.data.repository.LoadProgress("Préparation des images")
+                rainMaps.progress.value = LoadProgress("Préparation des images")
                 ForecastBitmaps.prepare(map.frames) // images calculées hors du thread principal
                 // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
                 val shown = _state.value as? MapUiState.Ready ?: previous
@@ -124,7 +127,10 @@ class MapViewModel(
                     else -> map.frames.indexOfFirst { it.time >= shown.map.frames[shown.index].time }
                         .takeIf { it >= 0 } ?: map.nowIndex
                 }
-                MapUiState.Ready(place, map, index, playing = shown?.playing ?: false, loadedAt = clock())
+                MapUiState.Ready(
+                    place, map, index, playing = shown?.playing ?: false, loadedAt = clock(),
+                    partial = predicted.getOrNull()?.partial ?: true,
+                )
             }
         }.getOrElse {
             (_state.value as? MapUiState.Ready)?.copy(refreshing = false) ?: MapUiState.Error(it.message ?: "Erreur réseau")
@@ -136,7 +142,7 @@ class MapViewModel(
     fun refreshIfStale() {
         val s = _state.value
         // Prévision incomplète (Open-Meteo saturé) : on réessaie dès la minute suivante.
-        val maxAge = if (rainMaps.lastPartial) 60_000L else REFRESH_MS
+        val maxAge = if (s is MapUiState.Ready && s.partial) 60_000L else REFRESH_MS
         if (s is MapUiState.Ready && !s.refreshing && clock() - s.loadedAt >= maxAge) load()
         if (s is MapUiState.Error) load()
     }

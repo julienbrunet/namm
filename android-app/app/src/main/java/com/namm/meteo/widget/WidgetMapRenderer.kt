@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import com.namm.meteo.data.remote.Network
 import com.namm.meteo.domain.MapFrame
 import com.namm.meteo.ui.map.FadedMapFilter
 import com.namm.meteo.ui.map.SlateMapFilter
@@ -84,7 +85,7 @@ object WidgetMapRenderer {
         // Pluie
         if (frame != null) {
             val g = frame.grid
-            val rain = renderForecast(g, frame.values)
+            val rain = renderForecast(frame)
             val north = g.south + (g.rows - 0.5) * g.latStep
             val south = g.south - g.latStep / 2
             val west = g.west - g.lonStep / 2
@@ -115,27 +116,38 @@ object WidgetMapRenderer {
     }
 
     /** Tuiles OSM avec cache disque (30 jours) pour ménager les serveurs OpenStreetMap. */
-    class TileCache(private val dir: File, private val client: OkHttpClient = OkHttpClient()) {
+    class TileCache(private val dir: File, private val client: OkHttpClient = Network.uncachedClient) {
+
+        /** Supprime les tuiles périmées (sinon le dossier grossit à chaque lieu ou zoom visité). */
+        fun purge(now: Long = System.currentTimeMillis()) {
+            dir.listFiles()?.filter { now - it.lastModified() > MAX_AGE_MS }?.forEach { it.delete() }
+        }
+
         fun get(z: Int, x: Int, y: Int): Bitmap? {
             val n = 1 shl z
             if (y !in 0 until n) return null
             val wx = ((x % n) + n) % n
             val file = File(dir, "${z}_${wx}_$y.png")
-            if (file.exists() && System.currentTimeMillis() - file.lastModified() < 30L * 24 * 3600 * 1000) {
+            if (file.exists() && System.currentTimeMillis() - file.lastModified() < MAX_AGE_MS) {
                 BitmapFactory.decodeFile(file.path)?.let { return it }
             }
             return runCatching {
                 client.newCall(
-                    Request.Builder().url("https://tile.openstreetmap.org/$z/$wx/$y.png")
-                        .header("User-Agent", "NoAdMeteo-Android (widget)").build(),
+                    Request.Builder().url("https://tile.openstreetmap.org/$z/$wx/$y.png").build(),
                 ).execute().use { r ->
                     if (!r.isSuccessful) return null
                     val bytes = r.body?.bytes() ?: return null
                     dir.mkdirs()
-                    file.writeBytes(bytes)
+                    val tmp = File(dir, file.name + ".tmp")
+                    tmp.writeBytes(bytes)
+                    if (!tmp.renameTo(file)) tmp.delete()
                     BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 }
             }.getOrNull()
+        }
+
+        private companion object {
+            const val MAX_AGE_MS = 30L * 24 * 3600 * 1000
         }
     }
 }

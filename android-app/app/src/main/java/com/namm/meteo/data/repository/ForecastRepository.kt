@@ -45,17 +45,25 @@ class ForecastRepository(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
 
-    /** Lieu à utiliser : la position si activée et disponible, sinon la ville choisie. */
-    suspend fun resolvePlace(): Place {
+    /**
+     * Lieu à utiliser : la position si activée et disponible, sinon la ville choisie.
+     * En arrière-plan ([background]), dernière position connue, ou à défaut celle de la
+     * dernière prévision (plutôt que la ville par défaut).
+     */
+    suspend fun resolvePlace(background: Boolean = false): Place {
         val s = settings.current()
-        return if (s.useLocation) location.currentPlace() ?: s.place else s.place
+        if (!s.useLocation) return s.place
+        return location.currentPlace(fresh = !background)
+            ?: cache.read()?.place?.takeIf { background && it.detail == LocationProvider.CURRENT_DETAIL }
+            ?: s.place
     }
 
     /** Télécharge la prévision ; en cas d'échec réseau, renvoie la dernière prévision en cache. */
-    suspend fun load(place: Place? = null): LocalForecast {
-        val target = place ?: resolvePlace()
+    suspend fun load(place: Place? = null, background: Boolean = false): LocalForecast {
+        val target = place ?: resolvePlace(background)
         return try {
-            val dto = api.forecast(target.latitude, target.longitude)
+            // Vie privée : position arrondie à ~1 km, sans effet sur une prévision météo.
+            val dto = api.forecast(roundCoordinate(target.latitude), roundCoordinate(target.longitude))
             val now = clock()
             cache.write(CachedForecast(target, now, dto))
             LocalForecast(target, dto.toDomain(), now)
@@ -64,10 +72,18 @@ class ForecastRepository(
         }
     }
 
-    fun cached(): LocalForecast? = cache.read()?.let {
-        LocalForecast(it.place, it.forecast.toDomain(), it.fetchedAtMillis)
+    @Volatile
+    private var domainMemo: Pair<CachedForecast, LocalForecast>? = null
+
+    fun cached(): LocalForecast? {
+        val raw = cache.read() ?: return null
+        domainMemo?.takeIf { it.first === raw }?.let { return it.second }
+        return LocalForecast(raw.place, raw.forecast.toDomain(), raw.fetchedAtMillis).also { domainMemo = raw to it }
     }
 }
+
+/** Coordonnée arrondie à 0,01° (≈ 1 km) avant envoi à Open-Meteo. */
+internal fun roundCoordinate(value: Double): Double = kotlin.math.round(value * 100) / 100
 
 /** Nombre de pas de 15 min affichés (2 h). */
 private const val NOWCAST_STEPS = 8
