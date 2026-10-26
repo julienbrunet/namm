@@ -19,7 +19,7 @@ class AromePiTest {
 
     /** GeoTIFF float32 little-endian minimal (une bande), comme ceux du WCS Météo-France. */
     private fun tiff(width: Int, height: Int, data: FloatArray, deflate: Boolean): ByteArray {
-        val raw = ByteBuffer.allocate(width * height * 4).order(ByteOrder.LITTLE_ENDIAN)
+        val raw = ByteBuffer.allocate(data.size * 4).order(ByteOrder.LITTLE_ENDIAN)
         data.forEach { raw.putFloat(it) }
         val pixels = if (!deflate) raw.array() else {
             val d = Deflater().apply { setInput(raw.array()); finish() }
@@ -64,6 +64,15 @@ class AromePiTest {
     }
 
     @Test
+    fun `un bloc compressé trop gros est tronqué à la taille attendue, un bloc trop court est refusé`() {
+        // 4 Mo décompressés annoncés comme une image 3 × 2 : on ne lit que 24 octets.
+        val bomb = GeoTiff.decode(tiff(3, 2, FloatArray(1_000_000) { 1f }, deflate = true))
+        assertEquals(1f, bomb[2, 1])
+        val short = runCatching { GeoTiff.decode(tiff(3, 2, FloatArray(2), deflate = true)) }
+        assertTrue(short.isFailure)
+    }
+
+    @Test
     fun decodesGeoTiffUncompressedAndDeflate() {
         val data = FloatArray(3 * 2) { it.toFloat() }
         for (deflate in listOf(false, true)) {
@@ -83,11 +92,11 @@ class AromePiTest {
         val frame = r.toFrame(0, PrecipKind.RATE, null)
 
         assertEquals(ForecastSource.AROME_PI, frame.source)
-        assertEquals(0.0, frame.values[0][0], 1e-9) // sud
-        assertEquals(1.8, frame.values[1][0], 1e-6) // nord
+        assertEquals(0.0, frame[0, 0].toDouble(), 1e-9) // sud
+        assertEquals(1.8, frame[1, 0].toDouble(), 1e-6) // nord
         // Même couche exprimée en mm/h : 8 mm/h → 2 mm/15 min.
         val mmPerHour = GeoTiff.decode(tiff(2, 2, floatArrayOf(8f, 0f, 0f, 0f), deflate = false)).toFrame(0, PrecipKind.RATE, null)
-        assertEquals(2.0, mmPerHour.values[1][0], 1e-6)
+        assertEquals(2.0, mmPerHour[1, 0].toDouble(), 1e-6)
         assertEquals(46.0 - 1.5 * 0.01, frame.grid.south, 1e-9)
     }
 

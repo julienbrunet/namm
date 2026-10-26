@@ -1,6 +1,8 @@
 package com.namm.meteo.work
 
 import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.graphics.toArgb
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -9,14 +11,20 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.namm.meteo.MeteoApp
-import com.namm.meteo.domain.minutesUntilRain
-import androidx.compose.ui.graphics.toArgb
 import com.namm.meteo.data.repository.RainMapRepository
+import com.namm.meteo.data.satellite.MercatorBox
+import com.namm.meteo.domain.ForecastSource
+import com.namm.meteo.domain.Place
+import com.namm.meteo.domain.minutesUntilRain
 import com.namm.meteo.ui.theme.DarkSlate
 import com.namm.meteo.ui.theme.LightSlate
 import com.namm.meteo.widget.WidgetMapRenderer
 import com.namm.meteo.widget.WidgetMapStore
 import com.namm.meteo.widget.Widgets
+import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 /**
@@ -30,7 +38,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         applicationContext.getSharedPreferences("worker", Context.MODE_PRIVATE).edit()
             .putLong("last_run", System.currentTimeMillis()).apply()
         val settings = app.settings.current()
-        val result = runCatching { app.forecastRepository.load() }.getOrNull()
+        val result = runCatching { app.forecastRepository.load(background = true) }.getOrNull()
         if (result != null && Widgets.hasMapWidget(applicationContext)) {
             runCatching { renderMapWidget(app, result.place) }
         }
@@ -64,7 +72,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
      * Image du widget carte : pluie actuelle sur ≈ 50 km autour du lieu, au format du widget.
      * Avec AROME-PI : à chaque passage (15 min, 1-2 requêtes) ; sans clé, Open-Meteo toutes les 30 min.
      */
-    private suspend fun renderMapWidget(app: MeteoApp, place: com.namm.meteo.domain.Place) {
+    private suspend fun renderMapWidget(app: MeteoApp, place: Place) {
         val prefs = applicationContext.getSharedPreferences("widget_map", Context.MODE_PRIVATE)
         val settings = app.settings.current()
         val nowMs = System.currentTimeMillis()
@@ -75,35 +83,31 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val grid = RainMapRepository.gridFor(WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z))
         val frame = app.rainMapRepository.currentFrame(grid, allowOpenMeteo)
         if (frame == null && !allowOpenMeteo) return // on garde l'image précédente
-        if (frame?.source == com.namm.meteo.domain.ForecastSource.OPEN_METEO) prefs.edit().putLong("last_open_meteo", nowMs).apply()
+        if (frame?.source == ForecastSource.OPEN_METEO) prefs.edit().putLong("last_open_meteo", nowMs).apply()
 
         val dark = settings.style.widgetDark(
             settings.theme,
-            (applicationContext.resources.configuration.uiMode and
-                android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES,
+            (applicationContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
         // Nuages observés par Meteosat sur l'emprise exacte du widget.
         val b = WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z)
-        val box = com.namm.meteo.data.satellite.MercatorBox(
-            com.namm.meteo.data.satellite.MercatorBox.x(b.west), com.namm.meteo.data.satellite.MercatorBox.y(b.south),
-            com.namm.meteo.data.satellite.MercatorBox.x(b.east), com.namm.meteo.data.satellite.MercatorBox.y(b.north),
-        )
+        val box = MercatorBox(MercatorBox.x(b.west), MercatorBox.y(b.south), MercatorBox.x(b.east), MercatorBox.y(b.north))
         val scale = minOf(1.0, 640.0 / maxOf(width, height))
         val satellite = app.satellite.clouds(box, nowMs / 1000, (width * scale).toInt().coerceAtLeast(1), (height * scale).toInt().coerceAtLeast(1))
-        val tiles = WidgetMapRenderer.TileCache(java.io.File(applicationContext.cacheDir, "widget_tiles"))
+        val tiles = WidgetMapRenderer.TileCache(File(applicationContext.cacheDir, "widget_tiles")).also { it.purge() }
         val bitmap = WidgetMapRenderer.render(
             width = width, height = height, lat = place.latitude, lon = place.longitude, z = z, frame = frame, dark = dark,
             background = (if (dark) DarkSlate else LightSlate).tile.toArgb(), satellite = satellite,
         ) { tz, x, y -> tiles.get(tz, x, y) }
-        val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-        val zone = java.time.ZoneId.systemDefault()
+        val fmt = DateTimeFormatter.ofPattern("HH:mm")
+        val zone = ZoneId.systemDefault()
         val label = buildString {
             append(place.name)
             frame?.let {
-                append(" · pluie à ").append(fmt.format(java.time.Instant.ofEpochSecond(it.time).atZone(zone)))
-                append(" · ").append(if (it.source == com.namm.meteo.domain.ForecastSource.AROME_PI) "AROME-PI" else "Open-Meteo")
+                append(" · pluie à ").append(fmt.format(Instant.ofEpochSecond(it.time).atZone(zone)))
+                append(" · ").append(if (it.source == ForecastSource.AROME_PI) "AROME-PI" else "Open-Meteo")
             }
-            append(" · maj ").append(fmt.format(java.time.Instant.ofEpochMilli(nowMs).atZone(zone)))
+            append(" · maj ").append(fmt.format(Instant.ofEpochMilli(nowMs).atZone(zone)))
         }
         WidgetMapStore.write(applicationContext, bitmap, label)
     }

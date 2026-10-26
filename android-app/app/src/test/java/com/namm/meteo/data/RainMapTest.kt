@@ -38,7 +38,7 @@ class RainMapTest {
 
         assertEquals(23, frames.size)
         assertEquals(start + 15 * 60, frames.first().time)
-        assertEquals(points[3].minutely15.precipitation[1], (frames.first() as MapFrame.Forecast).values[1][1])
+        assertEquals(points[3].minutely15.precipitation[1]!!.toFloat(), (frames.first() as MapFrame.Forecast)[1, 1])
     }
 
     @Test
@@ -138,5 +138,17 @@ class WidgetMapGeometryTest {
         val heightKm = (b.north - b.south) * 111
         assertTrue("hauteur $heightKm km", heightKm in 30.0..90.0)
         assertTrue(b.south < lat && b.north > lat && b.west < 3.08 && b.east > 3.08)
+    }
+
+    @Test
+    fun `la grille initiale couvre déjà l'écran, pas de second chargement quand la carte apparaît`() {
+        // Zone visible calculée avant la carte (taille d'écran en dp, zoom d'ouverture), puis zone réelle
+        // signalée par la carte, un peu plus haute (barres système comprises).
+        val initial = com.namm.meteo.widget.WidgetMapRenderer.bounds(48.8566, 2.3522, 411, 891, com.namm.meteo.ui.map.MapViewModel.INITIAL_ZOOM)
+        val grid = RainMapRepository.gridFor(initial)
+        val actual = com.namm.meteo.widget.WidgetMapRenderer.bounds(48.8566, 2.3522, 411, 960, com.namm.meteo.ui.map.MapViewModel.INITIAL_ZOOM)
+        assertFalse(RainMapRepository.needsNewGrid(grid, actual))
+        // L'ancienne grille fixe autour du lieu ne couvrait pas l'écran.
+        assertTrue(RainMapRepository.needsNewGrid(RainMapRepository.gridAround(com.namm.meteo.Fixtures.paris), actual))
     }
 }

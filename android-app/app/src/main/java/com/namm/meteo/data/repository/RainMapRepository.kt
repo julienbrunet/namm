@@ -13,8 +13,9 @@ import com.namm.meteo.domain.Place
 import com.namm.meteo.domain.RainMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.coroutineScope
+import java.io.IOException
 import java.util.Locale
 
 /**
@@ -30,7 +31,7 @@ class RainMapRepository(
 ) {
 
     /** Étape en cours du chargement de la carte (null : rien en cours), affichée à l'écran. */
-    val progress = kotlinx.coroutines.flow.MutableStateFlow<LoadProgress?>(null)
+    val progress = MutableStateFlow<LoadProgress?>(null)
 
     /** Images radar RainViewer (passé récent), rapides à obtenir. */
     suspend fun radar(): List<MapFrame> = runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList())
@@ -41,17 +42,12 @@ class RainMapRepository(
         now: Long = System.currentTimeMillis() / 1000,
     ): RainMap = withContext(Dispatchers.Default) {
         val radar = async { runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList()) }
-        val forecast = async { runCatching { forecastFor(grid, now) } }
+        val forecast = async { runCatching { forecastFor(grid, now).frames } }
         // Radar et prévision sont indépendants : l'un peut échouer sans masquer l'autre.
         val frames = radar.await() + forecast.await().getOrNull().orEmpty()
         if (frames.isEmpty()) throw forecast.await().exceptionOrNull() ?: IllegalStateException("Aucune donnée de pluie")
         RainMap(grid, frames)
     }
-
-    /** Vrai si la dernière prévision chargée est incomplète (Open-Meteo indisponible). */
-    @Volatile
-    var lastPartial: Boolean = false
-        private set
 
     /** Zones de prévision déjà téléchargées (les plus récentes en tête). */
     private val cache = ArrayDeque<CachedGrid>()
@@ -75,7 +71,7 @@ class RainMapRepository(
      * Avec une clé Météo-France et une zone en France : AROME-PI pour les 6 premières heures
      * (maille 1,3 km), Open-Meteo ensuite ; sinon (ou en cas d'échec) Open-Meteo seul.
      */
-    suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<MapFrame> =
+    suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): ForecastFrames =
         // Décodage GeoTIFF / JSON coûteux : jamais sur le thread principal (gel de l'appli).
         withContext(Dispatchers.Default) {
             val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
@@ -97,13 +93,14 @@ class RainMapRepository(
             val cloudsByHour = openMeteoFrames.getOrNull().orEmpty().filterIsInstance<MapFrame.Forecast>()
                 .associate { it.time - Math.floorMod(it.time, 3600L) to it.clouds }
             val withClouds = precise.map { f ->
-                if (f is MapFrame.Forecast && f.clouds == null) f.copy(clouds = cloudsByHour[f.time - Math.floorMod(f.time, 3600L)]) else f
+                if (f is MapFrame.Forecast && f.clouds == null) MapFrame.Forecast(f.time, f.values, f.grid, f.source, cloudsByHour[f.time - Math.floorMod(f.time, 3600L)]) else f
             }
             val frames = withClouds + openMeteoFrames.getOrNull().orEmpty().filter { it.time > after }
             if (frames.isEmpty()) openMeteoFrames.getOrThrow()
             // Prévision incomplète (Open-Meteo saturé) : non mise en cache, et nouvel essai rapide.
-            lastPartial = openMeteoFrames.isFailure
-            frames.also { if (!lastPartial) cacheFrames(grid, it, now) }
+            val partial = openMeteoFrames.isFailure
+            if (!partial) cacheFrames(grid, frames, now)
+            ForecastFrames(frames, partial)
         }
 
     /**
@@ -129,7 +126,7 @@ class RainMapRepository(
 
     private suspend fun openMeteoFrames(grid: ForecastGrid, now: Long): List<MapFrame> {
         // Open-Meteo saturé : la carte attend, pour laisser le quota à l'accueil.
-        if (OpenMeteoQuota.isBlocked) throw java.io.IOException("Open-Meteo saturé, nouvel essai dans une minute")
+        if (OpenMeteoQuota.isBlocked) throw IOException("Open-Meteo saturé, nouvel essai dans une minute")
         val points = grid.coordinates()
         return forecastFrames(
             grid,
@@ -228,9 +225,7 @@ internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now:
     // Nuages : valeurs horaires, partagées par les 4 quarts d'heure de chaque heure.
     val hours = points.first().hourly?.time.orEmpty()
     val cloudsByHour = hours.indices.associate { h ->
-        hours[h] to CloudLayer(grid, (0 until grid.rows).map { r ->
-            (0 until grid.cols).map { c -> points[r * grid.cols + c].hourly?.cloudCover?.getOrNull(h) ?: 0.0 }
-        })
+        hours[h] to CloudLayer(grid, FloatArray(grid.rows * grid.cols) { k -> (points[k].hourly?.cloudCover?.getOrNull(h) ?: 0.0).toFloat() })
     }
     return times.indices
         .filter { times[it] + 15 * 60 > now }
@@ -238,15 +233,16 @@ internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now:
             MapFrame.Forecast(
                 grid = grid,
                 time = times[i],
-                values = (0 until grid.rows).map { r ->
-                    (0 until grid.cols).map { c ->
-                        points[r * grid.cols + c].minutely15.precipitation.getOrNull(i) ?: 0.0
-                    }
+                values = FloatArray(grid.rows * grid.cols) { k ->
+                    (points[k].minutely15.precipitation.getOrNull(i) ?: 0.0).toFloat()
                 },
                 clouds = cloudsByHour[times[i] - Math.floorMod(times[i], 3600L)],
             )
         }
 }
+
+/** Images de prévision ; [partial] : incomplète (Open-Meteo indisponible), à recharger vite. */
+data class ForecastFrames(val frames: List<MapFrame>, val partial: Boolean = false)
 
 /** Avancement du chargement : libellé de l'étape et, si connu, nombre d'éléments reçus. */
 data class LoadProgress(val label: String, val done: Int = 0, val total: Int = 0)

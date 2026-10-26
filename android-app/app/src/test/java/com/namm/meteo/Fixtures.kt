@@ -39,17 +39,19 @@ object Fixtures {
             MapFrame.Forecast(
                 grid = grid,
                 time = now + step * 900,
-                values = List(grid.rows) { r ->
-                    List(grid.cols) { c ->
-                        val dr = r - 9.0 - step * 0.04
-                        val dc = c - 4.0 - step * 0.08
-                        // Averse principale + un point pluvieux isolé (doit donner une tache ronde).
-                        4.0 * exp(-(dr * dr + 2 * dc * dc) / 10) + if (r == 3 && c == 9) 0.6 else 0.0
-                    }
+                values = FloatArray(grid.rows * grid.cols) { k ->
+                    val r = k / grid.cols
+                    val c = k % grid.cols
+                    val dr = r - 9.0 - step * 0.04
+                    val dc = c - 4.0 - step * 0.08
+                    // Averse principale + un point pluvieux isolé (doit donner une tache ronde).
+                    (4.0 * exp(-(dr * dr + 2 * dc * dc) / 10) + if (r == 3 && c == 9) 0.6 else 0.0).toFloat()
                 },
                 // Front nuageux large autour de l'averse, plus une zone dégagée au sud-est.
-                clouds = com.namm.meteo.domain.CloudLayer(grid, List(grid.rows) { r ->
-                    List(grid.cols) { c -> (100 - 9.0 * kotlin.math.abs(r - 9 - (c - 4) * 0.5)).coerceIn(0.0, 100.0) }
+                clouds = com.namm.meteo.domain.CloudLayer(grid, FloatArray(grid.rows * grid.cols) { k ->
+                    val r = k / grid.cols
+                    val c = k % grid.cols
+                    (100 - 9.0 * kotlin.math.abs(r - 9 - (c - 4) * 0.5)).coerceIn(0.0, 100.0).toFloat()
                 }),
             )
         }

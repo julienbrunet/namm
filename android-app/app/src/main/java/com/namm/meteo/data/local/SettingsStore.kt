@@ -10,6 +10,7 @@ import com.namm.meteo.domain.Place
 import com.namm.meteo.ui.theme.ThemeMode
 import com.namm.meteo.ui.theme.ThemeStyle
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
@@ -38,6 +39,9 @@ enum class WidgetBackground(val label: String, val alpha: Float) {
 }
 
 private val Context.dataStore by preferencesDataStore("settings")
+
+/** Clé Météo-France, à part : ce fichier est exclu de la sauvegarde Android (backup_rules.xml, data_extraction_rules.xml). */
+private val Context.secretStore by preferencesDataStore("secrets")
 private val placeList = ListSerializer(Place.serializer())
 
 class SettingsStore(private val context: Context) {
@@ -54,14 +58,14 @@ class SettingsStore(private val context: Context) {
         val widgetBackground = stringPreferencesKey("widget_background")
     }
 
-    val settings: Flow<Settings> = context.dataStore.data.map { p ->
+    val settings: Flow<Settings> = combine(context.dataStore.data, context.secretStore.data) { p, secrets ->
         Settings(
             useLocation = p[Keys.useLocation] ?: true,
             place = p[Keys.place]?.let { decode { Network.json.decodeFromString(Place.serializer(), it) } } ?: Place.DEFAULT,
             savedPlaces = p[Keys.savedPlaces]?.let { decode { Network.json.decodeFromString(placeList, it) } }.orEmpty(),
             rainAlerts = p[Keys.rainAlerts] ?: true,
             autoUpdate = p[Keys.autoUpdate] ?: true,
-            aromeApiKey = p[Keys.aromeApiKey] ?: "",
+            aromeApiKey = secrets[Keys.aromeApiKey] ?: p[Keys.aromeApiKey] ?: "",
             widgetBackground = p[Keys.widgetBackground]?.let { runCatching { WidgetBackground.valueOf(it) }.getOrNull() }
                 ?: WidgetBackground.OPAQUE,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
@@ -92,7 +96,17 @@ class SettingsStore(private val context: Context) {
     }
 
     suspend fun setRainAlerts(value: Boolean) = context.dataStore.edit { it[Keys.rainAlerts] = value }
-    suspend fun setAromeApiKey(value: String) = context.dataStore.edit { it[Keys.aromeApiKey] = value.filterNot { c -> c.isWhitespace() } }
+    suspend fun setAromeApiKey(value: String) {
+        context.secretStore.edit { it[Keys.aromeApiKey] = value.filterNot { c -> c.isWhitespace() } }
+        context.dataStore.edit { it.remove(Keys.aromeApiKey) }
+    }
+
+    /** Déplace une clé enregistrée par une ancienne version (fichier sauvegardé) vers le fichier exclu. */
+    suspend fun migrateSecrets() {
+        val legacy = context.dataStore.data.first()[Keys.aromeApiKey] ?: return
+        context.secretStore.edit { if (it[Keys.aromeApiKey] == null) it[Keys.aromeApiKey] = legacy }
+        context.dataStore.edit { it.remove(Keys.aromeApiKey) }
+    }
     suspend fun setWidgetBackground(value: WidgetBackground) = context.dataStore.edit { it[Keys.widgetBackground] = value.name }
     suspend fun setTheme(value: ThemeMode) = context.dataStore.edit { it[Keys.theme] = value.name }
     suspend fun setStyle(value: ThemeStyle) = context.dataStore.edit { it[Keys.style] = value.name }

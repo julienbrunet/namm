@@ -27,11 +27,22 @@ class LocationProvider(private val context: Context) {
         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 
-    /** Position actuelle nommée (ville la plus proche si le géocodeur système est disponible). */
-    suspend fun currentPlace(): Place? {
-        val location = currentLocation() ?: return null
+    /**
+     * Position actuelle nommée (ville la plus proche si le géocodeur système est disponible).
+     * [fresh] faux (actualisation en arrière-plan) : dernière position connue seulement, sans
+     * allumer le GPS — Android le refuse de toute façon à une appli en arrière-plan et l'attente
+     * (jusqu'à 10 s) coûtait de la batterie toutes les 15 min.
+     */
+    suspend fun currentPlace(fresh: Boolean = true): Place? {
+        val location = (if (fresh) currentLocation() else lastKnownLocation()) ?: return null
         val name = withContext(Dispatchers.IO) { cityName(location) } ?: "Ma position"
-        return Place(name, location.latitude, location.longitude, "Position actuelle")
+        return Place(name, location.latitude, location.longitude, CURRENT_DETAIL)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun lastKnownLocation(): Location? {
+        if (!hasPermission()) return null
+        return manager.getProviders(true).mapNotNull { manager.getLastKnownLocation(it) }.maxByOrNull { it.time }
     }
 
     @SuppressLint("MissingPermission")
@@ -56,19 +67,29 @@ class LocationProvider(private val context: Context) {
         } else {
             null
         }
-        return fresh ?: providers.mapNotNull { manager.getLastKnownLocation(it) }.maxByOrNull { it.time }
+        return fresh ?: lastKnownLocation()
     }
 
     companion object {
         val PERMISSIONS = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+        /** Détail des lieux issus de la position (et non choisis dans la liste). */
+        const val CURRENT_DETAIL = "Position actuelle"
     }
 
+    /**
+     * Nom de la ville, mémorisé pour la dernière zone (~1 km) : le géocodeur système peut
+     * interroger le réseau, inutile de le refaire à chaque actualisation sans avoir bougé.
+     */
     @Suppress("DEPRECATION")
     private fun cityName(location: Location): String? {
+        val prefs = context.getSharedPreferences("location", Context.MODE_PRIVATE)
+        val area = "%.2f,%.2f".format(Locale.ROOT, location.latitude, location.longitude)
+        if (prefs.getString("area", null) == area) prefs.getString("city", null)?.let { return it }
         if (!Geocoder.isPresent()) return null
         return runCatching {
             Geocoder(context, Locale.FRENCH).getFromLocation(location.latitude, location.longitude, 1)
                 ?.firstOrNull()?.let { it.locality ?: it.subAdminArea }
-        }.getOrNull()
+        }.getOrNull()?.also { prefs.edit().putString("area", area).putString("city", it).apply() }
     }
 }

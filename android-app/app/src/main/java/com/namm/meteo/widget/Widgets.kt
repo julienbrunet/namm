@@ -1,8 +1,10 @@
 package com.namm.meteo.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
@@ -19,6 +21,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.namm.meteo.MainActivity
 import com.namm.meteo.MeteoApp
+import com.namm.meteo.data.local.replace
 import com.namm.meteo.ui.theme.DarkSlate
 import com.namm.meteo.ui.theme.LightSlate
 import com.namm.meteo.work.RefreshWorker
@@ -83,7 +86,7 @@ abstract class MeteoWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 
     /** Réveil système (≈ 30 min, même en veille) : relance une actualisation si le travail périodique a pris du retard. */
-    override fun onUpdate(context: Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetIds: IntArray) {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
         Widgets.refreshIfStale(context)
     }
@@ -121,10 +124,10 @@ object WidgetMapStore {
         BitmapFactory.decodeFile(f.path)?.let { it to prefs(context).getString("label", null) }
     }
 
-    fun write(context: Context, bitmap: android.graphics.Bitmap, label: String) {
+    fun write(context: Context, bitmap: Bitmap, label: String) {
         val tmp = File(file(context).path + ".tmp")
-        tmp.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-        tmp.renameTo(file(context))
+        tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        tmp.replace(file(context))
         prefs(context).edit().putString("label", label).apply()
     }
 }
@@ -148,12 +151,12 @@ object Widgets {
         val manager = GlanceAppWidgetManager(context)
         val id = manager.getGlanceIds(MapWidget::class.java).firstOrNull()
         val options = id?.let {
-            android.appwidget.AppWidgetManager.getInstance(context).getAppWidgetOptions(manager.getAppWidgetId(it))
+            AppWidgetManager.getInstance(context).getAppWidgetOptions(manager.getAppWidgetId(it))
         }
         val portrait = context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         // En portrait : largeur mini et hauteur maxi ; marges et légende du widget déduites.
-        val wDp = (options?.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH) ?: 0).takeIf { it > 0 } ?: 320
-        val hDp = (options?.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) ?: 0).takeIf { it > 0 } ?: 240
+        val wDp = (options?.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH) ?: 0).takeIf { it > 0 } ?: 320
+        val hDp = (options?.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) ?: 0).takeIf { it > 0 } ?: 240
         val w = (wDp - 20).coerceAtLeast(80).toDouble()
         val h = (hDp - 44).coerceAtLeast(80).toDouble()
         val scale = 720.0 / maxOf(w, h)

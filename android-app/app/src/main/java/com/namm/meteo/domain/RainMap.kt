@@ -8,21 +8,31 @@ sealed interface MapFrame {
     data class Radar(override val time: Long, val tileUrlTemplate: String) : MapFrame
 
     /**
-     * Prévision sur une grille régulière lat/lon : valeurs en mm / 15 min,
-     * indexées [ligne][colonne] ; ligne 0 = sud.
+     * Prévision sur une grille régulière lat/lon : valeurs en mm / 15 min, rangées ligne par ligne
+     * ([values] de taille rows × cols, lues par `this[ligne, colonne]`) ; ligne 0 = sud.
+     * Tableau primitif (pas de Double « boxés ») et égalité par identité : une image sert de clé
+     * de cache sans recalculer un hashCode sur toute la grille.
      */
-    data class Forecast(
+    class Forecast(
         override val time: Long,
-        val values: List<List<Double>>,
+        val values: FloatArray,
         val grid: ForecastGrid,
         val source: ForecastSource = ForecastSource.OPEN_METEO,
         /** Couverture nuageuse prévue (Open-Meteo) à cette heure, sur sa propre grille. */
         val clouds: CloudLayer? = null,
-    ) : MapFrame
+    ) : MapFrame {
+        init {
+            require(values.size == grid.rows * grid.cols) { "Grille ${grid.rows}×${grid.cols} mais ${values.size} valeurs" }
+        }
+
+        operator fun get(row: Int, col: Int): Float = values[row * grid.cols + col]
+    }
 }
 
-/** Couverture nuageuse (%) sur une grille, indexée [ligne][colonne] ; ligne 0 = sud. */
-data class CloudLayer(val grid: ForecastGrid, val cover: List<List<Double>>)
+/** Couverture nuageuse (%) rangée ligne par ligne comme [MapFrame.Forecast.values] ; égalité par identité. */
+class CloudLayer(val grid: ForecastGrid, val cover: FloatArray) {
+    operator fun get(row: Int, col: Int): Float = cover[row * grid.cols + col]
+}
 
 enum class ForecastSource(val label: String) {
     OPEN_METEO("Prévision Open-Meteo (AROME / ICON)"),

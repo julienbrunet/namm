@@ -1,5 +1,6 @@
 package com.namm.meteo.data.arome
 
+import com.namm.meteo.data.remote.Network
 import com.namm.meteo.domain.ForecastGrid
 import com.namm.meteo.domain.ForecastSource
 import com.namm.meteo.domain.MapFrame
@@ -7,7 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -43,19 +46,31 @@ class InvalidKeyException(message: String) : IOException(message)
  * service WCS du portail https://portail-api.meteofrance.fr ; nécessite une clé d'API gratuite
  * (en-tête `apikey`). Couverture : France métropolitaine et alentours.
  */
-class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
+class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
 
+    @Volatile
     private var cachedLayer: Pair<Long, AromeLayer>? = null
 
+    // Les 8 téléchargements parallèles partagent la couche et le jeton : un seul les obtient.
+    private val layerLock = Mutex()
+    private val tokenLock = Mutex()
+
+    /** Méthode d'authentification qui a fonctionné pour une clé : essayée en premier ensuite. */
+    @Volatile
+    private var workingAuth: Pair<String, String>? = null
+
     /** Découvre la couche de précipitation et le run le plus récent (mémorisé 5 min). */
-    suspend fun latestLayer(key: String, fresh: Boolean = false): AromeLayer {
-        if (fresh) token = null
+    suspend fun latestLayer(key: String, fresh: Boolean = false): AromeLayer = layerLock.withLock {
+        if (fresh) {
+            token = null
+            workingAuth = null
+        }
         val now = System.currentTimeMillis()
-        cachedLayer?.takeIf { !fresh && now - it.first < 5 * 60_000 }?.let { return it.second }
+        cachedLayer?.takeIf { !fresh && now - it.first < 5 * 60_000 }?.let { return@withLock it.second }
         val layer = chooseLayer(get(key, "$BASE/GetCapabilities?service=WCS&version=2.0.1&language=fre").decodeToString())
             ?: throw IOException("Aucune couche de précipitation trouvée dans AROME-PI")
         cachedLayer = now to layer
-        return layer
+        layer
     }
 
     /** Images de prévision (≤ 6 h) sur l'emprise de [area], à partir du quart d'heure en cours. */
@@ -105,6 +120,7 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
     }
 
     /** Jeton OAuth obtenu à partir d'un Application ID, avec son expiration (ms). */
+    @Volatile
     private var token: Pair<String, Long>? = null
 
     /**
@@ -116,6 +132,13 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
      * Un JWT pouvant être l'un ou l'autre, on essaie `apikey` puis `Bearer`.
      */
     private fun attempts(rawKey: String): List<Pair<String, suspend (Request.Builder) -> Unit>> {
+        val all = allAttempts(rawKey)
+        // Méthode déjà validée pour cette clé : en tête, pour ne pas refaire 1 ou 2 requêtes refusées à chaque image.
+        val known = workingAuth?.takeIf { it.first == normalizeKey(rawKey) }?.second ?: return all
+        return all.sortedByDescending { it.first == known }
+    }
+
+    private fun allAttempts(rawKey: String): List<Pair<String, suspend (Request.Builder) -> Unit>> {
         val key = normalizeKey(rawKey)
         // On ne se fie pas au type deviné : on essaie chaque méthode, la plus probable d'abord.
         val apiKeyAuth: suspend (Request.Builder) -> Unit = { b -> b.header("apikey", key) }
@@ -131,8 +154,12 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
         }
     }
 
-    private suspend fun accessToken(applicationId: String, renew: Boolean): String = withContext(Dispatchers.IO) {
-        token?.takeIf { !renew && it.second > System.currentTimeMillis() + 60_000 }?.let { return@withContext it.first }
+    private suspend fun accessToken(applicationId: String, renew: Boolean): String = tokenLock.withLock {
+        token?.takeIf { !renew && it.second > System.currentTimeMillis() + 60_000 }?.let { return@withLock it.first }
+        requestToken(applicationId)
+    }
+
+    private suspend fun requestToken(applicationId: String): String = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(TOKEN_URL)
             .header("Authorization", "Basic $applicationId")
@@ -168,7 +195,10 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
                     null
                 }
             }
-            if (result != null) return result
+            if (result != null) {
+                workingAuth = normalizeKey(key) to name
+                return result
+            }
         }
         throw InvalidKeyException(refusals.joinToString(" · "))
     }
@@ -278,19 +308,18 @@ class AromePiSource(private val client: OkHttpClient = OkHttpClient()) {
             // Unité du taux non documentée : kg m⁻² s⁻¹ (= mm/s) ou mm/h. Un taux > 0,1 mm/s
             // (360 mm/h) étant irréaliste, une telle valeur signifie que la couche est en mm/h.
             val rateFactor = if (kind == PrecipKind.RATE && values.any { it > 0.1f }) 0.25 else STEP.toDouble()
-            val values = List(height) { row ->
-                val y = height - 1 - row
-                List(width) { x ->
-                    val v = this[x, y].toDouble()
-                    when (kind) {
-                        PrecipKind.RATE -> v * rateFactor
-                        PrecipKind.PER_15MIN -> v
-                        PrecipKind.CUMULATIVE -> (v - (previous?.takeIf { it.width == width && it.height == height }
-                            ?.get(x, y)?.toDouble() ?: 0.0)).coerceAtLeast(0.0)
-                    }
-                }
+            val same = previous?.takeIf { it.width == width && it.height == height }
+            val out = FloatArray(width * height) { k ->
+                val x = k % width
+                val y = height - 1 - k / width
+                val v = this[x, y].toDouble()
+                when (kind) {
+                    PrecipKind.RATE -> v * rateFactor
+                    PrecipKind.PER_15MIN -> v
+                    PrecipKind.CUMULATIVE -> (v - (same?.get(x, y)?.toDouble() ?: 0.0)).coerceAtLeast(0.0)
+                }.toFloat()
             }
-            return MapFrame.Forecast(time, values, grid, ForecastSource.AROME_PI)
+            return MapFrame.Forecast(time, out, grid, ForecastSource.AROME_PI)
         }
     }
 }

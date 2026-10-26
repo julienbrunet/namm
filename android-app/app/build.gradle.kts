@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.roborazzi)
@@ -18,7 +17,7 @@ tasks.register("printVersionName") {
 
 android {
     namespace = "com.namm.meteo"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.namm.meteo"
@@ -28,17 +27,15 @@ android {
         versionName = appVersionName
     }
 
+    // Clé de release fournie par la CI via secrets ; sinon, clé debug (APK installable mais non officiel).
+    val releaseKeystore = System.getenv("SIGNING_KEYSTORE_PATH")
     signingConfigs {
-        // Clé de release fournie par la CI via secrets ; sinon, clé debug (APK installable mais non officiel).
-        create("release") {
-            val ks = System.getenv("SIGNING_KEYSTORE_PATH")
-            if (ks != null) {
-                storeFile = file(ks)
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
                 storePassword = System.getenv("SIGNING_STORE_PASSWORD")
                 keyAlias = System.getenv("SIGNING_KEY_ALIAS")
                 keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
-            } else {
-                initWith(getByName("debug"))
             }
         }
     }
@@ -48,14 +45,13 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
         }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -69,6 +65,11 @@ android {
             }
         }
     }
+}
+
+// AGP 9 : Kotlin intégré au plugin Android (plus de plugin org.jetbrains.kotlin.android).
+kotlin {
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
 roborazzi {

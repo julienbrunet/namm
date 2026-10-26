@@ -42,6 +42,9 @@ object GeoTiff {
     private const val TIEPOINT = 33922
     private const val NODATA = 42113
 
+    /** Côté max accepté (px) : la zone demandée à AROME-PI fait au plus quelques centaines de pixels. */
+    private const val MAX_SIDE = 4096
+
     fun decode(bytes: ByteArray): Raster {
         val buf = ByteBuffer.wrap(bytes)
         buf.order(if (bytes[0] == 'I'.code.toByte()) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN)
@@ -50,6 +53,7 @@ object GeoTiff {
 
         val width = tags.int(WIDTH)
         val height = tags.int(HEIGHT)
+        require(width in 1..MAX_SIDE && height in 1..MAX_SIDE) { "Image TIFF de taille anormale ($width × $height)" }
         val bits = tags.int(BITS)
         val compression = tags.intOr(COMPRESSION, 1)
         val predictor = tags.intOr(PREDICTOR, 1)
@@ -76,9 +80,11 @@ object GeoTiff {
             return if (v.isNaN() || (noData != null && v == noData) || v > 1e10) 0f else v.toFloat()
         }
 
-        fun block(offset: Long, length: Long): ByteBuffer {
+        fun block(offset: Long, length: Long, expected: Int): ByteBuffer {
+            require(offset >= 0 && length >= 0 && offset + length <= bytes.size) { "Bloc TIFF hors du fichier" }
             val raw = bytes.copyOfRange(offset.toInt(), (offset + length).toInt())
-            val data = if (compression == 1) raw else inflate(raw)
+            val data = if (compression == 1) raw else inflate(raw, expected)
+            require(data.size >= expected) { "Bloc TIFF tronqué" }
             return ByteBuffer.wrap(data).order(buf.order())
         }
 
@@ -89,7 +95,7 @@ object GeoTiff {
             val lengths = tags.longs(TILE_BYTES)
             val across = (width + tw - 1) / tw
             offsets.indices.forEach { t ->
-                val b = block(offsets[t], lengths[t])
+                val b = block(offsets[t], lengths[t], tw * th * bytesPerSample)
                 val tx = (t % across) * tw
                 val ty = (t / across) * th
                 for (y in 0 until th) for (x in 0 until tw) {
@@ -103,7 +109,7 @@ object GeoTiff {
             val offsets = tags.longs(STRIP_OFFSETS)
             val lengths = tags.longs(STRIP_BYTES)
             offsets.indices.forEach { s ->
-                val b = block(offsets[s], lengths[s])
+                val b = block(offsets[s], lengths[s], minOf(rowsPerStrip, height - s * rowsPerStrip) * width * bytesPerSample)
                 val first = s * rowsPerStrip
                 for (y in 0 until rowsPerStrip) {
                     val gy = first + y
@@ -119,18 +125,22 @@ object GeoTiff {
         return Raster(width, height, west, north, scale[0], scale[1], values)
     }
 
-    private fun inflate(data: ByteArray): ByteArray {
+    /** Décompresse au plus [max] octets : un fichier corrompu ne peut pas saturer la mémoire. */
+    private fun inflate(data: ByteArray, max: Int): ByteArray {
         val inflater = Inflater()
-        inflater.setInput(data)
-        val out = java.io.ByteArrayOutputStream(data.size * 4)
-        val chunk = ByteArray(64 * 1024)
-        while (!inflater.finished()) {
-            val n = inflater.inflate(chunk)
-            if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
-            out.write(chunk, 0, n)
+        try {
+            inflater.setInput(data)
+            val out = ByteArray(max)
+            var size = 0
+            while (size < max && !inflater.finished()) {
+                val n = inflater.inflate(out, size, max - size)
+                if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
+                size += n
+            }
+            return if (size == max) out else out.copyOf(size)
+        } finally {
+            inflater.end()
         }
-        inflater.end()
-        return out.toByteArray()
     }
 
     private class Tag(val numbers: List<Double>, val text: String?)

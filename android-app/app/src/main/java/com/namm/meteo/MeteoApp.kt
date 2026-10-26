@@ -7,6 +7,7 @@ import com.namm.meteo.data.local.SettingsStore
 import com.namm.meteo.data.location.LocationProvider
 import com.namm.meteo.data.remote.GeocodingApi
 import com.namm.meteo.data.remote.GitHubApi
+import com.namm.meteo.data.remote.Network
 import com.namm.meteo.data.remote.OpenMeteoApi
 import com.namm.meteo.data.remote.RainViewerApi
 import com.namm.meteo.data.repository.ForecastRepository
@@ -16,6 +17,10 @@ import com.namm.meteo.data.update.UpdateController
 import com.namm.meteo.data.update.UpdateManager
 import com.namm.meteo.work.Notifications
 import com.namm.meteo.work.RefreshWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.io.File
 
 /** Injection de dépendances manuelle. */
@@ -40,11 +45,13 @@ class MeteoApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Network.install(cacheDir)
         org.osmdroid.config.Configuration.getInstance().apply {
-            userAgentValue = packageName
+            userAgentValue = Network.userAgent
             osmdroidBasePath = File(cacheDir, "osmdroid")
             osmdroidTileCache = File(cacheDir, "osmdroid/tiles")
         }
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { runCatching { settings.migrateSecrets() } }
         Notifications.createChannels(this)
         RefreshWorker.schedule(this)
     }

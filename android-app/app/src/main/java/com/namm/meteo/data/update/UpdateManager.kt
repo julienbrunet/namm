@@ -3,8 +3,12 @@ package com.namm.meteo.data.update
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.namm.meteo.BuildConfig
 import com.namm.meteo.data.remote.GitHubApi
@@ -45,7 +49,7 @@ class UpdateManager(
             manager.query(DownloadManager.Query().setFilterById(id)).use { c ->
                 if (!c.moveToFirst()) return null
                 when (c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
-                    DownloadManager.STATUS_SUCCESSFUL -> return file
+                    DownloadManager.STATUS_SUCCESSFUL -> return file.takeIf { isTrusted(it) } ?: run { file.delete(); null }
                     DownloadManager.STATUS_FAILED -> return null
                     else -> {
                         val total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
@@ -58,11 +62,33 @@ class UpdateManager(
         }
     }
 
+    /**
+     * L'APK doit être cette appli, signée avec la même clé que la version installée : un fichier
+     * altéré ou substitué dans le stockage partagé n'est jamais proposé à l'installation.
+     */
+    @Suppress("DEPRECATION")
+    private fun isTrusted(apk: File): Boolean = runCatching {
+        val pm = context.packageManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val archive = pm.getPackageArchiveInfo(apk.path, PackageManager.GET_SIGNING_CERTIFICATES) ?: return false
+            val installed = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+            archive.packageName == context.packageName &&
+                sameSigners(archive.signingInfo?.apkContentsSigners, installed.signingInfo?.apkContentsSigners)
+        } else {
+            val archive = pm.getPackageArchiveInfo(apk.path, PackageManager.GET_SIGNATURES) ?: return false
+            val installed = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+            archive.packageName == context.packageName && sameSigners(archive.signatures, installed.signatures)
+        }
+    }.getOrDefault(false)
+
+    private fun sameSigners(a: Array<Signature>?, b: Array<Signature>?) =
+        !a.isNullOrEmpty() && !b.isNullOrEmpty() && a.toSet() == b.toSet()
+
     /** Ouvre l'installateur système (demande l'autorisation « sources inconnues » si besoin). */
     fun install(apk: File) {
         val pm = context.packageManager
         val intent = if (!pm.canRequestPackageInstalls()) {
-            Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
         } else {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", apk)
             Intent(Intent.ACTION_VIEW).setDataAndType(uri, APK_MIME).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
