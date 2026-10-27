@@ -221,6 +221,16 @@ enum class ThemeMode(val label: String) { SYSTEM("Système"), DARK("Sombre"), LI
 enum class ThemeStyle(val label: String) {
     ARDOISE("Ardoise"), CIEL("Ciel"), PASTEL("Pastel"), AURORE("Aurore"), NATURE("Nature");
 
+    companion object {
+        /** Thème tant que l'utilisateur n'en a pas choisi un autre. */
+        val DEFAULT = NATURE
+    }
+
+    companion object {
+        /** Thème tant que l'utilisateur n'en a pas choisi un autre. */
+        val DEFAULT = NATURE
+    }
+
     fun palette(mode: ThemeMode, systemDark: Boolean): SlatePalette = when (this) {
         ARDOISE -> if (mode.isDark(systemDark)) DarkSlate else LightSlate
         CIEL -> SkySlate

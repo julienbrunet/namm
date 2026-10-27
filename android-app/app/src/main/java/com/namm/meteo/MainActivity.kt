@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             val mode = settings?.theme ?: ThemeMode.SYSTEM
-            MeteoTheme(mode, settings?.style ?: ThemeStyle.ARDOISE) {
+            MeteoTheme(mode, settings?.style ?: ThemeStyle.DEFAULT) {
                 // Icônes de la barre d'état claires sur fond sombre, foncées sur fond clair.
                 val dark = Slate.isDark
                 DisposableEffect(dark) {

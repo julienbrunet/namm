@@ -84,7 +84,7 @@ class WidgetConfigActivity : ComponentActivity() {
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             val scope = rememberCoroutineScope()
-            MeteoTheme(settings?.theme ?: ThemeMode.SYSTEM, settings?.style ?: ThemeStyle.ARDOISE) {
+            MeteoTheme(settings?.theme ?: ThemeMode.SYSTEM, settings?.style ?: ThemeStyle.DEFAULT) {
                 WidgetConfigContent(
                     initial = initial.copy(hours = initial.hours ?: defaultHours),
                     isMap = isMap,

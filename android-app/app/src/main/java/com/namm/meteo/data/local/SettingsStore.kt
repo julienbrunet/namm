@@ -27,7 +27,7 @@ data class Settings(
     /** Clé d'API Météo-France (AROME-PI) ; vide = Open-Meteo seul. */
     val aromeApiKey: String = "",
     val theme: ThemeMode = ThemeMode.SYSTEM,
-    val style: ThemeStyle = ThemeStyle.ARDOISE,
+    val style: ThemeStyle = ThemeStyle.DEFAULT,
     val widgetBackground: WidgetBackground = WidgetBackground.OPAQUE,
 )
 
@@ -69,7 +69,7 @@ class SettingsStore(private val context: Context) {
             widgetBackground = p[Keys.widgetBackground]?.let { runCatching { WidgetBackground.valueOf(it) }.getOrNull() }
                 ?: WidgetBackground.OPAQUE,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
-            style = p[Keys.style]?.let { runCatching { ThemeStyle.valueOf(it) }.getOrNull() } ?: ThemeStyle.ARDOISE,
+            style = p[Keys.style]?.let { runCatching { ThemeStyle.valueOf(it) }.getOrNull() } ?: ThemeStyle.DEFAULT,
         )
     }
 
