@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>No Ad Météo</title>
-  <meta name="description" content="La météo locale sur Android, sans publicité ni pistage : pluie à 15 minutes, carte de pluie, widgets.">
+  <title>YAMA</title>
+  <meta name="description" content="Local weather on Android, no ads, no tracking: rain every 15 minutes, animated rain map, widgets.">
   <style>
-    /* Palette du thème Nature de l'application : nuit bleutée, crépuscule rosé, eau du lac. */
+    /* Palette of the app's Nature theme: bluish night, pink dusk, lake water. */
     :root {
       --night: #1f2a44; --deep: #243049; --dusk: #3a4c6b; --haze: #7e7f96;
       --peach: #f6b98a; --tile: rgba(14, 22, 38, .42); --line: rgba(242, 243, 245, .12);
@@ -19,7 +19,7 @@
     }
     a { color: inherit; }
 
-    /* En-tête : ciel du crépuscule, montagnes et leur reflet dans le lac (dessinés en SVG). */
+    /* Header: dusk sky, mountains and their reflection in the lake (drawn in SVG). */
     .sky {
       position: relative; overflow: hidden;
       background: linear-gradient(180deg, #1c2440 0%, #3b3f63 30%, #8c6f86 52%, #e0a283 64%, #3a4c6b 64.2%, var(--deep) 100%);
@@ -27,9 +27,15 @@
     .sky svg.land { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 72%; }
     .sun { position: absolute; right: 18%; top: 47%; width: 70px; height: 70px; border-radius: 50%;
       background: radial-gradient(circle, #ffe2bd 0 40%, rgba(255, 210, 160, .35) 60%, transparent 72%); }
-    main, .hero { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+    main, .hero, .topbar { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+    .topbar { position: relative; display: flex; justify-content: flex-end; padding-top: 20px; }
+    .langswitch { display: inline-flex; gap: 2px; background: rgba(14, 22, 38, .45); backdrop-filter: blur(6px);
+      border-radius: 99px; padding: 3px; }
+    .langswitch button { border: none; background: transparent; color: var(--sub); font: inherit; font-size: 12px;
+      letter-spacing: .5px; padding: 5px 12px; border-radius: 99px; cursor: pointer; }
+    .langswitch button.active { background: var(--text); color: var(--night); font-weight: 600; }
     .hero { position: relative; display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px;
-      align-items: end; padding-top: 72px; padding-bottom: 48px; }
+      align-items: end; padding-top: 24px; padding-bottom: 48px; }
     h1 { font-size: clamp(42px, 6.4vw, 66px); font-weight: 200; line-height: 1.05; letter-spacing: -1px;
       text-shadow: 0 2px 14px rgba(0, 0, 0, .35); }
     h1 span { display: block; color: var(--sub); font-weight: 300; font-size: .52em; letter-spacing: 0; margin-top: 14px; }
@@ -65,7 +71,7 @@
     footer { margin-top: 72px; color: var(--muted); font-size: 13px; text-align: center; letter-spacing: .5px; }
     footer a { color: var(--sub); }
     @media (max-width: 800px) {
-      .hero { grid-template-columns: 1fr; padding-top: 48px; gap: 36px; }
+      .hero { grid-template-columns: 1fr; padding-top: 24px; gap: 36px; }
       .phone { margin-bottom: -90px; }
       main { padding-top: 120px; }
       .tiles { grid-template-columns: 1fr 1fr; }
@@ -76,6 +82,12 @@
   </style>
 </head>
 <body>
+<div class="topbar">
+  <div class="langswitch">
+    <button type="button" data-lang="en">EN</button>
+    <button type="button" data-lang="fr">FR</button>
+  </div>
+</div>
 <header class="sky">
   <div class="sun" aria-hidden="true"></div>
   <svg class="land" viewBox="0 0 1200 400" preserveAspectRatio="none" aria-hidden="true">
@@ -84,84 +96,191 @@
         <stop offset="0" stop-color="#5d5873" stop-opacity=".75"/><stop offset="1" stop-color="#243049"/>
       </linearGradient>
     </defs>
-    <!-- Montagnes lointaines puis proches ; l'horizon (rive) est à y = 100. -->
+    <!-- Far then near mountains; the horizon (shore) is at y = 100. -->
     <path d="M0 100 L0 62 L90 40 L170 58 L260 22 L360 52 L450 30 L560 60 L660 26 L760 50 L860 18 L960 48 L1060 34 L1200 56 L1200 100 Z" fill="#6f6680" opacity=".75"/>
     <path d="M0 100 L0 80 L120 66 L220 84 L330 62 L430 82 L540 70 L650 88 L760 64 L880 84 L990 70 L1100 86 L1200 74 L1200 100 Z" fill="#3c3b55"/>
-    <!-- Lac : reflet adouci des montagnes. -->
+    <!-- Lake: softened reflection of the mountains. -->
     <rect y="100" width="1200" height="300" fill="url(#lake)"/>
     <path d="M0 100 L0 120 L120 134 L220 116 L330 138 L430 118 L540 130 L650 112 L760 136 L880 116 L990 130 L1100 114 L1200 126 L1200 100 Z" fill="#3c3b55" opacity=".45"/>
   </svg>
   <div class="hero">
     <div>
-      <h1>No Ad Météo<span>La météo locale, rien d'autre.</span></h1>
-      <div class="pill">Android · gratuit · open-source</div>
-      <p class="lead">Pluie des deux prochaines heures au quart d'heure, carte de pluie animée avec nuages et vent,
-        prévisions sur 7 jours et widgets. Sans publicité, sans pistage, sans compte.</p>
-      <a class="download" href="https://github.com/julienbrunet/namm/releases/latest/download/no-ad-meteo.apk">
+      <h1 data-i18n="title">YAMA<span data-i18n="subtitle">Local weather, nothing else.</span></h1>
+      <div class="pill" data-i18n="pill">Android · free · open source</div>
+      <p class="lead" data-i18n="lead">Rain over the next two hours every 15 minutes, smooth animated rain map with clouds and wind,
+        7-day forecast and widgets. No ads, no tracking, no account.</p>
+      <a class="download" href="https://github.com/julienbrunet/yama/releases/latest/download/yama.apk">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
-        Télécharger l'APK
+        <span data-i18n="download">Download the APK</span>
       </a>
-      <span class="version" id="version">Dernière version sur GitHub Releases</span>
+      <span class="version" id="version" data-i18n="version-default">Latest version on GitHub Releases</span>
     </div>
-    <div class="phone"><img src="nature_crepuscule.jpg" alt="Accueil du thème Nature au crépuscule : paysage de montagnes et lac, température et prévisions" width="660" height="1431"></div>
+    <div class="phone"><img src="home_nature.jpg" data-img="home_nature" alt="" data-i18n-alt="phone-alt" width="720" height="1560"></div>
   </div>
 </header>
 
 <main>
   <section>
-    <h2>Ce que fait l'appli</h2>
+    <h2 data-i18n="features-h2">What the app does</h2>
     <div class="tiles">
-      <div class="tile"><span class="ico">◎</span><div><b>Votre position</b><p>GPS par défaut, plus vos lieux enregistrés.</p></div></div>
-      <div class="tile"><span class="ico">☂</span><div><b>Pluie au quart d'heure</b><p>Modèles haute résolution (AROME, ICON) et alerte quand la pluie arrive dans l'heure.</p></div></div>
-      <div class="tile"><span class="ico">▦</span><div><b>Carte de pluie</b><p>Radar observé, prévision animée et fluide, nuages satellite Meteosat, carte des vents.</p></div></div>
-      <div class="tile"><span class="ico">▢</span><div><b>Six widgets</b><p>De la pastille 2×1 à la carte de pluie, chacun avec son fond et sa transparence.</p></div></div>
-      <div class="tile"><span class="ico">◐</span><div><b>Thèmes</b><p>Ardoise, Ciel, Pastel, Aurore et Nature, dont le paysage suit l'heure et le temps qu'il fait.</p></div></div>
-      <div class="tile"><span class="ico">◌</span><div><b>Zéro publicité</b><p>Aucun SDK publicitaire ni pistage, code ouvert, mises à jour automatiques depuis GitHub.</p></div></div>
+      <div class="tile"><span class="ico">◎</span><div><b data-i18n="f1-b">Your location</b><p data-i18n="f1-p">GPS by default, plus your saved places.</p></div></div>
+      <div class="tile"><span class="ico">☂</span><div><b data-i18n="f2-b">Rain every 15 minutes</b><p data-i18n="f2-p">High-resolution models (AROME, ICON) and an alert when rain is due within the hour.</p></div></div>
+      <div class="tile"><span class="ico">▦</span><div><b data-i18n="f3-b">Rain map</b><p data-i18n="f3-p">Observed radar, smooth animated forecast, Meteosat satellite clouds, wind map.</p></div></div>
+      <div class="tile"><span class="ico">▢</span><div><b data-i18n="f4-b">Six widgets</b><p data-i18n="f4-p">From the 2×1 pill to the rain map, each with its own background and transparency.</p></div></div>
+      <div class="tile"><span class="ico">◐</span><div><b data-i18n="f5-b">Themes</b><p data-i18n="f5-p">Slate, Sky, Pastel, Aurora and Nature, whose landscape follows the time and the weather.</p></div></div>
+      <div class="tile"><span class="ico">◌</span><div><b data-i18n="f6-b">Zero ads</b><p data-i18n="f6-p">No advertising SDK or tracking, open source code, automatic updates from GitHub.</p></div></div>
     </div>
   </section>
 
   <section>
-    <h2>Le thème Nature</h2>
+    <h2 data-i18n="nature-h2">The Nature theme</h2>
     <div class="gallery">
-      <figure><img src="nature_jour_soleil.jpg" alt="Thème Nature en journée ensoleillée" width="540" height="1171"><figcaption>Grand soleil</figcaption></figure>
-      <figure><img src="nature_nuit_claire.jpg" alt="Thème Nature de nuit, ciel étoilé" width="540" height="1171"><figcaption>Nuit claire</figcaption></figure>
-      <figure><img src="nature_defilement.jpg" alt="Bas de l'accueil : tuiles, lever et coucher du soleil, 7 jours" width="540" height="1171"><figcaption>Tuiles, soleil et 7 jours</figcaption></figure>
-      <figure><img src="carte.jpg" alt="Carte de pluie animée avec nuages" width="540" height="1171"><figcaption>Carte de pluie et nuages</figcaption></figure>
+      <figure><img src="nature_sunny_day.jpg" data-img="nature_sunny_day" alt="" data-i18n-alt="g1-alt" width="720" height="1560"><figcaption data-i18n="g1-cap">Bright sun</figcaption></figure>
+      <figure><img src="nature_clear_night.jpg" data-img="nature_clear_night" alt="" data-i18n-alt="g2-alt" width="720" height="1560"><figcaption data-i18n="g2-cap">Clear night</figcaption></figure>
+      <figure><img src="nature_scrolled.jpg" data-img="nature_scrolled" alt="" data-i18n-alt="g3-alt" width="720" height="1560"><figcaption data-i18n="g3-cap">Tiles, sun and 7 days</figcaption></figure>
+      <figure><img src="map.jpg" data-img="map" alt="" data-i18n-alt="g4-alt" width="720" height="1560"><figcaption data-i18n="g4-cap">Rain map and clouds</figcaption></figure>
     </div>
   </section>
 
   <section>
-    <h2>Widgets</h2>
+    <h2 data-i18n="widgets-h2">Widgets</h2>
     <div class="widgets">
-      <img src="widget_journee.jpg" alt="Widget Journée : météo actuelle, heure et 6 prochaines heures" width="720" height="400">
-      <img src="widget_12h.jpg" alt="Widget 12 h : les 12 prochaines heures" width="720" height="340">
+      <img src="widget_day.jpg" data-img="widget_day" alt="" data-i18n-alt="w1-alt" width="720" height="400">
+      <img src="widget_12h.jpg" data-img="widget_12h" alt="" data-i18n-alt="w2-alt" width="720" height="340">
     </div>
   </section>
 
   <section>
-    <h2>Cinq thèmes</h2>
+    <h2 data-i18n="themes-h2">Five themes</h2>
     <div class="themes">
-      <figure><img src="accueil.jpg" alt="Thème Ardoise" width="360" height="780"><figcaption>Ardoise</figcaption></figure>
-      <figure><img src="accueil_ciel.jpg" alt="Thème Ciel" width="360" height="780"><figcaption>Ciel</figcaption></figure>
-      <figure><img src="accueil_pastel.jpg" alt="Thème Pastel" width="360" height="780"><figcaption>Pastel</figcaption></figure>
-      <figure><img src="accueil_aurore.jpg" alt="Thème Aurore" width="360" height="780"><figcaption>Aurore</figcaption></figure>
-      <figure><img src="accueil_nature.jpg" alt="Thème Nature sous la pluie" width="360" height="780"><figcaption>Nature</figcaption></figure>
+      <figure><img src="home_slate.jpg" data-img="home_slate" alt="" data-i18n-alt="t1-alt" width="720" height="1560"><figcaption data-i18n="t1-cap">Slate</figcaption></figure>
+      <figure><img src="home_sky.jpg" data-img="home_sky" alt="" data-i18n-alt="t2-alt" width="720" height="1560"><figcaption data-i18n="t2-cap">Sky</figcaption></figure>
+      <figure><img src="home_pastel.jpg" data-img="home_pastel" alt="" data-i18n-alt="t3-alt" width="720" height="1560"><figcaption data-i18n="t3-cap">Pastel</figcaption></figure>
+      <figure><img src="home_aurora.jpg" data-img="home_aurora" alt="" data-i18n-alt="t4-alt" width="720" height="1560"><figcaption data-i18n="t4-cap">Aurora</figcaption></figure>
+      <figure><img src="home_nature.jpg" data-img="home_nature" alt="" data-i18n-alt="t5-alt" width="720" height="1560"><figcaption data-i18n="t5-cap">Nature</figcaption></figure>
     </div>
   </section>
 
-  <footer>
-    Données météo <a href="https://open-meteo.com">Open-Meteo</a>, Météo-France, RainViewer, EUMETSAT · Code source <a href="https://github.com/julienbrunet/namm">GitHub</a>
+  <footer data-i18n-html="footer">
+    Weather data <a href="https://open-meteo.com">Open-Meteo</a>, Météo-France, RainViewer, EUMETSAT · Source code <a href="https://github.com/julienbrunet/yama">GitHub</a>
   </footer>
 </main>
 <script>
-  // Affiche le numéro de la dernière version publiée (sans dépendance).
-  fetch("https://api.github.com/repos/julienbrunet/namm/releases/latest")
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(r => {
+(function () {
+  var STRINGS = {
+    en: {
+      title: "YAMA", subtitle: "Local weather, nothing else.",
+      pill: "Android · free · open source",
+      lead: "Rain over the next two hours every 15 minutes, smooth animated rain map with clouds and wind, " +
+        "7-day forecast and widgets. No ads, no tracking, no account.",
+      download: "Download the APK", "version-default": "Latest version on GitHub Releases",
+      "phone-alt": "Nature theme home screen at dusk: mountain and lake landscape, temperature and forecast",
+      "features-h2": "What the app does",
+      "f1-b": "Your location", "f1-p": "GPS by default, plus your saved places.",
+      "f2-b": "Rain every 15 minutes", "f2-p": "High-resolution models (AROME, ICON) and an alert when rain is due within the hour.",
+      "f3-b": "Rain map", "f3-p": "Observed radar, smooth animated forecast, Meteosat satellite clouds, wind map.",
+      "f4-b": "Six widgets", "f4-p": "From the 2×1 pill to the rain map, each with its own background and transparency.",
+      "f5-b": "Themes", "f5-p": "Slate, Sky, Pastel, Aurora and Nature, whose landscape follows the time and the weather.",
+      "f6-b": "Zero ads", "f6-p": "No advertising SDK or tracking, open source code, automatic updates from GitHub.",
+      "nature-h2": "The Nature theme",
+      "g1-alt": "Nature theme in bright sunshine", "g1-cap": "Bright sun",
+      "g2-alt": "Nature theme at night, starry sky", "g2-cap": "Clear night",
+      "g3-alt": "Bottom of the home screen: tiles, sunrise and sunset, 7 days", "g3-cap": "Tiles, sun and 7 days",
+      "g4-alt": "Animated rain map with clouds", "g4-cap": "Rain map and clouds",
+      "widgets-h2": "Widgets",
+      "w1-alt": "Day widget: current weather, time and next 6 hours",
+      "w2-alt": "12 h widget: the next 12 hours",
+      "themes-h2": "Five themes",
+      "t1-alt": "Slate theme", "t1-cap": "Slate",
+      "t2-alt": "Sky theme", "t2-cap": "Sky",
+      "t3-alt": "Pastel theme", "t3-cap": "Pastel",
+      "t4-alt": "Aurora theme", "t4-cap": "Aurora",
+      "t5-alt": "Nature theme in the rain", "t5-cap": "Nature",
+      footer: "Weather data <a href=\"https://open-meteo.com\">Open-Meteo</a>, Météo-France, RainViewer, EUMETSAT · " +
+        "Source code <a href=\"https://github.com/julienbrunet/yama\">GitHub</a>",
+    },
+    fr: {
+      title: "YAMA", subtitle: "La météo locale, rien d'autre.",
+      pill: "Android · gratuit · open-source",
+      lead: "Pluie des deux prochaines heures au quart d'heure, carte de pluie animée avec nuages et vent, " +
+        "prévisions sur 7 jours et widgets. Sans publicité, sans pistage, sans compte.",
+      download: "Télécharger l'APK", "version-default": "Dernière version sur GitHub Releases",
+      "phone-alt": "Accueil du thème Nature au crépuscule : paysage de montagnes et lac, température et prévisions",
+      "features-h2": "Ce que fait l'appli",
+      "f1-b": "Votre position", "f1-p": "GPS par défaut, plus vos lieux enregistrés.",
+      "f2-b": "Pluie au quart d'heure", "f2-p": "Modèles haute résolution (AROME, ICON) et alerte quand la pluie arrive dans l'heure.",
+      "f3-b": "Carte de pluie", "f3-p": "Radar observé, prévision animée et fluide, nuages satellite Meteosat, carte des vents.",
+      "f4-b": "Six widgets", "f4-p": "De la pastille 2×1 à la carte de pluie, chacun avec son fond et sa transparence.",
+      "f5-b": "Thèmes", "f5-p": "Ardoise, Ciel, Pastel, Aurore et Nature, dont le paysage suit l'heure et le temps qu'il fait.",
+      "f6-b": "Zéro publicité", "f6-p": "Aucun SDK publicitaire ni pistage, code ouvert, mises à jour automatiques depuis GitHub.",
+      "nature-h2": "Le thème Nature",
+      "g1-alt": "Thème Nature en journée ensoleillée", "g1-cap": "Grand soleil",
+      "g2-alt": "Thème Nature de nuit, ciel étoilé", "g2-cap": "Nuit claire",
+      "g3-alt": "Bas de l'accueil : tuiles, lever et coucher du soleil, 7 jours", "g3-cap": "Tuiles, soleil et 7 jours",
+      "g4-alt": "Carte de pluie animée avec nuages", "g4-cap": "Carte de pluie et nuages",
+      "widgets-h2": "Widgets",
+      "w1-alt": "Widget Journée : météo actuelle, heure et 6 prochaines heures",
+      "w2-alt": "Widget 12 h : les 12 prochaines heures",
+      "themes-h2": "Cinq thèmes",
+      "t1-alt": "Thème Ardoise", "t1-cap": "Ardoise",
+      "t2-alt": "Thème Ciel", "t2-cap": "Ciel",
+      "t3-alt": "Thème Pastel", "t3-cap": "Pastel",
+      "t4-alt": "Thème Aurore", "t4-cap": "Aurore",
+      "t5-alt": "Thème Nature sous la pluie", "t5-cap": "Nature",
+      footer: "Données météo <a href=\"https://open-meteo.com\">Open-Meteo</a>, Météo-France, RainViewer, EUMETSAT · " +
+        "Code source <a href=\"https://github.com/julienbrunet/yama\">GitHub</a>",
+    },
+  };
+
+  function pickDefaultLang() {
+    try {
+      var stored = localStorage.getItem("yama-lang");
+      if (stored === "en" || stored === "fr") return stored;
+    } catch (e) {}
+    return (navigator.language || "en").toLowerCase().indexOf("fr") === 0 ? "fr" : "en";
+  }
+
+  function applyLang(lang) {
+    var strings = STRINGS[lang] || STRINGS.en;
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n");
+      if (strings[key] != null) el.textContent = strings[key];
+    });
+    document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-alt");
+      if (strings[key] != null) el.setAttribute("alt", strings[key]);
+    });
+    document.querySelectorAll("[data-i18n-html]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-html");
+      if (strings[key] != null) el.innerHTML = strings[key];
+    });
+    document.querySelectorAll("[data-img]").forEach(function (el) {
+      var base = el.getAttribute("data-img");
+      el.src = lang === "fr" ? "fr/" + base + ".jpg" : base + ".jpg";
+    });
+    document.querySelectorAll(".langswitch button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-lang") === lang);
+    });
+    try { localStorage.setItem("yama-lang", lang); } catch (e) {}
+  }
+
+  document.querySelectorAll(".langswitch button").forEach(function (b) {
+    b.addEventListener("click", function () { applyLang(b.getAttribute("data-lang")); });
+  });
+
+  applyLang(pickDefaultLang());
+
+  // Shows the latest published release number (no dependency).
+  fetch("https://api.github.com/repos/julienbrunet/yama/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (r) {
+      var lang = document.documentElement.lang === "fr" ? "fr-FR" : "en-US";
       document.getElementById("version").textContent =
-        r.name + " · " + new Date(r.published_at).toLocaleDateString("fr-FR");
+        r.name + " · " + new Date(r.published_at).toLocaleDateString(lang);
     })
-    .catch(() => {});
+    .catch(function () {});
+})();
 </script>
 </body>
 </html>
