@@ -1,16 +1,16 @@
-# Mises à jour proposées en pull request (rien n'est fusionné automatiquement).
-# Après une mise à jour Gradle, régénérer android-app/gradle/verification-metadata.xml (voir CLAUDE.md).
+# Updates proposed as pull requests (nothing is merged automatically).
+# After a Gradle update, regenerate android-app/gradle/verification-metadata.xml (see CLAUDE.md).
 version: 2
 updates:
   - package-ecosystem: gradle
     directory: /android-app
     schedule:
       interval: weekly
-    # Laisser deux semaines à une nouvelle version avant de la proposer (paquets piégés vite retirés).
+    # Give a new version two weeks before proposing it (booby-trapped packages are pulled quickly).
     cooldown:
       default-days: 14
     groups:
-      dependances:
+      dependencies:
         patterns: ["*"]
 
   - package-ecosystem: github-actions

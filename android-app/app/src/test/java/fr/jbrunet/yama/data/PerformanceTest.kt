@@ -21,12 +21,12 @@ import java.io.File
 import kotlin.math.exp
 import kotlin.math.floor
 
-// Robolectric : les palettes de RainOverlays.kt utilisent des classes graphiques Android.
+// Robolectric: the palettes in RainOverlays.kt use Android graphics classes.
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = android.app.Application::class)
 class PerformanceTest {
 
-    /** Ancien rendu (16 exp() par pixel), référence pour le rendu à noyau séparable. */
+    /** Former rendering (16 exp() per pixel), reference for the separable-kernel rendering. */
     private fun reference(frame: MapFrame.Forecast): IntArray {
         val grid = frame.grid
         val (w, h) = forecastImageSize(grid)
@@ -54,12 +54,12 @@ class PerformanceTest {
     }
 
     @Test
-    fun `le rendu séparable donne les mêmes pixels que le noyau gaussien complet`() {
+    fun `separable rendering gives the same pixels as the full gaussian kernel`() {
         val frames = Fixtures.rainMap().frames.filterIsInstance<MapFrame.Forecast>()
         for (frame in listOf(frames.first(), frames[40], frames.last())) {
             val expected = reference(frame)
             val actual = forecastPixels(frame)
-            // Les arrondis peuvent faire basculer de palier un pixel pile sur un seuil : tolérance infime.
+            // Rounding may push a pixel sitting exactly on a threshold to the next level: tiny tolerance.
             val diff = expected.indices.count { expected[it] != actual[it] }
             assertEquals(0.0, diff.toDouble() / expected.size, 0.001)
         }
@@ -67,35 +67,35 @@ class PerformanceTest {
     }
 
     @Test
-    fun `le cache de prévision n'est relu que si le fichier change`() {
+    fun `forecast cache is read again only when the file changes`() {
         val file = File.createTempFile("forecast", ".json").apply { delete() }
         val cache = ForecastCache(file)
         assertNull(cache.read())
         cache.write(CachedForecast(Fixtures.paris, 1L, Fixtures.forecastDto()))
         val first = cache.read()
         assertSame(first, cache.read())
-        // Un autre ForecastCache sur le même fichier relit bien le contenu.
+        // Another ForecastCache on the same file does read the content.
         assertEquals(1L, ForecastCache(file).read()?.fetchedAtMillis)
         file.delete()
     }
 
     @Test
-    fun `la position envoyée à Open-Meteo est arrondie à 0,01°`() {
+    fun `position sent to Open-Meteo is rounded to two decimals`() {
         assertEquals(48.86, roundCoordinate(48.85661), 1e-9)
         assertEquals(-1.55, roundCoordinate(-1.5499), 1e-9)
     }
 
     @Test
-    fun `le paysage Nature se calcule vite`() {
+    fun `Nature landscape renders fast`() {
         val sun = fr.jbrunet.yama.domain.sunPosition("2026-10-16T13:30", "2026-10-16T08:13", "2026-10-16T18:57")
         val renderer = fr.jbrunet.yama.ui.forecast.SceneRenderer(fr.jbrunet.yama.domain.WeatherCondition.RAIN, sun)
-        renderer.render(SCENE_WIDTH, 650) // chauffe du JIT
+        renderer.render(SCENE_WIDTH, 650) // JIT warm-up
         val start = System.nanoTime()
         val pixels = renderer.render(SCENE_WIDTH, 650)
         val millis = (System.nanoTime() - start) / 1_000_000
         println("Paysage Nature : $millis ms")
         assertEquals(SCENE_WIDTH * 650, pixels.size)
-        // Calculé une fois par changement de météo ; large marge pour les machines de CI.
+        // Computed once per weather change; wide margin for CI machines.
         assert(millis < 2_000) { "paysage trop lent : $millis ms" }
     }
 }

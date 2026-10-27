@@ -66,12 +66,12 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** Ombre douce : texte blanc lisible sur un ciel clair. */
+/** Soft shadow: white text readable on a bright sky. */
 private val SoftShadow = Shadow(Color(0x66000000), Offset(0f, 2f), 14f)
 
 /**
- * Accueil du thème Nature : le paysage occupe tout l'écran et suit la météo et l'heure ;
- * la météo actuelle se lit dans le ciel, le détail sur des tuiles en verre fumé au-dessus du lac.
+ * Nature theme home screen: the landscape fills the screen and follows the weather and the time;
+ * the current weather reads in the sky, the details on smoked glass tiles above the lake.
  */
 @Composable
 fun NatureForecastContent(
@@ -88,11 +88,11 @@ fun NatureForecastContent(
     val sun = sunPosition(c.time, today?.sunrise, today?.sunset)
     Box(Modifier.fillMaxSize().background(Slate.Background)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            // En-tête : le paysage (montagnes et reflet dans le lac) occupe le haut de l'écran ;
-            // la météo actuelle se lit à gauche, le paysage reste dégagé à droite.
+            // Header: the landscape (mountains and their reflection in the lake) fills the top of the screen;
+            // the current weather reads on the left, the landscape stays clear on the right.
             Box(Modifier.fillMaxWidth()) {
                 NatureScene(condition, sun, Modifier.matchParentSize())
-                // Fondu du bas du paysage vers le fond de page, sous lequel arrivent les tuiles.
+                // Fade from the bottom of the landscape to the page background, under which the tiles come.
                 Box(
                     Modifier.matchParentSize().background(
                         Brush.verticalGradient(0.72f to Color.Transparent, 1f to Slate.Background),
@@ -129,7 +129,7 @@ fun NatureForecastContent(
                         color = Slate.Primary,
                     )
                     Text(
-                        // « Ensoleillé » n'a pas de sens la nuit.
+                        // “Sunny” makes no sense at night.
                         stringResource(
                             if (condition == WeatherCondition.CLEAR && sun.phase == DayPhase.NIGHT) R.string.condition_clear_night
                             else condition.labelRes,
@@ -143,7 +143,7 @@ fun NatureForecastContent(
                         style = MaterialTheme.typography.titleMedium.copy(shadow = SoftShadow),
                         color = Slate.Secondary,
                     )
-                    // Mise à jour échouée : on dit de quand datent les données et pourquoi.
+                    // Failed update: tell how old the data is and why.
                     data.staleReason?.let {
                         Spacer(Modifier.height(10.dp))
                         StalePill(data.fetchedAtMillis, it)
@@ -151,7 +151,7 @@ fun NatureForecastContent(
                 }
             }
 
-            // Tuiles : même organisation que les autres thèmes, plus la course du soleil.
+            // Tiles: same layout as the other themes, plus the sun's course.
             Column(Modifier.padding(horizontal = 22.dp)) {
                 UpdateBanner(update, onUpdateAction)
                 SectionLabel(stringResource(R.string.section_next_24h))
@@ -185,14 +185,14 @@ fun NatureForecastContent(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(88.dp)) // place pour la barre du bas
+                Spacer(Modifier.height(88.dp)) // room for the bottom bar
             }
         }
         BottomBar(onOpenMap, onOpenSettings, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing))
     }
 }
 
-/** Course du soleil : arc pointillé du lever au coucher, position actuelle marquée. */
+/** Sun's course: dotted arc from sunrise to sunset, current position marked. */
 @Composable
 private fun SunArc(sun: SunPosition, sunrise: String, sunset: String) {
     val track = Slate.TileHighlight

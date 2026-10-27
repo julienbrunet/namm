@@ -3,13 +3,13 @@ package fr.jbrunet.yama.domain
 data class Forecast(
     val current: CurrentWeather,
     val nextPrecipitation: List<PrecipitationStep>,
-    /** Prochaines 24 h, heure par heure (à partir de l'heure en cours). */
+    /** Next 24 h, hour by hour (from the current hour). */
     val hours: List<HourlyForecast> = emptyList(),
     val days: List<DailyForecast>,
 )
 
 data class CurrentWeather(
-    /** Heure locale ISO, ex. "2026-10-16T10:30". */
+    /** Local ISO time, e.g. "2026-10-16T10:30". */
     val time: String,
     val temperature: Double,
     val apparentTemperature: Double,
@@ -19,7 +19,7 @@ data class CurrentWeather(
     val windSpeed: Double,
 )
 
-/** Précipitation sur un pas de 15 minutes (mm). */
+/** Precipitation over a 15 minute step (mm). */
 data class PrecipitationStep(val time: String, val millimeters: Double)
 
 data class DailyForecast(
@@ -28,13 +28,13 @@ data class DailyForecast(
     val tempMax: Double,
     val precipitationSum: Double,
     val weatherCode: Int,
-    /** Lever et coucher du soleil, heure locale ISO (absents d'un ancien cache). */
+    /** Sunrise and sunset, local ISO time (missing from an old cache). */
     val sunrise: String? = null,
     val sunset: String? = null,
 )
 
 data class HourlyForecast(
-    /** Heure locale ISO, ex. "2026-10-16T21:00". */
+    /** Local ISO time, e.g. "2026-10-16T21:00". */
     val time: String,
     val temperature: Double,
     val precipitationProbability: Int,

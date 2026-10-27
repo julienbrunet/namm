@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.GET
 
-/** Radar de pluie observé : https://www.rainviewer.com/api.html */
+/** Observed rain radar: https://www.rainviewer.com/api.html */
 interface RainViewerApi {
     @GET("public/weather-maps.json")
     suspend fun maps(): RainViewerMapsDto
@@ -23,7 +23,7 @@ data class RadarDto(val past: List<RadarFrameDto> = emptyList())
 @Serializable
 data class RadarFrameDto(val time: Long, val path: String)
 
-/** Releases GitHub, pour la mise à jour automatique. */
+/** GitHub releases, for automatic updates. */
 interface GitHubApi {
     @GET("repos/julienbrunet/yama/releases/latest")
     suspend fun latestRelease(): ReleaseDto

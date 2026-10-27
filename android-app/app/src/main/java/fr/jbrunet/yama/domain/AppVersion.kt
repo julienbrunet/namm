@@ -1,6 +1,6 @@
 package fr.jbrunet.yama.domain
 
-/** Version « majeur.mineur.patch » comparée numériquement (0.1.9 < 0.1.10 < 0.2.0). */
+/** “major.minor.patch” version compared numerically (0.1.9 < 0.1.10 < 0.2.0). */
 data class AppVersion(val parts: List<Int>) : Comparable<AppVersion> {
 
     override fun compareTo(other: AppVersion): Int {
@@ -14,7 +14,7 @@ data class AppVersion(val parts: List<Int>) : Comparable<AppVersion> {
     override fun toString() = parts.joinToString(".")
 
     companion object {
-        /** Accepte "v0.2.5", "0.2.5", "YAMA 0.2.5"… ; null si illisible. */
+        /** Accepts "v0.2.5", "0.2.5", "YAMA 0.2.5"…; null if unreadable. */
         fun parse(text: String): AppVersion? {
             val match = Regex("""(\d+)(\.\d+)*""").find(text) ?: return null
             return AppVersion(match.value.split('.').map { it.toInt() })

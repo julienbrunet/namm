@@ -41,7 +41,7 @@ import kotlin.math.roundToInt
 private val ColumnWidth = 52.dp
 private val CurveHeight = 34.dp
 
-/** Prochaines 24 h : heure, icône, température, courbe et probabilité de pluie (défilement horizontal). */
+/** Next 24 h: hour, icon, temperature, curve and chance of rain (horizontal scrolling). */
 @Composable
 fun HourlyTile(hours: List<HourlyForecast>) {
     if (hours.isEmpty()) return
@@ -88,7 +88,7 @@ private fun HourRow(hours: List<HourlyForecast>, cell: @Composable (HourlyForeca
     }
 }
 
-/** Courbe lissée des températures, un point au centre de chaque colonne. */
+/** Smoothed temperature curve, one point at the centre of each column. */
 @Composable
 private fun TemperatureCurve(hours: List<HourlyForecast>, width: Dp) {
     val primary = Slate.Primary

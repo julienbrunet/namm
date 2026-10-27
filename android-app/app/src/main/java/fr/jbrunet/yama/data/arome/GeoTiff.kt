@@ -5,8 +5,8 @@ import java.nio.ByteOrder
 import java.util.zip.Inflater
 
 /**
- * Raster géoréférencé en lat/lon (EPSG:4326). [values] est rangé ligne par ligne depuis le nord ;
- * ([west], [north]) est le coin nord-ouest du pixel (0, 0).
+ * Raster georeferenced in lat/lon (EPSG:4326). [values] is stored row by row from the north;
+ * ([west], [north]) is the north-west corner of pixel (0, 0).
  */
 class Raster(
     val width: Int,
@@ -21,8 +21,8 @@ class Raster(
 }
 
 /**
- * Lecteur GeoTIFF minimal pour les réponses WCS de Météo-France : bandes simples en
- * flottants (32/64 bits) ou entiers, non compressées ou Deflate, en bandes ou en tuiles.
+ * Minimal GeoTIFF reader for Météo-France WCS responses: single bands of
+ * floats (32/64 bits) or integers, uncompressed or Deflate, in strips or tiles.
  */
 object GeoTiff {
     private const val WIDTH = 256
@@ -42,7 +42,7 @@ object GeoTiff {
     private const val TIEPOINT = 33922
     private const val NODATA = 42113
 
-    /** Côté max accepté (px) : la zone demandée à AROME-PI fait au plus quelques centaines de pixels. */
+    /** Largest side accepted (px): the area requested from AROME-PI is a few hundred pixels at most. */
     private const val MAX_SIDE = 4096
 
     fun decode(bytes: ByteArray): Raster {
@@ -57,7 +57,7 @@ object GeoTiff {
         val bits = tags.int(BITS)
         val compression = tags.intOr(COMPRESSION, 1)
         val predictor = tags.intOr(PREDICTOR, 1)
-        val format = tags.intOr(SAMPLE_FORMAT, 1) // 1 entier non signé, 2 signé, 3 flottant
+        val format = tags.intOr(SAMPLE_FORMAT, 1) // 1 unsigned integer, 2 signed, 3 float
         require(compression == 1 || compression == 8 || compression == 32946) { "Unsupported TIFF compression $compression" }
         require(predictor == 1) { "Unsupported TIFF predictor $predictor" }
 
@@ -119,13 +119,13 @@ object GeoTiff {
             }
         }
 
-        // Tiepoint : pixel (i, j) ↔ (X, Y) ; avec l'échelle on obtient le coin nord-ouest.
+        // Tiepoint: pixel (i, j) ↔ (X, Y); with the scale we get the north-west corner.
         val west = tie[3] - tie[0] * scale[0]
         val north = tie[4] + tie[1] * scale[1]
         return Raster(width, height, west, north, scale[0], scale[1], values)
     }
 
-    /** Décompresse au plus [max] octets : un fichier corrompu ne peut pas saturer la mémoire. */
+    /** Decompresses at most [max] bytes: a corrupted file cannot fill up the memory. */
     private fun inflate(data: ByteArray, max: Int): ByteArray {
         val inflater = Inflater()
         try {

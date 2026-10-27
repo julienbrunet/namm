@@ -40,7 +40,7 @@ private enum class Screen { Forecast, Map, Settings }
 
 class MainActivity : ComponentActivity() {
 
-    /** Écran demandé par un widget (« map » pour le widget carte). */
+    /** Screen requested by a widget (“map” for the map widget). */
     private val requestedScreen = androidx.compose.runtime.mutableStateOf<String?>(null)
 
     override fun onNewIntent(intent: android.content.Intent) {
@@ -54,9 +54,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Retour au premier plan : nouvelle version publiée entre-temps ? (au plus toutes les 30 min)
+        // Back to the foreground: new version published in the meantime? (at most every 30 min)
         (application as MeteoApp).updates.checkIfDue()
-        // Widgets en retard (veille Android) : on les remet à jour dès que l'appli est ouverte.
+        // Widgets behind schedule (Android doze): refresh them as soon as the app is opened.
         fr.jbrunet.yama.widget.Widgets.refreshIfStale(this)
     }
 
@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
             val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
             val mode = settings?.theme ?: ThemeMode.SYSTEM
             MeteoTheme(mode, settings?.style ?: ThemeStyle.DEFAULT) {
-                // Icônes de la barre d'état claires sur fond sombre, foncées sur fond clair.
+                // Light status bar icons on a dark background, dark ones on a light background.
                 val dark = Slate.isDark
                 DisposableEffect(dark) {
                     val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
                 val forecastViewModel: ForecastViewModel = viewModel(factory = ForecastViewModel.Factory)
                 val forecastState by forecastViewModel.state.collectAsStateWithLifecycle()
 
-                // Par défaut l'accueil affiche la position GPS : on demande l'autorisation au lancement.
+                // By default the home screen shows the GPS position: ask for permission at launch.
                 val permission = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions(),
                 ) { forecastViewModel.refresh() }
@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Ouverture depuis un widget : on va directement à l'écran demandé.
+                // Opened from a widget: go straight to the requested screen.
                 val requested = requestedScreen.value
                 LaunchedEffect(requested) {
                     when (requested) {
@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 BackHandler(enabled = screen != Screen.Forecast) { screen = Screen.Forecast }
-                // Thème Nature : le paysage de l'accueil passe sous les barres système.
+                // Nature theme: the home landscape goes under the system bars.
                 val immersive = screen == Screen.Forecast && Slate.Scenic
                 Box(Modifier.fillMaxSize().screenBackground().then(if (immersive) Modifier else Modifier.safeDrawingPadding())) {
                     when (screen) {
@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
                         )
                         Screen.Map -> MapScreen(
                             viewModel = viewModel<MapViewModel>(factory = MapViewModel.Factory),
-                            // Même lieu que l'accueil : position actuelle ou lieu enregistré choisi.
+                            // Same place as the home screen: current position or the chosen saved place.
                             place = (forecastState as? ForecastUiState.Success)?.data?.place,
                             onBack = { screen = Screen.Forecast },
                         )

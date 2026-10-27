@@ -16,15 +16,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
 
 data class Settings(
-    /** Par défaut l'accueil affiche la position actuelle (GPS). */
+    /** By default the home screen shows the current position (GPS). */
     val useLocation: Boolean = true,
-    /** Lieu enregistré affiché quand [useLocation] est faux (et repli si la position est indisponible). */
+    /** Saved place shown when [useLocation] is false (and fallback when the position is unavailable). */
     val place: Place = Place.DEFAULT,
-    /** Lieux préenregistrés par l'utilisateur. */
+    /** Places saved by the user. */
     val savedPlaces: List<Place> = emptyList(),
     val rainAlerts: Boolean = true,
     val autoUpdate: Boolean = true,
-    /** Clé d'API Météo-France (AROME-PI) ; vide = Open-Meteo seul. */
+    /** Météo-France API key (AROME-PI); empty = Open-Meteo only. */
     val aromeApiKey: String = "",
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val style: ThemeStyle = ThemeStyle.DEFAULT,
@@ -32,7 +32,7 @@ data class Settings(
 
 private val Context.dataStore by preferencesDataStore("settings")
 
-/** Clé Météo-France, à part : ce fichier est exclu de la sauvegarde Android (backup_rules.xml, data_extraction_rules.xml). */
+/** Météo-France key, kept apart: this file is excluded from Android backups (backup_rules.xml, data_extraction_rules.xml). */
 private val Context.secretStore by preferencesDataStore("secrets")
 private val placeList = ListSerializer(Place.serializer())
 
@@ -64,10 +64,10 @@ class SettingsStore(private val context: Context) {
 
     suspend fun current(): Settings = settings.first()
 
-    /** Affiche la position actuelle sur l'accueil. */
+    /** Shows the current position on the home screen. */
     suspend fun selectCurrentLocation() = context.dataStore.edit { it[Keys.useLocation] = true }
 
-    /** Affiche un lieu enregistré (l'ajoute à la liste s'il n'y est pas). */
+    /** Shows a saved place (adds it to the list if missing). */
     suspend fun selectPlace(place: Place) = context.dataStore.edit {
         val saved = it[Keys.savedPlaces]?.let { s -> decode { Network.json.decodeFromString(placeList, s) } }.orEmpty()
         if (saved.none { p -> p.sameAs(place) }) {

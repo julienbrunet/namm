@@ -12,7 +12,7 @@ import org.junit.Test
 class ForecastMappingTest {
 
     @Test
-    fun `parse une vraie réponse Open-Meteo`() {
+    fun `parses a real Open-Meteo response`() {
         val forecast = Fixtures.forecastDto().toDomain()
 
         assertEquals(7, forecast.days.size)
@@ -21,7 +21,7 @@ class ForecastMappingTest {
     }
 
     @Test
-    fun `la prévision 2 h commence au quart d'heure courant`() {
+    fun `2 h forecast starts at the current quarter hour`() {
         val forecast = Fixtures.forecastDto().toDomain()
         val now = forecast.current.time
         val first = forecast.nextPrecipitation.first().time
@@ -32,7 +32,7 @@ class ForecastMappingTest {
     }
 
     @Test
-    fun `24 heures à partir de l'heure en cours`() {
+    fun `24 hours from the current hour`() {
         val forecast = Fixtures.forecastDto().toDomain()
 
         assertEquals(24, forecast.hours.size)
@@ -40,7 +40,7 @@ class ForecastMappingTest {
     }
 
     @Test
-    fun `parse une vraie réponse de géocodage`() {
+    fun `parses a real geocoding response`() {
         val places = Fixtures.geocodingDto().toPlaces()
 
         assertEquals("Clermont-Ferrand", places.first().name)

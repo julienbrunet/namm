@@ -21,19 +21,19 @@ import kotlin.math.ln
 import kotlin.math.tan
 
 /**
- * Dessine l'image du widget carte : fond OpenStreetMap (assombri en thème sombre),
- * prévision de pluie par-dessus et point de position. Projection Web Mercator.
+ * Draws the map widget image: OpenStreetMap background (darkened in the dark theme),
+ * rain forecast on top and position dot. Web Mercator projection.
  */
 object WidgetMapRenderer {
     private const val TILE = 256
 
-    /** Zoom qui montre ≈ [spanKm] km sur la hauteur de l'image. */
+    /** Zoom showing ≈ [spanKm] km over the image height. */
     fun zoomFor(lat: Double, heightPx: Int, spanKm: Double = 50.0): Int {
         val metersPerPxAtZ0 = 156_543.03 * kotlin.math.cos(Math.toRadians(lat))
         return kotlin.math.round(kotlin.math.log2(metersPerPxAtZ0 * heightPx / (spanKm * 1000))).toInt().coerceIn(6, 13)
     }
 
-    /** Emprise géographique de l'image centrée sur (lat, lon). */
+    /** Geographic extent of the image centred on (lat, lon). */
     fun bounds(lat: Double, lon: Double, width: Int, height: Int, z: Int): fr.jbrunet.yama.data.repository.Bounds {
         val world = TILE * (1 shl z).toDouble()
         val cx = worldX(lon, z)
@@ -63,7 +63,7 @@ object WidgetMapRenderer {
         frame: MapFrame.Forecast?,
         dark: Boolean,
         background: Int,
-        /** Nuages satellite couvrant exactement l'image (sinon : nuages prévus de [frame]). */
+        /** Satellite clouds covering exactly the image (otherwise: forecast clouds of [frame]). */
         satellite: Bitmap? = null,
         tile: (z: Int, x: Int, y: Int) -> Bitmap?,
     ): Bitmap {
@@ -75,7 +75,7 @@ object WidgetMapRenderer {
         val left = cx - width / 2.0
         val top = cy - height / 2.0
 
-        // Fond de carte
+        // Map background
         val tilePaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = if (dark) SlateMapFilter else FadedMapFilter }
         for (tx in floor(left / TILE).toInt()..floor((left + width) / TILE).toInt()) {
             for (ty in floor(top / TILE).toInt()..floor((top + height) / TILE).toInt()) {
@@ -86,7 +86,7 @@ object WidgetMapRenderer {
             }
         }
 
-        // Nuages : satellite (observé) de préférence, sinon prévision Open-Meteo.
+        // Clouds: satellite (observed) preferably, otherwise the Open-Meteo forecast.
         val clouds = cloudPaint(dark)
         if (satellite != null) {
             canvas.drawBitmap(satellite, null, RectF(0f, 0f, width.toFloat(), height.toFloat()), clouds)
@@ -104,7 +104,7 @@ object WidgetMapRenderer {
             )
         }
 
-        // Pluie
+        // Rain
         if (frame != null) {
             val g = frame.grid
             val rain = renderForecast(frame)
@@ -137,10 +137,10 @@ object WidgetMapRenderer {
         return bmp
     }
 
-    /** Tuiles OSM avec cache disque (30 jours) pour ménager les serveurs OpenStreetMap. */
+    /** OSM tiles with a disk cache (30 days) to spare the OpenStreetMap servers. */
     class TileCache(private val dir: File, private val client: OkHttpClient = Network.uncachedClient) {
 
-        /** Supprime les tuiles périmées (sinon le dossier grossit à chaque lieu ou zoom visité). */
+        /** Deletes outdated tiles (otherwise the folder grows with every place or zoom visited). */
         fun purge(now: Long = System.currentTimeMillis()) {
             dir.listFiles()?.filter { now - it.lastModified() > MAX_AGE_MS }?.forEach { it.delete() }
         }

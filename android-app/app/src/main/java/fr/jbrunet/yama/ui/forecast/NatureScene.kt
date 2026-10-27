@@ -28,10 +28,10 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 /**
- * Paysage zen calculé pixel par pixel (aucune image embarquée) : ciel et lumière selon l'heure,
- * nuages en texture fractale vus en perspective, deux chaînes de montagnes dans la brume, lac
- * qui reflète le tout. L'image, en basse définition, est agrandie avec lissage : le flou fait
- * partie du rendu. Seules la pluie fine, la neige et les étoiles sont dessinées par-dessus.
+ * Zen landscape computed pixel by pixel (no embedded image): sky and light following the time,
+ * fractal-textured clouds seen in perspective, two mountain ranges in the mist, a lake
+ * reflecting it all. The low-resolution image is upscaled with smoothing: the blur is part
+ * of the look. Only drizzle, snow and stars are drawn on top.
  */
 @Composable
 fun NatureScene(condition: WeatherCondition, sun: SunPosition, modifier: Modifier = Modifier) {
@@ -46,10 +46,10 @@ fun NatureScene(condition: WeatherCondition, sun: SunPosition, modifier: Modifie
                     image,
                     dstOffset = IntOffset.Zero,
                     dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                    filterQuality = FilterQuality.Low, // bilinéaire : flou doux, pas de pixels
+                    filterQuality = FilterQuality.Low, // bilinear: soft blur, no pixels
                 )
                 overlay.draw(this)
-                // Haut et bas assombris : texte lisible sur un ciel clair et sous les tuiles.
+                // Darkened top and bottom: text readable on a bright sky and under the tiles.
                 drawRect(Brush.verticalGradient(listOf(Color(0x47000000), Color.Transparent), 0f, size.height * 0.32f))
                 drawRect(
                     Brush.verticalGradient(listOf(Color.Transparent, Color(0x80000000)), size.height * 0.6f, size.height),
@@ -60,13 +60,13 @@ fun NatureScene(condition: WeatherCondition, sun: SunPosition, modifier: Modifie
     )
 }
 
-/** Largeur de l'image calculée (pixels) ; la hauteur suit les proportions de l'écran. */
+/** Width of the computed image (pixels); the height follows the screen proportions. */
 internal const val SCENE_WIDTH = 300
 
-/** Ligne d'horizon (rive du lac), en fraction de la hauteur. */
+/** Horizon line (lake shore), as a fraction of the height. */
 internal const val HORIZON = 0.62f
 
-/** Dernière image calculée : pas de nouveau rendu en revenant de la carte ou des paramètres. */
+/** Last computed image: no new rendering when coming back from the map or the settings. */
 private object SceneCache {
     private var last: Pair<Any, ImageBitmap>? = null
 
@@ -78,7 +78,7 @@ private object SceneCache {
     }
 }
 
-/** Pluie fine (traits flous), neige (flocons au bokeh) et étoiles, nettes par-dessus l'image. */
+/** Drizzle (blurred streaks), snow (bokeh flakes) and stars, sharp on top of the image. */
 private class SceneOverlay(
     condition: WeatherCondition,
     sun: SunPosition,
@@ -100,7 +100,7 @@ private class SceneOverlay(
     } else emptyList()
     private val stars = if (sun.phase == DayPhase.NIGHT) {
         List(90) { Offset(rnd.nextFloat(), rnd.nextFloat() * (HORIZON - 0.12f)) to rnd.nextFloat() }
-            // Seulement là où le ciel est dégagé.
+            // Only where the sky is clear.
             .mapNotNull { (p, a) ->
                 val clear = 1f - renderer.cloudDensity(p.x, p.y)
                 if (clear > 0.3f) Offset(p.x * w, p.y * h) to a * clear else null
@@ -117,7 +117,7 @@ private class SceneOverlay(
             )
         }
         flakes.forEach { (p, a) ->
-            // Quelques gros flocons flous au premier plan, beaucoup de petits au loin.
+            // A few big blurred flakes in the foreground, many small ones in the distance.
             val r = (1.2f + a * a * 5f) * dp
             drawCircle(
                 Brush.radialGradient(listOf(Color.White.copy(alpha = 0.75f - a * 0.35f), Color.Transparent), p, r),
@@ -128,12 +128,12 @@ private class SceneOverlay(
     }
 }
 
-/** Couleur RVB en flottants (0..1). */
+/** RGB colour as floats (0..1). */
 private class Rgb(val r: Float, val g: Float, val b: Float) {
     fun mix(o: Rgb, t: Float) = Rgb(r + (o.r - r) * t, g + (o.g - g) * t, b + (o.b - b) * t)
     operator fun times(k: Float) = Rgb(r * k, g * k, b * k)
 
-    /** Vers le gris de même luminosité (temps couvert). */
+    /** Towards the grey of the same lightness (overcast weather). */
     fun grey(t: Float): Rgb {
         val l = 0.3f * r + 0.59f * g + 0.11f * b
         return mix(Rgb(l, l, l * 1.03f), t)
@@ -142,7 +142,7 @@ private class Rgb(val r: Float, val g: Float, val b: Float) {
 
 private fun rgb(r: Float, g: Float, b: Float) = Rgb(r, g, b)
 
-/** Palette d'un moment de la journée. */
+/** Palette of a time of day. */
 private class Palette(
     val zenith: Rgb, val mid: Rgb, val horizon: Rgb, val light: Rgb,
     val cloudLit: Rgb, val cloudShade: Rgb, val far: Rgb, val near: Rgb, val water: Rgb,
@@ -168,18 +168,18 @@ private fun palette(phase: DayPhase) = when (phase) {
 }
 
 /**
- * Calcul du paysage. [render] renvoie des pixels ARGB ; (u, v) sont les coordonnées
- * normalisées (0..1) de l'écran, v vers le bas.
+ * Landscape computation. [render] returns ARGB pixels; (u, v) are the normalised
+ * screen coordinates (0..1), v pointing down.
  */
 internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPosition) {
     private val phase = sun.phase
     private val night = phase == DayPhase.NIGHT
     private val progress = sun.progress.coerceIn(0f, 1f)
 
-    /** Identité du rendu (position du soleil arrondie : une image par quart d'heure environ). */
+    /** Rendering identity (rounded sun position: about one image per quarter hour). */
     val key: Any = Triple(condition, phase, (progress * 50).roundToInt())
 
-    /** Part du ciel couverte (0 = dégagé, 1 = couvert uniforme). */
+    /** Share of the sky covered (0 = clear, 1 = uniformly overcast). */
     private val coverage = when (condition) {
         WeatherCondition.CLEAR -> 0f
         WeatherCondition.PARTLY_CLOUDY -> 0.42f
@@ -194,12 +194,12 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
         WeatherCondition.STORM -> 0.45f
         WeatherCondition.DRIZZLE, WeatherCondition.CLOUDY -> 0.1f
         else -> 0f
-    } * if (night) 0.3f else 1f // la nuit est déjà sombre
+    } * if (night) 0.3f else 1f // the night is already dark
     private val wet = condition == WeatherCondition.RAIN || condition == WeatherCondition.STORM ||
         condition == WeatherCondition.DRIZZLE
 
     private val p: Palette = palette(phase).let { night(it) }.let { base ->
-        val g = ((coverage - 0.3f).coerceAtLeast(0f) * 1.1f).coerceAtMost(0.85f) // ternir seulement par temps couvert
+        val g = ((coverage - 0.3f).coerceAtLeast(0f) * 1.1f).coerceAtMost(0.85f) // dull only when overcast
         fun Rgb.weather() = grey(g) * (1f - gloom)
         Palette(
             base.zenith.weather(), base.mid.weather(), base.horizon.weather(), base.light,
@@ -209,7 +209,7 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
         )
     }
 
-    /** Nuit couverte : les nuages renvoient une lueur grise au lieu d'un ciel noir. */
+    /** Overcast night: clouds reflect a grey glow instead of a black sky. */
     private fun night(base: Palette): Palette {
         if (!night || coverage <= 0.5f) return base
         val t = (coverage - 0.5f) * 1.6f
@@ -221,7 +221,7 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
         )
     }
 
-    // Soleil sur un arc à droite (loin du texte) ; lune fixe la nuit.
+    // Sun on an arc to the right (away from the text); fixed moon at night.
     private val lightU = if (night) 0.78f else 0.58f + 0.32f * progress
     private val lightV = if (night) 0.16f else HORIZON - (0.14f + 0.2f * sin(PI * progress).toFloat())
     private val lightStrength = when (phase) {
@@ -242,7 +242,7 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
 
     fun render(width: Int, height: Int): IntArray {
         pixel = 1f / height
-        // Crêtes : une hauteur par colonne (bruit fractal), sommets doux, pas de plateaux.
+        // Ridges: one height per column (fractal noise), soft peaks, no plateaus.
         ridgeFar = FloatArray(width) { x ->
             val u = (x + 0.5f) / width
             HORIZON - 0.03f - 0.19f * ((fbm(u * 1.9f, 1.7f, 6, 3) - 0.3f) / 0.42f).coerceIn(0f, 1f)
@@ -258,7 +258,7 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
             val u = (x + 0.5f) / width
             val v = (y + 0.5f) / height
             var c = if (v < HORIZON) land(u, v, x, aspect) else lake(u, v, aspect)
-            // Rideaux de pluie : voiles verticaux devant le paysage.
+            // Rain curtains: vertical veils in front of the landscape.
             if (wet) {
                 val veil = smooth(0.48f, 0.8f, fbm(u * 16f, v * 1.4f + 3f, 3, 21)) * smooth(0.08f, 0.5f, v)
                 c = c.mix(p.cloudShade.mix(p.horizon, 0.4f), veil * if (condition == WeatherCondition.DRIZZLE) 0.18f else 0.32f)
@@ -270,11 +270,11 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
         }
     }
 
-    /** Ciel, nuages et montagnes au-dessus de l'horizon. */
+    /** Sky, clouds and mountains above the horizon. */
     private fun land(u: Float, v: Float, x: Int, aspect: Float): Rgb {
         var c = sky(u, v, aspect)
         val column = x.coerceIn(0, ridgeFar.size - 1)
-        // Bords lissés sur un pixel (l'image est agrandie ensuite).
+        // Edges smoothed over one pixel (the image is upscaled afterwards).
         val farTop = ridgeFar[column]
         val farCover = ((v - farTop) / pixel + 0.5f).coerceIn(0f, 1f)
         if (farCover > 0f) {
@@ -283,21 +283,21 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
             if (condition == WeatherCondition.SNOW) {
                 rock = rock.mix(rgb(0.86f, 0.88f, 0.92f) * (1f - gloom), smooth(0.05f, 0.0f, v - farTop + (tex - 0.5f) * 0.05f))
             }
-            // Perspective aérienne : plus on descend vers la vallée, plus la brume l'emporte.
+            // Aerial perspective: the lower towards the valley, the more the mist takes over.
             c = c.mix(rock.mix(p.horizon, 0.4f + 0.42f * smooth(HORIZON - 0.22f, HORIZON, v)), farCover)
         }
         val nearTop = ridgeNear[column]
         val nearCover = ((v - nearTop) / pixel + 0.5f).coerceIn(0f, 1f)
         if (nearCover > 0f) {
-            // Texture fine : une forêt vue de loin.
+            // Fine texture: a forest seen from afar.
             val forest = fbm(u * 70f, v * 55f, 3, 41)
             c = c.mix((p.near * (0.8f + 0.4f * forest)).mix(p.horizon, 0.14f + 0.3f * smooth(HORIZON - 0.06f, HORIZON, v)), nearCover)
         }
-        // Brume de vallée posée sur l'eau.
+        // Valley mist lying on the water.
         return c.mix(p.horizon.mix(rgb(0.9f, 0.9f, 0.92f), 0.2f), mist * exp(-(HORIZON - v) / 0.03f) * 0.7f)
     }
 
-    /** Lac : le paysage reflété, troublé par de petites vagues, assombri vers le bas. */
+    /** Lake: the reflected landscape, rippled by small waves, darker towards the bottom. */
     private fun lake(u: Float, v: Float, aspect: Float): Rgb {
         val depth = (v - HORIZON) / (1f - HORIZON)
         val chop = if (wet) 2.2f else 1f
@@ -306,7 +306,7 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
         val rv = (2 * HORIZON - v + wave * 0.006f * chop).coerceIn(0f, HORIZON - 0.0001f)
         var c = land(ru, rv, (ru * ridgeFar.size).toInt(), aspect)
         c = c.mix(p.water, 0.25f + 0.4f * depth) * (0.88f - 0.3f * depth)
-        // Scintillement du soleil (ou de la lune) sur l'eau.
+        // Sun (or moon) glitter on the water.
         val spread = 0.025f + 0.09f * depth
         val column = exp(-((u - lightU) / spread).let { it * it })
         val sparkle = smooth(0.55f, 0.8f, fbm(u * 24f, v * 160f, 2, 61))
@@ -317,15 +317,15 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
     private fun sky(u: Float, v: Float, aspect: Float): Rgb {
         val t = v / HORIZON
         var c = if (t < 0.55f) p.zenith.mix(p.mid, smooth(0f, 0.55f, t)) else p.mid.mix(p.horizon, smooth(0.55f, 1f, t))
-        // Diffusion autour de l'astre : cœur net, halo large qui traverse les nuages.
+        // Scattering around the sun or moon: sharp core, wide halo through the clouds.
         val dx = u - lightU
         val dy = (v - lightV) * aspect
         val d = sqrt(dx * dx + dy * dy)
-        // Disque net (soleil ou lune) entouré d'une lueur serrée.
+        // Sharp disc (sun or moon) surrounded by a tight glow.
         val radius = if (night) 0.02f else 0.026f
         val core = (smooth(radius * 1.25f, radius * 0.8f, d) + exp(-(d * d) / 0.004f) * 0.35f).coerceAtMost(1f)
         val halo = (exp(-d / 0.1f) * 0.4f + exp(-d / 0.35f) * 0.22f) * lightStrength
-        // Lueur sur l'horizon à l'aube et au crépuscule, du côté du soleil.
+        // Glow on the horizon at dawn and dusk, on the sun's side.
         val horizonGlow = if (phase == DayPhase.DAWN || phase == DayPhase.DUSK) {
             exp(-(HORIZON - v) / 0.12f) * 0.35f * (1f - 0.7f * abs(u - lightU)).coerceAtLeast(0f)
         } else 0f
@@ -335,37 +335,37 @@ internal class SceneRenderer(private val condition: WeatherCondition, sun: SunPo
         if (density > 0f) {
             val thick = smooth(0.35f, 1f, density + cloudNoise(u, v) * 0.4f)
             var cloud = p.cloudLit.mix(p.cloudShade, thick * 0.75f)
-            // Bords éclairés près du soleil.
+            // Lit edges near the sun.
             cloud = cloud.mix(p.light, (halo * 1.2f * (1f - thick)).coerceAtMost(0.8f))
             c = c.mix(cloud, density * 0.96f)
         }
         return c
     }
 
-    /** Bruit des nuages sur un plan vu en perspective : grands près du zénith, serrés vers l'horizon. */
+    /** Cloud noise on a plane seen in perspective: large near the zenith, packed towards the horizon. */
     private fun cloudNoise(u: Float, v: Float): Float {
         val distance = 1f / ((HORIZON - v).coerceAtLeast(0f) + 0.06f)
         return fbm((u - 0.5f) * distance * 0.9f + 7f, distance * 1.1f, 5, 71)
     }
 
-    /** Opacité des nuages en (u, v), 0..1 (sert aussi à cacher les étoiles). */
+    /** Cloud opacity at (u, v), 0..1 (also used to hide the stars). */
     fun cloudDensity(u: Float, v: Float): Float {
         if (v >= HORIZON) return 0f
         val fade = smooth(0f, 0.1f, HORIZON - v)
         if (coverage == 0f) {
-            // Ciel dégagé : quelques cirrus étirés, à peine visibles.
+            // Clear sky: a few stretched cirrus, barely visible.
             val distance = 1f / ((HORIZON - v).coerceAtLeast(0f) + 0.06f)
             return smooth(0.6f, 0.8f, fbm((u - 0.5f) * distance * 0.35f, distance * 2.2f, 4, 81)) * 0.3f * fade
         }
         val n = cloudNoise(u, v)
-        // Seuil choisi pour que la part de ciel couverte suive [coverage] (bruit ≈ 0,5 ± 0,12).
+        // Threshold chosen so that the covered share of the sky follows [coverage] (noise ≈ 0.5 ± 0.12).
         val z = (n - 0.5f) / 0.12f
         val threshold = (0.5f - coverage) * 2.6f
         val overcast = ((coverage - 0.75f) / 0.25f).coerceIn(0f, 1f) * 0.85f
         return maxOf(smooth(threshold - 0.5f, threshold + 1f, z), overcast * (0.75f + 0.5f * n).coerceAtMost(1f)) * fade
     }
 
-    /** Pixel ARGB avec un léger grain (évite les bandes dans les dégradés). */
+    /** ARGB pixel with a light grain (avoids banding in gradients). */
     private fun argb(c: Rgb, x: Int, y: Int): Int {
         val grain = (hash(x, y, 97) - 0.5f) * 0.012f
         fun channel(f: Float) = ((f + grain).coerceIn(0f, 1f) * 255f).roundToInt()
@@ -385,7 +385,7 @@ private fun hash(x: Int, y: Int, seed: Int): Float {
     return (h and 0xFFFFFF) / 16777215f
 }
 
-/** Bruit de valeur lissé. */
+/** Smoothed value noise. */
 private fun noise(x: Float, y: Float, seed: Int): Float {
     val xi = floor(x).toInt()
     val yi = floor(y).toInt()
@@ -398,7 +398,7 @@ private fun noise(x: Float, y: Float, seed: Int): Float {
     return top + (bottom - top) * v
 }
 
-/** Bruit fractal (somme d'octaves), normalisé dans 0..1. */
+/** Fractal noise (sum of octaves), normalised to 0..1. */
 private fun fbm(x: Float, y: Float, octaves: Int, seed: Int, gain: Float = 0.5f): Float {
     var sum = 0f
     var amplitude = 0.5f

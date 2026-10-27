@@ -14,10 +14,10 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlin.math.exp
 
 /**
- * Données de test : forecast.json et geocoding.json sont de vraies réponses Open-Meteo
- * (le bloc « hourly » de forecast.json a été ajouté, cohérent avec les min/max réels, ainsi que
- * les heures de lever et de coucher du soleil à Paris) ;
- * grid.json suit le format multi-points documenté (généré, quota sandbox atteint).
+ * Test data: forecast.json and geocoding.json are real Open-Meteo responses
+ * (the “hourly” block of forecast.json was added, consistent with the real min/max, as were
+ * the sunrise and sunset times in Paris);
+ * grid.json follows the documented multi-point format (generated, sandbox quota reached).
  */
 object Fixtures {
     private fun read(name: String) = requireNotNull(javaClass.classLoader?.getResource(name)).readText()
@@ -31,7 +31,7 @@ object Fixtures {
 
     fun localForecast(offline: Boolean = false) = LocalForecast(paris, forecastDto().toDomain(), 1_792_178_100_000L, if (offline) fr.jbrunet.yama.data.repository.StaleReason.RATE_LIMITED else null)
 
-    /** Carte de pluie synthétique : une cellule pluvieuse qui traverse la grille. */
+    /** Synthetic rain map: a rainy cell moving across the grid. */
     fun rainMap(): RainMap {
         val grid = RainMapRepository.gridAround(paris)
         val now = 1_792_180_800L
@@ -45,10 +45,10 @@ object Fixtures {
                     val c = k % grid.cols
                     val dr = r - 9.0 - step * 0.04
                     val dc = c - 4.0 - step * 0.08
-                    // Averse principale + un point pluvieux isolé (doit donner une tache ronde).
+                    // Main shower + an isolated rainy point (must give a round blob).
                     (4.0 * exp(-(dr * dr + 2 * dc * dc) / 10) + if (r == 3 && c == 9) 0.6 else 0.0).toFloat()
                 },
-                // Front nuageux large autour de l'averse, plus une zone dégagée au sud-est.
+                // Wide cloud front around the shower, plus a clear area to the south-east.
                 clouds = fr.jbrunet.yama.domain.CloudLayer(grid, FloatArray(grid.rows * grid.cols) { k ->
                     val r = k / grid.cols
                     val c = k % grid.cols
@@ -59,7 +59,7 @@ object Fixtures {
         return RainMap(grid, radar + forecast)
     }
 
-    /** Vent synthétique : sud-ouest qui forcit vers le nord de la grille, sur une grille grossière. */
+    /** Synthetic wind: south-westerly, strengthening towards the north of the grid, on a coarse grid. */
     fun wind(grid: fr.jbrunet.yama.domain.ForecastGrid): List<fr.jbrunet.yama.domain.WindFrame> {
         val g = RainMapRepository.coarse(grid)
         val n = g.rows * g.cols

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import fr.jbrunet.yama.R
 
-/** Opacité du fond d'un widget. */
+/** Opacity of a widget's background. */
 enum class WidgetOpacity(val alpha: Float) {
     OPAQUE(1f),
     HIGH(0.7f),
@@ -12,13 +12,13 @@ enum class WidgetOpacity(val alpha: Float) {
     TRANSPARENT(0f),
 }
 
-/** Couleur du fond d'un widget (Auto = thème de l'app). */
+/** Colour of a widget's background (Auto = app theme). */
 enum class WidgetBgColor { AUTO, LIGHT, DARK }
 
-/** Couleur du texte et des icônes d'un widget (Auto = contraste avec le fond choisi). */
+/** Colour of a widget's text and icons (Auto = contrast with the chosen background). */
 enum class WidgetTextColor { AUTO, LIGHT, DARK }
 
-/** Libellé d'une option dans les réglages du widget. */
+/** Label of an option in the widget settings. */
 fun WidgetOpacity.label(context: Context): String = when (this) {
     WidgetOpacity.OPAQUE -> context.getString(R.string.option_opaque)
     WidgetOpacity.TRANSPARENT -> context.getString(R.string.option_transparent)
@@ -45,11 +45,11 @@ data class WidgetStyle(
     val opacity: WidgetOpacity = WidgetOpacity.OPAQUE,
     val text: WidgetTextColor = WidgetTextColor.AUTO,
     val background: WidgetBgColor = WidgetBgColor.AUTO,
-    /** Heures de prévision affichées (widgets Journée / 12 h) ; null = défaut du widget. */
+    /** Forecast hours shown (Day / 12 h widgets); null = the widget's default. */
     val hours: Int? = null,
 )
 
-/** Réglages propres à chaque widget posé (clé = appWidgetId Android). */
+/** Settings specific to each placed widget (key = Android appWidgetId). */
 object WidgetConfigStore {
     private fun prefs(context: Context) = context.getSharedPreferences("widget_config", Context.MODE_PRIVATE)
 
@@ -82,7 +82,7 @@ object WidgetConfigStore {
     }
 }
 
-/** Texte clair ou foncé imposé (sinon : couleurs du thème). */
+/** Forced light or dark text (otherwise: theme colours). */
 internal object WidgetTextPalettes {
     val light = Triple(Color(0xFFFFFFFF), Color(0xE6FFFFFF), Color(0xB3FFFFFF))
     val dark = Triple(Color(0xFF2B2F38), Color(0xFF4A505C), Color(0xFF6E7480))

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+ : sauvegarde cloud et transfert d'appareil, sans la clé Météo-France. -->
+<!-- Android 12+: cloud backup and device transfer, without the Météo-France key. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="datastore/secrets.preferences_pb" />

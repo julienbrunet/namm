@@ -21,21 +21,21 @@ import java.io.IOException
 import java.util.Locale
 
 /**
- * Carte de pluie : radar observé RainViewer (passé) + grille de prévision Open-Meteo
- * à 15 min autour du lieu (futur). Voir ARCHITECTURE.md.
+ * Rain map: observed RainViewer radar (past) + Open-Meteo forecast grid
+ * at 15 min around the place (future). See ARCHITECTURE.md.
  */
 class RainMapRepository(
     private val openMeteo: OpenMeteoApi,
     private val rainViewer: RainViewerApi,
     private val arome: AromePiSource = AromePiSource(),
-    /** Clé Météo-France saisie dans les paramètres (null : Open-Meteo seul). */
+    /** Météo-France key entered in the settings (null: Open-Meteo only). */
     private val aromeKey: suspend () -> String? = { null },
 ) {
 
-    /** Étape en cours du chargement de la carte (null : rien en cours), affichée à l'écran. */
+    /** Current step of the map loading (null: nothing in progress), shown on screen. */
     val progress = MutableStateFlow<LoadProgress?>(null)
 
-    /** Images radar RainViewer (passé récent), rapides à obtenir. */
+    /** RainViewer radar frames (recent past), quick to get. */
     suspend fun radar(): List<MapFrame> = runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList())
 
     suspend fun load(
@@ -45,20 +45,20 @@ class RainMapRepository(
     ): RainMap = withContext(Dispatchers.Default) {
         val radar = async { runCatching { rainViewer.maps().toFrames() }.getOrDefault(emptyList()) }
         val forecast = async { runCatching { forecastFor(grid, now).frames } }
-        // Radar et prévision sont indépendants : l'un peut échouer sans masquer l'autre.
+        // Radar and forecast are independent: one may fail without hiding the other.
         val frames = radar.await() + forecast.await().getOrNull().orEmpty()
         if (frames.isEmpty()) throw forecast.await().exceptionOrNull() ?: IllegalStateException("No rain data")
         RainMap(grid, frames)
     }
 
-    /** Zones de prévision déjà téléchargées (les plus récentes en tête). */
+    /** Forecast areas already downloaded (most recent first). */
     private val cache = ArrayDeque<CachedGrid>()
 
     private class CachedGrid(val grid: ForecastGrid, val frames: List<MapFrame>, val at: Long)
 
     /**
-     * Prévision déjà en mémoire (< [CACHE_SECONDS]) dont la grille convient à cette vue :
-     * revenir sur une zone déjà vue ne coûte aucun appel Open-Meteo.
+     * Forecast already in memory (< [CACHE_SECONDS]) whose grid suits this view:
+     * coming back to an area already seen costs no Open-Meteo call.
      */
     fun cachedFor(view: Bounds, now: Long = System.currentTimeMillis() / 1000): Pair<ForecastGrid, List<MapFrame>>? =
         synchronized(cache) {
@@ -69,12 +69,12 @@ class RainMapRepository(
         }
 
     /**
-     * Prévision seule pour une grille donnée (zone visible de la carte), mise en cache.
-     * Avec une clé Météo-France et une zone en France : AROME-PI pour les 6 premières heures
-     * (maille 1,3 km), Open-Meteo ensuite ; sinon (ou en cas d'échec) Open-Meteo seul.
+     * Forecast only, for a given grid (visible area of the map), cached.
+     * With a Météo-France key and an area in France: AROME-PI for the first 6 hours
+     * (1.3 km grid), Open-Meteo afterwards; otherwise (or on failure) Open-Meteo only.
      */
     suspend fun forecastFor(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): ForecastFrames =
-        // Décodage GeoTIFF / JSON coûteux : jamais sur le thread principal (gel de l'appli).
+        // Costly GeoTIFF / JSON decoding: never on the main thread (the app would freeze).
         withContext(Dispatchers.Default) {
             val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
             progress.value = LoadProgress(if (key != null) LoadStage.METEO_FRANCE else LoadStage.OPEN_METEO)
@@ -85,13 +85,13 @@ class RainMapRepository(
                     }.getOrDefault(emptyList())
                 }
             }
-            // Avec AROME-PI, Open-Meteo ne sert qu'au-delà de +6 h : une grille grossière suffit
-            // (≈ 80 points au lieu de 192) et ménage le quota par minute.
+            // With AROME-PI, Open-Meteo is only used beyond +6 h: a coarse grid is enough
+            // (≈ 80 points instead of 192) and spares the per-minute quota.
             val openMeteoGrid = if (key != null) coarse(grid) else grid
             val openMeteoFrames = runCatching { openMeteoFrames(openMeteoGrid, now) }
             val precise = aromeFrames?.await().orEmpty()
             val after = precise.lastOrNull()?.time ?: Long.MIN_VALUE
-            // AROME-PI ne donne pas les nuages : on reprend ceux d'Open-Meteo pour la même heure.
+            // AROME-PI has no clouds: take Open-Meteo's for the same time.
             val cloudsByHour = openMeteoFrames.getOrNull().orEmpty().filterIsInstance<MapFrame.Forecast>()
                 .associate { it.time - Math.floorMod(it.time, 3600L) to it.clouds }
             val withClouds = precise.map { f ->
@@ -99,15 +99,15 @@ class RainMapRepository(
             }
             val frames = withClouds + openMeteoFrames.getOrNull().orEmpty().filter { it.time > after }
             if (frames.isEmpty()) openMeteoFrames.getOrThrow()
-            // Prévision incomplète (Open-Meteo saturé) : non mise en cache, et nouvel essai rapide.
+            // Incomplete forecast (Open-Meteo rate limit): not cached, and quick retry.
             val partial = openMeteoFrames.isFailure
             if (!partial) cacheFrames(grid, frames, now)
             ForecastFrames(frames, partial)
         }
 
     /**
-     * Pluie actuelle sur [grid] pour le widget carte : une seule image AROME-PI si une clé est
-     * active (1-2 requêtes), sinon Open-Meteo sur une grille grossière (80 points) si [allowOpenMeteo].
+     * Current rain over [grid] for the map widget: a single AROME-PI image if a key is
+     * active (1-2 requests), otherwise Open-Meteo on a coarse grid (80 points) if [allowOpenMeteo].
      */
     suspend fun currentFrame(grid: ForecastGrid, allowOpenMeteo: Boolean, now: Long = System.currentTimeMillis() / 1000): MapFrame.Forecast? = withContext(Dispatchers.Default) {
         val key = aromeKey()?.takeIf { it.isNotBlank() && AromePiSource.covers(grid) }
@@ -127,7 +127,7 @@ class RainMapRepository(
     }
 
     private suspend fun openMeteoFrames(grid: ForecastGrid, now: Long): List<MapFrame> {
-        // Open-Meteo saturé : la carte attend, pour laisser le quota à l'accueil.
+        // Open-Meteo rate limit: the map waits, to leave the quota to the home screen.
         if (OpenMeteoQuota.isBlocked) throw OpenMeteoBusyException()
         val points = grid.coordinates()
         return forecastFrames(
@@ -140,7 +140,7 @@ class RainMapRepository(
         )
     }
 
-    /** Vent sur une grille grossière (≈ 80 points) couvrant [grid], 24 h au pas de 15 min. */
+    /** Wind on a coarse grid (≈ 80 points) covering [grid], 24 h in 15 min steps. */
     suspend fun wind(grid: ForecastGrid, now: Long = System.currentTimeMillis() / 1000): List<WindFrame> =
         withContext(Dispatchers.Default) {
             if (OpenMeteoQuota.isBlocked) throw OpenMeteoBusyException()
@@ -154,8 +154,8 @@ class RainMapRepository(
         }
 
     companion object {
-        // 12 × 16 points (format portrait) par appel Open-Meteo ; chaque point compte comme un
-        // appel dans le quota gratuit, d'où une grille modeste recalculée seulement si besoin.
+        // 12 × 16 points (portrait) per Open-Meteo call; each point counts as one
+        // call in the free quota, hence a modest grid recomputed only when needed.
         const val CACHE_SECONDS = 15 * 60L
         const val CACHE_SIZE = 10
         const val GRID_COLS = 12
@@ -175,7 +175,7 @@ class RainMapRepository(
         const val COARSE_COLS = 8
         const val COARSE_ROWS = 10
 
-        /** Même emprise que [grid] avec moins de points (prévision au-delà de +6 h). */
+        /** Same extent as [grid] with fewer points (forecast beyond +6 h). */
         fun coarse(grid: ForecastGrid): ForecastGrid {
             val north = grid.south + grid.latStep * (grid.rows - 1)
             val east = grid.west + grid.lonStep * (grid.cols - 1)
@@ -189,7 +189,7 @@ class RainMapRepository(
             )
         }
 
-        /** Grille couvrant la zone visible (+10 % de marge), même nombre de points quel que soit le zoom. */
+        /** Grid covering the visible area (+10 % margin), same number of points whatever the zoom. */
         fun gridFor(view: Bounds): ForecastGrid {
             val padLat = (view.north - view.south) * 0.1
             val padLon = (view.east - view.west) * 0.1
@@ -208,8 +208,8 @@ class RainMapRepository(
         }
 
         /**
-         * Faut-il recharger la prévision pour cette vue ? Oui si la grille actuelle ne couvre
-         * plus la zone visible, ou si sa maille est 2× trop grossière / trop fine pour le zoom.
+         * Should the forecast be reloaded for this view? Yes if the current grid no longer covers
+         * the visible area, or if its spacing is 2× too coarse / too fine for the zoom.
          */
         fun needsNewGrid(current: ForecastGrid, view: Bounds): Boolean {
             val north = current.south + current.latStep * (current.rows - 1)
@@ -222,10 +222,10 @@ class RainMapRepository(
     }
 }
 
-/** Emprise géographique (degrés). */
+/** Geographic extent (degrees). */
 data class Bounds(val south: Double, val west: Double, val north: Double, val east: Double)
 
-/** Coordonnées des points, ligne par ligne en partant du sud-ouest. */
+/** Coordinates of the points, row by row starting from the south-west. */
 internal fun ForecastGrid.coordinates(): List<Pair<Double, Double>> =
     (0 until rows).flatMap { r -> (0 until cols).map { c -> (south + r * latStep) to (west + c * lonStep) } }
 
@@ -233,11 +233,11 @@ internal fun RainViewerMapsDto.toFrames(): List<MapFrame> = radar.past.map {
     MapFrame.Radar(it.time, "$host${it.path}/256/{z}/{x}/{y}/2/1_1.png")
 }
 
-/** Une image par pas de 15 min, à partir du quart d'heure en cours. */
+/** One image per 15 min step, from the current quarter hour. */
 internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now: Long): List<MapFrame> {
     if (points.size != grid.rows * grid.cols) return emptyList()
     val times = points.first().minutely15.time
-    // Nuages : valeurs horaires, partagées par les 4 quarts d'heure de chaque heure.
+    // Clouds: hourly values, shared by the 4 quarter hours of each hour.
     val hours = points.first().hourly?.time.orEmpty()
     val cloudsByHour = hours.indices.associate { h ->
         hours[h] to CloudLayer(grid, FloatArray(grid.rows * grid.cols) { k -> (points[k].hourly?.cloudCover?.getOrNull(h) ?: 0.0).toFloat() })
@@ -256,15 +256,15 @@ internal fun forecastFrames(grid: ForecastGrid, points: List<GridPointDto>, now:
         }
 }
 
-/** Images de prévision ; [partial] : incomplète (Open-Meteo indisponible), à recharger vite. */
+/** Forecast frames; [partial]: incomplete (Open-Meteo unavailable), reload soon. */
 data class ForecastFrames(val frames: List<MapFrame>, val partial: Boolean = false)
 
-/** Avancement du chargement : libellé de l'étape et, si connu, nombre d'éléments reçus. */
+/** Loading progress: step and, when known, number of items received. */
 enum class LoadStage { METEO_FRANCE, OPEN_METEO, PREPARING }
 
 data class LoadProgress(val stage: LoadStage, val done: Int = 0, val total: Int = 0)
 
-/** Points Open-Meteo (ordre de [ForecastGrid.coordinates]) → une image de vent par quart d'heure à venir. */
+/** Open-Meteo points (order of [ForecastGrid.coordinates]) → one wind frame per upcoming quarter hour. */
 internal fun windFrames(grid: ForecastGrid, points: List<fr.jbrunet.yama.data.remote.WindPointDto>, now: Long): List<WindFrame> {
     if (points.size != grid.rows * grid.cols) return emptyList()
     val times = points.first().minutely15.time

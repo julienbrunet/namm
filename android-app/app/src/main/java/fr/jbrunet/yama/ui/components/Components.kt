@@ -50,7 +50,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Bouton rond discret, comme les commandes du lecteur de la maquette. */
+/** Discreet round button, like the player controls of the mock-up. */
 @Composable
 fun RoundIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(Modifier.size(44.dp).clip(CircleShape).background(Slate.Tile)) {

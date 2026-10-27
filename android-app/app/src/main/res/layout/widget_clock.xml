@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Date + heure toujours à jour (TextClock), insérées dans les widgets Glance via AndroidRemoteViews. -->
+<!-- Date + time always up to date (TextClock), inserted in the Glance widgets through AndroidRemoteViews. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"

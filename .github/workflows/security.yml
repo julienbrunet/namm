@@ -1,24 +1,24 @@
-name: Sécurité
+name: Security
 
-# Analyses gratuites intégrées à GitHub ; résultats dans l'onglet « Security » du dépôt.
-# - CodeQL : failles dans le code Kotlin et dans les workflows GitHub Actions.
-# - Graphe des dépendances Gradle : alimente les alertes Dependabot (bibliothèques vulnérables).
-# - Dependency review : sur une PR, refuse l'ajout d'une dépendance vulnérable.
+# Free analyses built into GitHub; results in the repository's “Security” tab.
+# - CodeQL: flaws in the Kotlin code and in the GitHub Actions workflows.
+# - Gradle dependency graph: feeds Dependabot alerts (vulnerable libraries).
+# - Dependency review: on a PR, rejects the addition of a vulnerable dependency.
 on:
   push:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "23 3 * * 1" # chaque lundi : nouvelles règles CodeQL et nouvelles CVE
+    - cron: "23 3 * * 1" # every Monday: new CodeQL rules and new CVEs
   workflow_dispatch:
 
-# Lecture seule par défaut ; chaque job ne reçoit que le droit d'écriture dont il a besoin.
-# Aucun secret n'est utilisé. Actions figées par SHA de commit.
+# Read-only by default; each job only gets the write permission it needs.
+# No secret is used. Actions pinned by commit SHA.
 permissions:
   contents: read
 
 concurrency:
-  group: securite-${{ github.ref }}
+  group: security-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write # envoi des résultats dans l'onglet Security
+      security-events: write # upload of the results to the Security tab
     strategy:
       fail-fast: false
       matrix:
@@ -56,9 +56,9 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
 
-      # CodeQL observe le compilateur Kotlin : compilation complète (sans cache), dans le
-      # processus Gradle pour qu'elle soit vue, du code livré (variante release).
-      - name: Compilation de l'app
+      # CodeQL watches the Kotlin compiler: full build (no cache), inside the Gradle
+      # process so that it is seen, of the shipped code (release variant).
+      - name: Build the app
         if: matrix.build-mode == 'manual'
         working-directory: android-app
         run: >
@@ -70,18 +70,18 @@ jobs:
         with:
           category: /language:${{ matrix.language }}
 
-  # Le build Gradle (code du dépôt) tourne en lecture seule ; l'envoi du graphe, qui demande
-  # le droit d'écriture, se fait dans un job séparé qui n'exécute aucun code du dépôt.
-  # Graphe limité aux bibliothèques embarquées dans l'APK (releaseRuntimeClasspath).
-  dependances:
-    name: Graphe des dépendances
-    # Pas de schedule : le graphe ne change qu'avec le code. Les PR de forks sont ignorées.
+  # The Gradle build (repository code) runs read-only; the graph upload, which needs
+  # write permission, happens in a separate job that runs no repository code.
+  # Graph limited to the libraries shipped in the APK (releaseRuntimeClasspath).
+  dependencies:
+    name: Dependency graph
+    # Not on schedule: the graph only changes with the code. PRs from forks are skipped.
     if: >
       github.event_name != 'schedule' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
-      # Version figée : ses checksums sont dans gradle/verification-metadata.xml.
+      # Pinned version: its checksums are in gradle/verification-metadata.xml.
       DEPENDENCY_GRAPH_PLUGIN_VERSION: 1.4.0
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -99,27 +99,27 @@ jobs:
           dependency-graph: generate-and-upload
           dependency-graph-include-configurations: releaseRuntimeClasspath
 
-  envoi-graphe:
-    name: Envoi du graphe des dépendances
-    needs: dependances
+  submit-graph:
+    name: Submit the dependency graph
+    needs: dependencies
     runs-on: ubuntu-latest
     permissions:
-      contents: write # API Dependency submission
-      actions: read # lecture de l'artefact produit par le job précédent
+      contents: write # Dependency submission API
+      actions: read # reads the artifact produced by the previous job
     steps:
       - uses: gradle/actions/dependency-submission@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
         with:
           dependency-graph: download-and-submit
 
-  revue-dependances:
-    name: Revue des dépendances
-    needs: envoi-graphe
-    # Aussi sur les PR de forks (graphe Gradle absent, mais actions GitHub vérifiées).
+  dependency-review:
+    name: Dependency review
+    needs: submit-graph
+    # Also on PRs from forks (no Gradle graph, but GitHub actions are checked).
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: moderate
-          # Laisse au graphe Gradle, envoyé juste avant, le temps d'être pris en compte.
+          # Gives the Gradle graph, submitted just before, time to be taken into account.
           retry-on-snapshot-warnings: true

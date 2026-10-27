@@ -5,9 +5,9 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-// Version injectée par la CI (numéro de build), 1 en local.
-// Le dernier chiffre reste dans 0..99 : au-delà, on incrémente le chiffre du milieu
-// (build 99 -> 0.1.99, build 100 -> 0.2.0, build 205 -> 0.3.5). versionCode reste le numéro de build.
+// Version injected by CI (build number), 1 locally.
+// The last digit stays within 0..99: beyond that, the middle digit is incremented
+// (build 99 -> 0.1.99, build 100 -> 0.2.0, build 205 -> 0.3.5). versionCode stays the build number.
 val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
 val appVersionName = "0.${1 + buildNumber / 100}.${buildNumber % 100}"
 
@@ -27,7 +27,7 @@ android {
         versionName = appVersionName
     }
 
-    // Clé de release fournie par la CI via secrets ; sinon, clé debug (APK installable mais non officiel).
+    // Release key provided by CI through secrets; otherwise the debug key (installable APK, but not official).
     val releaseKeystore = System.getenv("SIGNING_KEYSTORE_PATH")
     signingConfigs {
         if (releaseKeystore != null) {
@@ -63,7 +63,7 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
-            // Miroir Maven optionnel pour Robolectric (voir CLAUDE.md, ~/.gradle/gradle.properties).
+            // Optional Maven mirror for Robolectric (see CLAUDE.md, ~/.gradle/gradle.properties).
             providers.gradleProperty("robolectricRepo").orNull?.let { repo ->
                 it.systemProperty("robolectric.dependency.repo.url", repo)
             }
@@ -71,7 +71,7 @@ android {
     }
 }
 
-// AGP 9 : Kotlin intégré au plugin Android (plus de plugin org.jetbrains.kotlin.android).
+// AGP 9: Kotlin is built into the Android plugin (no more org.jetbrains.kotlin.android plugin).
 kotlin {
     compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }

@@ -1,7 +1,7 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!-- Nuage + gouttes, trait clair sur fond ardoise -->
+    <!-- Cloud + drops, light stroke on a slate background -->
     <path android:fillColor="#F2F3F5"
         android:pathData="M42,62h28a10,10 0,0 0,1 -20a14,14 0,0 0,-27 -3a11,11 0,0 0,-2 23z"/>
     <path android:fillColor="#8FB3D9"

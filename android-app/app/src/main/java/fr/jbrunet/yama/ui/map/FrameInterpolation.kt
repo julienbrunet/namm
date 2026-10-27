@@ -5,18 +5,18 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
- * Images intermédiaires entre deux pas de prévision (15 min) pour une animation fluide.
- * Plutôt qu'un fondu (qui fait « clignoter » les averses), on estime le déplacement global
- * de la pluie entre les deux images puis on fait glisser chacune vers l'autre avant de les mélanger.
- * Les grilles sont petites (≈ 200 points Open-Meteo, ≤ 160 × 160 AROME-PI) : quelques ms par image.
+ * Intermediate frames between two forecast steps (15 min) for a smooth animation.
+ * Rather than a cross-fade (which makes showers “blink”), the overall rain motion between the
+ * two frames is estimated, then each is slid towards the other before blending them.
+ * Grids are small (≈ 200 Open-Meteo points, ≤ 160 × 160 AROME-PI): a few ms per frame.
  */
 object FrameInterpolation {
 
-    /** Déplacement (colonnes, lignes) de la pluie de [a] vers [b], au point de grille près. */
+    /** Rain motion (columns, rows) from [a] to [b], to the nearest grid point. */
     fun motion(a: MapFrame.Forecast, b: MapFrame.Forecast): Pair<Int, Int> {
         val g = a.grid
         val range = maxOf(2, maxOf(g.rows, g.cols) / 8)
-        // Sous-échantillonnage des grandes grilles : la recherche reste de l'ordre du million d'opérations.
+        // Large grids are subsampled: the search stays around a million operations.
         val stride = if (g.rows * g.cols > 4000) 2 else 1
         var best = 0 to 0
         var bestScore = Double.MAX_VALUE
@@ -39,7 +39,7 @@ object FrameInterpolation {
                 r += stride
             }
             if (count == 0) continue
-            // Légère préférence pour l'immobilité (pluie uniforme, zone sans pluie).
+            // Slight preference for no motion (uniform rain, rain-free area).
             val score = sum / count * (1 + 0.02 * (dx * dx + dy * dy))
             if (score < bestScore) {
                 bestScore = score
@@ -49,13 +49,13 @@ object FrameInterpolation {
         return best
     }
 
-    /** Image à la fraction [t] (0 = [a], 1 = [b]) du chemin, pour un déplacement [motion] de a vers b. */
+    /** Frame at fraction [t] (0 = [a], 1 = [b]) of the way, for a [motion] from a to b. */
     fun between(a: MapFrame.Forecast, b: MapFrame.Forecast, t: Float, motion: Pair<Int, Int>): MapFrame.Forecast {
         val g = a.grid
         val (mx, my) = motion
         val out = FloatArray(g.rows * g.cols)
         for (r in 0 until g.rows) for (c in 0 until g.cols) {
-            // a avancé de t·d, b reculé de (1 − t)·d : les deux coïncident au point (r, c).
+            // a moved forward by t·d, b moved back by (1 − t)·d: both meet at point (r, c).
             val va = sample(a.values, g.rows, g.cols, r - t * my, c - t * mx)
             val vb = sample(b.values, g.rows, g.cols, r + (1 - t) * my, c + (1 - t) * mx)
             out[r * g.cols + c] = va * (1 - t) + vb * t
@@ -64,7 +64,7 @@ object FrameInterpolation {
         return MapFrame.Forecast(time, out, g, a.source, if (t < 0.5f) a.clouds else b.clouds)
     }
 
-    /** Lecture bilinéaire (0 hors de la grille). */
+    /** Bilinear lookup (0 outside the grid). */
     private fun sample(v: FloatArray, rows: Int, cols: Int, r: Float, c: Float): Float {
         val r0 = floor(r).toInt()
         val c0 = floor(c).toInt()

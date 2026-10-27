@@ -5,10 +5,10 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 -keep,includedescriptorclasses class fr.jbrunet.yama.**$$serializer { *; }
-# Retrofit (interfaces suspend)
+# Retrofit (suspend interfaces)
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
-# Widgets Glance : chaque widget doit garder SA classe. Sinon R8 fusionne les sous-classes
-# (presque identiques) et Glance confond tous les widgets (tous affichent la même variante).
+# Glance widgets: each widget must keep ITS OWN class. Otherwise R8 merges the (nearly identical)
+# subclasses and Glance mixes up all widgets (they all show the same variant).
 -keep class fr.jbrunet.yama.widget.** extends androidx.glance.appwidget.GlanceAppWidget { *; }
 -keep class fr.jbrunet.yama.widget.** extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }

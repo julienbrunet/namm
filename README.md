@@ -1,43 +1,57 @@
-# No Ad Météo
+# YAMA — Yet Another Meteo App
 
-[![Build et tests](https://github.com/julienbrunet/namm/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/julienbrunet/namm/actions/workflows/android.yml)
-[![Sécurité (CodeQL, dépendances)](https://github.com/julienbrunet/namm/actions/workflows/securite.yml/badge.svg?branch=main)](https://github.com/julienbrunet/namm/security)
-[![Site](https://github.com/julienbrunet/namm/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/julienbrunet/namm/actions/workflows/pages.yml)
+[![Build and tests](https://github.com/julienbrunet/yama/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/julienbrunet/yama/actions/workflows/android.yml)
+[![Security (CodeQL, dependencies)](https://github.com/julienbrunet/yama/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/julienbrunet/yama/security)
+[![Website](https://github.com/julienbrunet/yama/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/julienbrunet/yama/actions/workflows/pages.yml)
 
-**La météo locale sur Android, rien d'autre** : pas de publicité, pas de pistage, pas de compte.
-Application gratuite et open-source, basée sur des données météo ouvertes.
+**Local weather on Android, nothing else**: no ads, no tracking, no account.
+A free and open-source weather app built on open weather data. Available in English and French.
 
-🌐 **Site de présentation : https://julienbrunet.github.io/namm/**
+🌐 **Website: https://julienbrunet.github.io/yama/**
 
-📥 **Télécharger la dernière version : [no-ad-meteo.apk](https://github.com/julienbrunet/namm/releases/latest/download/no-ad-meteo.apk)**
-(l'application se met ensuite à jour toute seule depuis les GitHub Releases)
+📥 **Download the latest version: [yama.apk](https://github.com/julienbrunet/yama/releases/latest/download/yama.apk)**
+(the app then updates itself from GitHub Releases)
 
 <p align="center">
-  <img src="site/nature_crepuscule.jpg" width="30%" alt="Thème Nature au crépuscule">
-  <img src="site/nature_jour_soleil.jpg" width="30%" alt="Thème Nature en journée">
-  <img src="site/carte.jpg" width="30%" alt="Carte de pluie">
+  <img src="site/nature_dusk.jpg" width="30%" alt="Nature theme at dusk">
+  <img src="site/nature_sunny_day.jpg" width="30%" alt="Nature theme during the day">
+  <img src="site/map.jpg" width="30%" alt="Rain map">
 </p>
 
-## Fonctionnalités
+## Features
 
-- **Votre position** par défaut (GPS, jamais partagé) et des lieux enregistrés.
-- **Pluie des 2 prochaines heures au quart d'heure** (modèles haute résolution AROME / ICON),
-  24 h heure par heure, 7 jours, lever et coucher du soleil, alerte quand la pluie arrive dans l'heure.
-- **Carte de pluie** : radar observé puis prévision animée et fluide, nuages satellite Meteosat et prévus,
-  carte des vents à la demande ; prévision Météo-France AROME-PI avec votre propre clé (facultatif).
-- **Six widgets** (Mini, Pluie, Journée, 12 h, Semaine, Carte de pluie), chacun avec son fond, sa transparence et sa couleur de texte.
-- **Cinq thèmes** : Ardoise (clair / sombre), Ciel, Pastel, Aurore et **Nature**, dont le paysage de montagnes
-  et de lac suit l'heure du jour et le temps qu'il fait.
-- **Zéro publicité, zéro pistage** : aucun SDK publicitaire ni analytics, aucun service Google (compatible F-Droid).
+- **Your location** by default (GPS, never shared) and saved places.
+- **Rain over the next 2 hours, every 15 minutes** (high-resolution AROME / ICON models),
+  24 hours hour by hour, 7 days, sunrise and sunset, an alert when rain is due within the hour.
+- **Rain map**: observed radar then a smooth animated forecast, Meteosat satellite and forecast clouds,
+  wind map on demand; Météo-France AROME-PI nowcast with your own free key (optional).
+- **Six widgets** (Mini, Rain, Day, 12 h, Week, Rain map), each with its own background, transparency and text colour.
+- **Five themes**: Slate (light / dark), Sky, Pastel, Aurora and **Nature**, whose mountain and lake landscape
+  follows the time of day and the weather.
+- **English and French**, following the phone's language (or the per-app language on Android 13+).
+- **Zero ads, zero tracking**: no advertising or analytics SDK, no Google services (F-Droid compatible).
 
-## Sources de données
+## Data sources
 
-[Open-Meteo](https://open-meteo.com) (prévisions, géocodage), [RainViewer](https://www.rainviewer.com) (radar),
-[EUMETSAT](https://view.eumetsat.int) (satellite Meteosat), [Météo-France](https://portail-api.meteofrance.fr) (AROME-PI, facultatif),
-[OpenStreetMap](https://www.openstreetmap.org) (fond de carte).
+[Open-Meteo](https://open-meteo.com) (forecasts, geocoding), [RainViewer](https://www.rainviewer.com) (radar),
+[EUMETSAT](https://view.eumetsat.int) (Meteosat satellite), [Météo-France](https://portail-api.meteofrance.fr) (AROME-PI, optional),
+[OpenStreetMap](https://www.openstreetmap.org) (map background).
 
-## Dépôt
+## Building
 
-- [`android-app/`](android-app/) : application Android (Kotlin, Jetpack Compose) ; architecture dans [`android-app/ARCHITECTURE.md`](android-app/ARCHITECTURE.md)
-- [`site/`](site/) : page de présentation, publiée sur GitHub Pages
-- [`.github/workflows/`](.github/workflows/) : CI (tests, captures d'écran, APK signé, release) et déploiement du site
+Requirements: JDK 21 and the Android SDK (platform 37). From `android-app/`:
+
+```bash
+./gradlew assembleDebug                         # debug APK in app/build/outputs/apk/debug/
+./gradlew testDebugUnitTest                     # unit tests
+./gradlew recordRoborazziDebug                  # screenshots in app/screenshots/ (English) and app/screenshots/fr/
+```
+
+There is no emulator in CI: screens and widgets are rendered on the JVM with Robolectric and Roborazzi.
+Every downloaded dependency is checked against `android-app/gradle/verification-metadata.xml`.
+
+## Repository
+
+- [`android-app/`](android-app/): Android app (Kotlin, Jetpack Compose); architecture in [`android-app/ARCHITECTURE.md`](android-app/ARCHITECTURE.md)
+- [`site/`](site/): presentation page (English and French), published on GitHub Pages
+- [`.github/workflows/`](.github/workflows/): CI (tests, screenshots, signed APK, release), security analyses and website deployment

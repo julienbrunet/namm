@@ -9,7 +9,7 @@ import org.junit.Test
 class UpdateControllerTest {
     @Test
     fun checkIntervalIsThirtyMinutes() {
-        // Garde-fou : la vérification au retour au premier plan ne doit pas spammer GitHub.
+        // Safeguard: the check when coming back to the foreground must not spam GitHub.
         assertEquals(30 * 60 * 1000L, UpdateController.CHECK_INTERVAL_MS)
         AvailableUpdate(AppVersion.parse("0.1.16")!!, "https://x/app.apk", null)
     }

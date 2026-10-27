@@ -35,10 +35,10 @@ import kotlin.math.min
 import kotlin.math.sinh
 import kotlin.math.tan
 
-/** Fond de carte OpenStreetMap standard (sans clé, User-Agent = nom du paquet, cf. MeteoApp). */
+/** Standard OpenStreetMap background (no key, User-Agent = package name, see MeteoApp). */
 val OsmTiles: OnlineTileSourceBase = TileSourceFactory.MAPNIK
 
-/** Assombrit et désature les tuiles OSM pour coller au thème ardoise. */
+/** Darkens and desaturates the OSM tiles to match the slate theme. */
 val SlateMapFilter = ColorMatrixColorFilter(
     ColorMatrix().apply {
         setSaturation(0.15f)
@@ -56,8 +56,8 @@ val SlateMapFilter = ColorMatrixColorFilter(
 )
 
 /**
- * Thèmes clairs : tuiles OSM en gris, éclaircies vers un blanc cassé (55 %), pour que la pluie
- * ressorte nettement sur un fond qui garde routes et noms de villes lisibles.
+ * Light themes: OSM tiles in grey, lightened towards an off-white (55 %), so that the rain
+ * stands out clearly on a background that keeps roads and city names readable.
  */
 val FadedMapFilter = ColorMatrixColorFilter(
     ColorMatrix().apply {
@@ -75,16 +75,16 @@ val FadedMapFilter = ColorMatrixColorFilter(
     },
 )
 
-/** RainViewer ne sert plus de tuiles au-delà du zoom 7 (image « zoom not supported »). */
+/** RainViewer no longer serves tiles beyond zoom 7 (“zoom not supported” image). */
 const val RADAR_MAX_ZOOM = 7
 
 /**
- * Radar RainViewer dessiné à la main : tuiles au zoom min(carte, 7), étirées au zoom courant.
- * (Un TilesOverlay osmdroid demanderait des tuiles z ≥ 8 que RainViewer refuse.)
+ * RainViewer radar drawn by hand: tiles at zoom min(map, 7), stretched to the current zoom.
+ * (An osmdroid TilesOverlay would request z ≥ 8 tiles, which RainViewer refuses.)
  */
 class RadarOverlay(private val view: MapView) : Overlay() {
     var frame: MapFrame.Radar? = null
-    /** Image radar suivante, en fondu enchaîné pendant l'animation ([mix] : 0 = [frame], 1 = [next]). */
+    /** Next radar frame, cross-faded during the animation ([mix]: 0 = [frame], 1 = [next]). */
     var next: MapFrame.Radar? = null
     var mix: Float = 0f
 
@@ -93,7 +93,7 @@ class RadarOverlay(private val view: MapView) : Overlay() {
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = 210 }
     private val a = Point()
     private val b = Point()
-    // Réutilisés à chaque dessin (appelé à chaque image de l'animation et du déplacement).
+    // Reused on every draw (called for every animation and panning frame).
     private val geo = GeoPoint(0.0, 0.0)
     private val rect = RectF()
 
@@ -144,9 +144,9 @@ class RadarOverlay(private val view: MapView) : Overlay() {
 }
 
 /**
- * Cache mémoire des tuiles radar (partagé entre les images de l'animation), limité en octets
- * (1/8 de la mémoire de l'appli) et non en nombre de tuiles ; le cache HTTP disque de
- * [Network.client] évite de les retélécharger d'une ouverture de la carte à l'autre.
+ * In-memory cache of radar tiles (shared by the animation frames), limited in bytes
+ * (1/8 of the app's memory) rather than in number of tiles; the HTTP disk cache of
+ * [Network.client] avoids downloading them again from one map opening to the next.
  */
 object RadarTileCache {
     private val cache = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 8).toInt()) {
@@ -172,8 +172,8 @@ private fun tileToLon(x: Int, z: Int) = x.toDouble() / (1 shl z) * 360 - 180
 private fun tileToLat(y: Int, z: Int) = Math.toDegrees(atan(sinh(PI * (1 - 2.0 * y / (1 shl z)))))
 
 /**
- * Échelle d'intensité commune au radar (palette RainViewer « Universal Blue », n° 2)
- * et à la prévision : bleus pour la pluie faible à modérée, jaune → rouge pour la pluie forte.
+ * Intensity scale shared by the radar (RainViewer “Universal Blue” palette, no. 2)
+ * and the forecast: blues for light to moderate rain, yellow → red for heavy rain.
  */
 enum class RainLevel(val minMmPerHour: Double, val color: Int) {
     VERY_LIGHT(0.2, 0x999BC4E2.toInt()),
@@ -184,22 +184,22 @@ enum class RainLevel(val minMmPerHour: Double, val color: Int) {
     EXTREME(20.0, 0xDDE0412E.toInt()),
 }
 
-/** Intensité (mm / 15 min) → couleur ARGB du palier, ou null sous le seuil de pluie. */
+/** Intensity (mm / 15 min) → ARGB colour of the level, or null below the rain threshold. */
 fun rainColor(mmPer15: Double): Int? = rainArgb(mmPer15).takeIf { it != 0 }
 
-/** Seuils des paliers en mm / 15 min, du plus fort au plus faible (évite de parcourir l'enum à chaque pixel). */
+/** Level thresholds in mm / 15 min, strongest first (avoids walking the enum for every pixel). */
 private val RainThresholds = RainLevel.entries.reversed().map { it.minMmPerHour / 4 }.toDoubleArray()
 private val RainColors = RainLevel.entries.reversed().map { it.color }.toIntArray()
 
-/** Comme [rainColor], 0 (transparent) sous le seuil de pluie. */
+/** Like [rainColor], 0 (transparent) below the rain threshold. */
 private fun rainArgb(mmPer15: Double): Int {
     for (i in RainThresholds.indices) if (mmPer15 >= RainThresholds[i]) return RainColors[i]
     return 0
 }
 
 /**
- * Grille de prévision (Open-Meteo ou AROME-PI) : valeurs interpolées sur une image plus fine,
- * puis colorées par paliers → zones aux contours nets et arrondis.
+ * Forecast grid (Open-Meteo or AROME-PI): values interpolated onto a finer image,
+ * then coloured by level → areas with sharp, rounded edges.
  */
 class ForecastGridOverlay : Overlay() {
     var frame: MapFrame.Forecast? = null
@@ -208,9 +208,9 @@ class ForecastGridOverlay : Overlay() {
             field = value
         }
     private var bitmap: Bitmap? = null
-    private val paint = Paint().apply { isFilterBitmap = false } // contours nets, pas de flou
-    /** Couleur des pointillés de la zone de prévision (selon le thème). */
-    /** Teinte des nuages (blanc en sombre, gris ardoise sur le fond clair). */
+    private val paint = Paint().apply { isFilterBitmap = false } // sharp edges, no blur
+    /** Colour of the dotted outline of the forecast area (depends on the theme). */
+    /** Cloud tint (white on dark, slate grey on the light background). */
     var cloudPaint = cloudPaint(dark = true)
 
     var outlineColor: Int = 0x55F2F3F5
@@ -233,13 +233,13 @@ class ForecastGridOverlay : Overlay() {
         val bmp = bitmap ?: return
         val grid = f.grid
         val projection = mapView.projection
-        // Chaque point représente une cellule centrée sur lui : l'image couvre ± ½ pas.
+        // Each point stands for a cell centred on it: the image covers ± ½ step.
         val north = grid.south + (grid.rows - 0.5) * grid.latStep
         val east = grid.west + (grid.cols - 0.5) * grid.lonStep
         projection.toPixels(GeoPoint(north, grid.west - grid.lonStep / 2), a)
         projection.toPixels(GeoPoint(grid.south - grid.latStep / 2, east), b)
         val rect = RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat())
-        // Nuages prévus sous la pluie.
+        // Forecast clouds under the rain.
         f.clouds?.let { c ->
             val cg = c.grid
             projection.toPixels(GeoPoint(cg.south + (cg.rows - 0.5) * cg.latStep, cg.west - cg.lonStep / 2), a)
@@ -247,16 +247,16 @@ class ForecastGridOverlay : Overlay() {
             canvas.drawBitmap(ForecastBitmaps.clouds(c), null, RectF(a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat()), cloudPaint)
         }
         canvas.drawBitmap(bmp, null, rect, paint)
-        canvas.drawRect(rect, outline) // limite de la zone de prévision
+        canvas.drawRect(rect, outline) // edge of the forecast area
     }
 }
 
 /**
- * Images de prévision déjà calculées (une par pas de temps) : préparées en arrière-plan par
- * [prepare] pour que l'affichage et l'animation ne calculent rien sur le thread principal.
+ * Forecast images already computed (one per time step): prepared in the background by
+ * [prepare] so that display and animation compute nothing on the main thread.
  */
 object ForecastBitmaps {
-    // Clés comparées par identité (MapFrame.Forecast n'est pas une data class) : recherche en O(1).
+    // Keys compared by identity (MapFrame.Forecast is not a data class): O(1) lookup.
     private val cache = java.util.WeakHashMap<MapFrame.Forecast, Bitmap>()
 
     fun get(frame: MapFrame.Forecast): Bitmap =
@@ -272,19 +272,19 @@ object ForecastBitmaps {
     }
 }
 
-/** Taille max (px) de l'image de prévision : assez fine pour des bords nets, sans exploser la mémoire. */
+/** Maximum size (px) of the forecast image: fine enough for sharp edges, without blowing up memory. */
 private const val RENDER_MAX = 480
 
 /**
- * Interpolation à noyau gaussien (voisinage 4 × 4) : contrairement au bilinéaire, un point
- * pluvieux isolé donne une tache ronde (et non un losange), et les contours sont arrondis.
+ * Gaussian-kernel interpolation (4 × 4 neighbourhood): unlike bilinear, an isolated rainy
+ * point gives a round blob (not a diamond), and edges are rounded.
  */
 internal fun renderForecast(frame: MapFrame.Forecast): Bitmap {
     val (w, h) = forecastImageSize(frame.grid)
     return Bitmap.createBitmap(forecastPixels(frame), w, h, Bitmap.Config.ARGB_8888)
 }
 
-/** Taille (px) de l'image de prévision : un multiple entier de la grille. */
+/** Size (px) of the forecast image: a whole multiple of the grid. */
 internal fun forecastImageSize(grid: ForecastGrid): Pair<Int, Int> {
     val k = forecastScale(grid)
     return grid.cols * k to grid.rows * k
@@ -292,16 +292,16 @@ internal fun forecastImageSize(grid: ForecastGrid): Pair<Int, Int> {
 
 private fun forecastScale(grid: ForecastGrid) = (RENDER_MAX / maxOf(grid.cols, grid.rows)).coerceIn(1, 12)
 
-/** Pixels ARGB de l'image de prévision (ligne 0 = nord). */
+/** ARGB pixels of the forecast image (row 0 = north). */
 internal fun forecastPixels(frame: MapFrame.Forecast): IntArray {
     val grid = frame.grid
     val k = forecastScale(grid)
     val w = grid.cols * k
     val h = grid.rows * k
-    // Le noyau gaussien est séparable : exp(-(dx² + dy²)/s) = exp(-dx²/s) · exp(-dy²/s).
-    // Les poids des 4 colonnes (resp. lignes) voisines ne dépendent que de px (resp. py) :
-    // calculés une fois, il ne reste que des multiplications par pixel (aucun exp()).
-    // Image : ligne 0 en haut = nord, d'où l'inversion verticale ; centre de cellule à +0,5.
+    // The gaussian kernel is separable: exp(-(dx² + dy²)/s) = exp(-dx²/s) · exp(-dy²/s).
+    // The weights of the 4 neighbouring columns (resp. rows) depend only on px (resp. py):
+    // computed once, only multiplications remain per pixel (no exp()).
+    // Image: row 0 at the top = north, hence the vertical flip; cell centre at +0.5.
     val cols = neighbours(w, k, grid.cols, flip = false)
     val rows = neighbours(h, k, grid.rows, flip = true)
     val values = frame.values
@@ -326,11 +326,11 @@ internal fun forecastPixels(frame: MapFrame.Forecast): IntArray {
     return pixels
 }
 
-/** Pour chaque pixel : index et poids gaussien des 4 cellules voisines (poids 0 hors de la grille). */
+/** For each pixel: index and gaussian weight of the 4 neighbouring cells (weight 0 outside the grid). */
 private class Neighbours(val index: IntArray, val weight: DoubleArray)
 
 private fun neighbours(pixels: Int, k: Int, cells: Int, flip: Boolean): Neighbours {
-    val sigma2 = 2 * 0.55 * 0.55 // en cellules²
+    val sigma2 = 2 * 0.55 * 0.55 // in cells²
     val index = IntArray(pixels * 4)
     val weight = DoubleArray(pixels * 4)
     for (p in 0 until pixels) {
@@ -348,8 +348,8 @@ private fun neighbours(pixels: Int, k: Int, cells: Int, flip: Boolean): Neighbou
 }
 
 /**
- * Voile nuageux (blanc, opacité selon la couverture : rien sous 20 %, ≈ 70 % à 100 %),
- * lissé par noyau gaussien sur une image ≈ 8 fois plus fine que la grille.
+ * Cloud veil (white, opacity from the cover: nothing under 20 %, ≈ 70 % at 100 %),
+ * smoothed by a gaussian kernel on an image ≈ 8 times finer than the grid.
  */
 internal fun renderClouds(layer: CloudLayer): Bitmap {
     val grid = layer.grid
@@ -359,7 +359,7 @@ internal fun renderClouds(layer: CloudLayer): Bitmap {
     val pixels = IntArray(w * h)
     val sigma2 = 2 * 0.8 * 0.8
     for (py in 0 until h) {
-        val gy = (h - py - 0.5) / k - 0.5 // ligne 0 = sud = bas de l'image
+        val gy = (h - py - 0.5) / k - 0.5 // row 0 = south = bottom of the image
         val r0 = floor(gy).toInt()
         for (px in 0 until w) {
             val gx = (px + 0.5) / k - 0.5
@@ -382,7 +382,7 @@ internal fun renderClouds(layer: CloudLayer): Bitmap {
     return Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)
 }
 
-/** Pinceau des nuages : garde l'opacité du voile, en blanc (thème sombre) ou gris ardoise (thème clair). */
+/** Cloud paint: keeps the veil opacity, in white (dark theme) or slate grey (light theme). */
 fun cloudPaint(dark: Boolean) = Paint(Paint.FILTER_BITMAP_FLAG).apply {
     colorFilter = android.graphics.PorterDuffColorFilter(
         if (dark) 0xFFF2F3F5.toInt() else 0xFF5F6878.toInt(),
@@ -391,8 +391,8 @@ fun cloudPaint(dark: Boolean) = Paint(Paint.FILTER_BITMAP_FLAG).apply {
 }
 
 /**
- * Nuages observés (satellite Meteosat) pour les images radar : un carré de ± 400 km autour
- * du lieu, téléchargé une fois par quart d'heure de prise de vue puis gardé en mémoire.
+ * Observed clouds (Meteosat satellite) for the radar frames: a ± 400 km square around
+ * the place, downloaded once per imaging quarter hour, then kept in memory.
  */
 class SatelliteOverlay(
     private val view: MapView,
@@ -407,7 +407,7 @@ class SatelliteOverlay(
     private val a = Point()
     private val b = Point()
 
-    /** Télécharge à l'avance les images des heures données (animation fluide). */
+    /** Downloads the images for the given times in advance (smooth animation). */
     fun prefetch(times: List<Long>) {
         val bx = box ?: return
         times.map { fr.jbrunet.yama.data.satellite.SatelliteSource.slot(it) }.distinct().forEach { load(bx, it) }
@@ -441,7 +441,7 @@ class SatelliteOverlay(
     private fun mercLat(y: Double) = Math.toDegrees(2 * atan(exp(y / fr.jbrunet.yama.data.satellite.MercatorBox.HALF * PI)) - PI / 2)
 }
 
-/** Paliers de vitesse du vent (km/h) et couleurs des flèches, communs à la carte et à la légende. */
+/** Wind speed levels (km/h) and arrow colours, shared by the map and the legend. */
 enum class WindLevel(val minKmh: Float, val color: Int, val label: String) {
     CALM(0f, 0xFF9AA3B2.toInt(), "0"),
     LIGHT(15f, 0xFF6CC4B4.toInt(), "15"),
@@ -452,17 +452,17 @@ enum class WindLevel(val minKmh: Float, val color: Int, val label: String) {
 
 fun windColor(kmh: Float): Int = WindLevel.entries.last { kmh >= it.minKmh }.color
 
-/** Image de vent à afficher pour l'heure [time] : la dernière commencée (ou la première s'il est plus tôt). */
+/** Wind frame to show for [time]: the last one started (or the first one if earlier). */
 fun List<fr.jbrunet.yama.domain.WindFrame>.at(time: Long): fr.jbrunet.yama.domain.WindFrame? =
     lastOrNull { it.time <= time } ?: firstOrNull()
 
 /**
- * Vent : une flèche par point de grille, orientée dans le sens où souffle le vent, plus longue
- * et plus chaude (gris → vert d'eau → jaune → orange → rouge) quand il forcit.
+ * Wind: one arrow per grid point, pointing where the wind blows, longer and warmer
+ * (grey → aqua → yellow → orange → red) as it strengthens.
  */
 class WindOverlay(private val density: Float) : Overlay() {
     var frame: fr.jbrunet.yama.domain.WindFrame? = null
-    /** Liseré autour des flèches pour qu'elles restent lisibles sur la pluie et les nuages. */
+    /** Outline around the arrows so they stay readable over rain and clouds. */
     var haloColor: Int = 0x99353A45.toInt()
 
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -482,7 +482,7 @@ class WindOverlay(private val density: Float) : Overlay() {
             val k = r * g.cols + c
             val speed = f.speed[k]
             projection.toPixels(GeoPoint(g.south + r * g.latStep, g.west + c * g.lonStep), p)
-            // Direction « d'où vient le vent » → la flèche pointe vers où il va.
+            // Direction “the wind comes from” → the arrow points where it goes.
             val rad = Math.toRadians(f.direction[k] + 180.0)
             val len = density * (12f + (speed.coerceAtMost(80f) / 80f) * 20f)
             val dx = (kotlin.math.sin(rad) * len / 2).toFloat()
@@ -491,7 +491,7 @@ class WindOverlay(private val density: Float) : Overlay() {
             val y0 = p.y - dy
             val x1 = p.x + dx
             val y1 = p.y + dy
-            // Pointe : deux traits à ± 150° de la direction.
+            // Head: two strokes at ± 150° from the direction.
             val head = density * 6f
             path.reset()
             path.moveTo(x0, y0)

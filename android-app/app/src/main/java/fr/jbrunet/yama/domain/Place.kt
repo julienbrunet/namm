@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Place(val name: String, val latitude: Double, val longitude: Double, val detail: String? = null) {
-    /** Même lieu à ~100 m près (évite les doublons dans la liste). */
+    /** Same place within ~100 m (avoids duplicates in the list). */
     fun sameAs(other: Place) =
         kotlin.math.abs(latitude - other.latitude) < 0.001 && kotlin.math.abs(longitude - other.longitude) < 0.001
 

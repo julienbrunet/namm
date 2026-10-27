@@ -8,8 +8,8 @@ on:
     paths: ["android-app/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 
-# Par défaut, lecture seule. Seul le job « release » (sans secret de signature) peut écrire.
-# Actions figées par SHA de commit (un tag peut être déplacé) ; Dependabot les met à jour.
+# Read-only by default. Only the “release” job (without signing secrets) can write.
+# Actions pinned by commit SHA (a tag can be moved); Dependabot updates them.
 permissions:
   contents: read
 
@@ -39,16 +39,16 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
-      # Version 0.<1 + n/100>.<n % 100> : le dernier chiffre ne dépasse jamais 99
-      # (build 99 → 0.1.99, build 100 → 0.2.0). Calculée par Gradle, source unique.
+      # Version 0.<1 + n/100>.<n % 100>: the last digit never exceeds 99
+      # (build 99 → 0.1.99, build 100 → 0.2.0). Computed by Gradle, single source.
       - name: Version
         id: version
         run: echo "name=$(./gradlew -q printVersionName)" >> "$GITHUB_OUTPUT"
 
-      - name: Tests unitaires + captures d'écran
+      - name: Unit tests + screenshots
         run: ./gradlew testDebugUnitTest recordRoborazziDebug
 
-      - name: Clé de signature (si les secrets existent)
+      - name: Signing key (if the secrets exist)
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         if: env.KEYSTORE_BASE64 != ''
@@ -65,13 +65,13 @@ jobs:
           ./gradlew assembleRelease
           cp app/build/outputs/apk/release/app-release.apk yama.apk
 
-      # Garde-fou : R8 ne doit pas fusionner les classes de widgets (sinon tous les widgets
-      # affichent la même variante). Chaque classe doit rester présente sous son nom.
-      - name: Vérifier les classes de widgets dans l'APK release
+      # Safeguard: R8 must not merge the widget classes (otherwise every widget shows
+      # the same variant). Each class must stay present under its own name.
+      - name: Check the widget classes in the release APK
         run: |
           for w in Mini Rain Day TwelveHours Week Map; do
             grep -q "^fr.jbrunet.yama.widget.${w}Widget -> fr.jbrunet.yama.widget.${w}Widget:" \
-              app/build/outputs/mapping/release/mapping.txt || { echo "Classe ${w}Widget fusionnée par R8"; exit 1; }
+              app/build/outputs/mapping/release/mapping.txt || { echo "Class ${w}Widget merged by R8"; exit 1; }
           done
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -79,10 +79,10 @@ jobs:
           name: apk-and-screenshots
           path: |
             android-app/yama.apk
-            android-app/app/screenshots/*.png
+            android-app/app/screenshots/**/*.png
 
-  # Publication séparée : ce job a le droit d'écrire sur le dépôt mais ne voit ni le code
-  # compilé ni les secrets de signature ; il ne fait que joindre l'APK déjà signé à la release.
+  # Separate publishing: this job may write to the repository but sees neither the built code
+  # nor the signing secrets; it only attaches the already signed APK to the release.
   release:
     needs: build
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -94,7 +94,7 @@ jobs:
         with:
           name: apk-and-screenshots
 
-      - name: Publier la release GitHub
+      - name: Publish the GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: v${{ needs.build.outputs.version }}

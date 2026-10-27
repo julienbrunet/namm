@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-/** API Open-Meteo : gratuite, sans clé. https://open-meteo.com/en/docs */
+/** Open-Meteo API: free, no key. https://open-meteo.com/en/docs */
 interface OpenMeteoApi {
 
     @GET("v1/forecast")
@@ -21,19 +21,19 @@ interface OpenMeteoApi {
         @Query("forecast_days") forecastDays: Int = 7,
     ): ForecastDto
 
-    /** Grille multi-points pour la carte de prévision (pas de 15 min, horodatage unix). */
+    /** Multi-point grid for the forecast map (15 min steps, unix timestamps). */
     @GET("v1/forecast")
     suspend fun grid(
         @Query("latitude") latitudes: String,
         @Query("longitude") longitudes: String,
         @Query("minutely_15") minutely15: String = "precipitation",
-        @Query("forecast_minutely_15") steps: Int = 96, // 24 h au pas de 15 min
+        @Query("forecast_minutely_15") steps: Int = 96, // 24 h in 15 min steps
         @Query("hourly") hourly: String = "cloud_cover",
         @Query("forecast_hours") hours: Int = 26,
         @Query("timeformat") timeFormat: String = "unixtime",
     ): List<GridPointDto>
 
-    /** Vent sur une grille multi-points (chargé seulement quand la couche « Vent » est affichée). */
+    /** Wind on a multi-point grid (loaded only when the “Wind” layer is shown). */
     @GET("v1/forecast")
     suspend fun windGrid(
         @Query("latitude") latitudes: String,
@@ -48,7 +48,7 @@ interface OpenMeteoApi {
     }
 }
 
-/** API de géocodage Open-Meteo (recherche de ville). */
+/** Open-Meteo geocoding API (city search). */
 interface GeocodingApi {
     @GET("v1/search")
     suspend fun search(

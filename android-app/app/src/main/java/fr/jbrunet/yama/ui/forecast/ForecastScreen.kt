@@ -97,7 +97,7 @@ fun ForecastScreen(
                 TextButton(onClick = viewModel::refresh) { Text(stringResource(R.string.action_retry), color = Slate.Primary) }
                 TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.choose_city), color = Slate.Secondary) }
             }
-            // Tirer l'écran vers le bas pour actualiser.
+            // Pull the screen down to refresh.
             is ForecastUiState.Success -> PullToRefreshBox(
                 isRefreshing = refreshing,
                 onRefresh = viewModel::refresh,
@@ -145,8 +145,8 @@ fun ForecastContent(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp),
     ) {
-        // Météo actuelle : icône + température, puis le lieu juste en dessous
-        // (sur une carte dégradée pour les thèmes qui en ont une).
+        // Current weather: icon + temperature, then the place just below
+        // (on a gradient card for the themes that have one).
         val hero = Slate.HeroBrush
         Column(
             if (hero == null) Modifier
@@ -182,7 +182,7 @@ fun ForecastContent(
         Spacer(Modifier.height(10.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill(longDate(forecast.current.time))
-            // Mise à jour échouée : on dit de quand datent les données et pourquoi.
+            // Failed update: tell how old the data is and why.
             data.staleReason?.let { StalePill(data.fetchedAtMillis, it) }
         }
         }
@@ -214,13 +214,13 @@ fun ForecastContent(
                 style = MaterialTheme.typography.labelSmall,
             )
         }
-        Spacer(Modifier.height(88.dp)) // place pour la barre du bas
+        Spacer(Modifier.height(88.dp)) // room for the bottom bar
     }
         BottomBar(onOpenMap, onOpenSettings, Modifier.align(Alignment.BottomCenter))
     }
 }
 
-/** Tuiles « Maintenant » : ressenti, vent, humidité, pluie du jour, max, min. */
+/** “Now” tiles: feels like, wind, humidity, rain today, max, min. */
 @Composable
 internal fun CurrentTiles(data: LocalForecast) {
     val c = data.forecast.current
@@ -238,13 +238,13 @@ internal fun CurrentTiles(data: LocalForecast) {
     )
 }
 
-/** « Vendredi 16 octobre · 19:45 » / « Friday, October 16 · 19:45 » */
+/** “Friday, October 16 · 19:45” / “Vendredi 16 octobre · 19:45” */
 @Composable
 internal fun longDate(time: String): String =
     LocalContext.current.formatDate(R.string.date_long_pattern, LocalDateTime.parse(time), currentLocale()) +
         " · " + time.substringAfter('T')
 
-/** Mise à jour échouée : « données de 14:05 · pas de réseau ». */
+/** Failed update: “data from 14:05 · no network”. */
 @Composable
 internal fun StalePill(fetchedAtMillis: Long, reason: StaleReason, modifier: Modifier = Modifier) {
     val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
@@ -252,7 +252,7 @@ internal fun StalePill(fetchedAtMillis: Long, reason: StaleReason, modifier: Mod
     Pill(stringResource(R.string.stale_data, time, stringResource(reason.labelRes)), modifier)
 }
 
-/** Barre flottante en bas d'écran, à portée de pouce : carte de pluie + paramètres. */
+/** Floating bar at the bottom of the screen, within thumb reach: rain map + settings. */
 @Composable
 internal fun BottomBar(onOpenMap: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier) {
     Row(
@@ -412,6 +412,6 @@ internal fun DayRow(day: DailyForecast) {
 }
 
 
-/** Millimètres : une décimale (séparateur de la langue) sous 10 mm, entier au-delà. */
+/** Millimetres: one decimal (language separator) under 10 mm, whole number above. */
 internal fun mm(value: Double, locale: Locale): String =
     if (value < 10) "%.1f".format(locale, value) else value.roundToInt().toString()

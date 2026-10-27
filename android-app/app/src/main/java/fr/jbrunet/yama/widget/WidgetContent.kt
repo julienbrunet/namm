@@ -48,8 +48,8 @@ import java.time.format.TextStyle as JavaTextStyle
 import kotlin.math.roundToInt
 
 /**
- * Couleurs d'un widget : le fond suit le réglage du widget (Auto = thème de l'app, Clair, Sombre)
- * et le texte, en Auto, contraste avec ce fond.
+ * Colours of a widget: the background follows the widget setting (Auto = app theme, Light, Dark)
+ * and the text, in Auto, contrasts with that background.
  */
 class WidgetColors(appPalette: SlatePalette, style: WidgetStyle = WidgetStyle()) {
     private val base = when (style.background) {
@@ -93,13 +93,13 @@ fun WeatherCondition.widgetIcon(): Int = when (this) {
 private fun Icon(res: Int, color: ColorProvider, size: Dp) =
     Image(ImageProvider(res), null, GlanceModifier.size(size), colorFilter = ColorFilter.tint(color))
 
-/** Fond arrondi commun ; un appui ouvre l'app. Contenu compact, centré verticalement. */
+/** Common rounded background; tapping opens the app. Compact content, vertically centred. */
 @Composable
 fun WidgetFrame(
     c: WidgetColors,
     onClick: Action,
     padding: Dp = 14.dp,
-    /** En haut par défaut (le contenu reste là où on a posé le widget) ; centré pour les widgets d'une ligne. */
+    /** At the top by default (the content stays where the widget was placed); centred for one-line widgets. */
     alignment: Alignment = Alignment.TopStart,
     content: @Composable () -> Unit,
 ) {
@@ -124,13 +124,13 @@ private fun rainText(context: Context, data: LocalForecast): String {
 }
 
 /**
- * Date (petite) + heure (grande) toujours à jour : TextClock Android inséré dans le widget,
- * indépendant des rafraîchissements (toutes les 15 min).
+ * Date (small) + time (large), always up to date: Android TextClock inserted in the widget,
+ * independent of the refreshes (every 15 min).
  */
 @Composable
 private fun Clock(c: WidgetColors, timeSize: Float = 28f, width: Dp = 104.dp) {
-    // Boîte de largeur fixe alignée à droite : une vue Android insérée (AndroidRemoteViews)
-    // ne se combine pas bien avec les poids Glance.
+    // Fixed-width box aligned to the right: an inserted Android view (AndroidRemoteViews)
+    // does not combine well with Glance weights.
     Box(GlanceModifier.width(width), contentAlignment = Alignment.CenterEnd) { ClockViews(c, timeSize) }
 }
 
@@ -145,7 +145,7 @@ private fun ClockViews(c: WidgetColors, timeSize: Float) {
     AndroidRemoteViews(views)
 }
 
-/** Icône + température + lieu. */
+/** Icon + temperature + place. */
 @Composable
 private fun CurrentBlock(data: LocalForecast, c: WidgetColors, big: Boolean) {
     val cur = data.forecast.current
@@ -163,7 +163,7 @@ private fun CurrentBlock(data: LocalForecast, c: WidgetColors, big: Boolean) {
     }
 }
 
-/** En-tête commun : météo actuelle à gauche, date + heure à droite. */
+/** Common header: current weather on the left, date + time on the right. */
 @Composable
 private fun Header(data: LocalForecast, c: WidgetColors) {
     Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -173,11 +173,11 @@ private fun Header(data: LocalForecast, c: WidgetColors) {
     }
 }
 
-/** Mini (2 × 1) : icône, température, lieu. */
+/** Mini (2 × 1): icon, temperature, place. */
 @Composable
 fun MiniContent(data: LocalForecast, c: WidgetColors) = CurrentBlock(data, c, big = false)
 
-/** Pluie (4 × 1) : température, pluie dans les 2 h en barres, heure. */
+/** Rain (4 × 1): temperature, rain over the next 2 h as bars, time. */
 @Composable
 fun RainContent(data: LocalForecast, c: WidgetColors) {
     Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -198,7 +198,7 @@ private fun RainBars(data: LocalForecast, c: WidgetColors, maxHeight: Int) {
     val steps = data.forecast.nextPrecipitation
     val max = (steps.maxOfOrNull { it.millimeters } ?: 0.0).coerceAtLeast(1.0)
     Row(GlanceModifier.fillMaxWidth().height(maxHeight.dp), verticalAlignment = Alignment.Bottom) {
-        // Glance limite une ligne à 10 enfants : l'espacement est une marge interne, pas un Spacer.
+        // Glance limits a row to 10 children: the spacing is a padding, not a Spacer.
         steps.take(10).forEach { step ->
             val h = ((step.millimeters / max) * maxHeight).roundToInt().coerceIn(3, maxHeight)
             Box(GlanceModifier.defaultWeight().padding(horizontal = 1.5.dp), contentAlignment = Alignment.BottomCenter) {
@@ -211,7 +211,7 @@ private fun RainBars(data: LocalForecast, c: WidgetColors, maxHeight: Int) {
     }
 }
 
-/** Une colonne horaire : heure, icône, température, probabilité de pluie (texte épais, couleurs du texte). */
+/** An hourly column: hour, icon, temperature, chance of rain (bold text, text colours). */
 @Composable
 private fun HourColumn(h: HourlyForecast, c: WidgetColors, modifier: GlanceModifier, compact: Boolean) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -230,7 +230,7 @@ private fun HourColumn(h: HourlyForecast, c: WidgetColors, modifier: GlanceModif
     }
 }
 
-/** Journée (4 × 2) : en-tête + 6 prochaines heures, compact. */
+/** Day (4 × 2): header + next 6 hours, compact. */
 @Composable
 fun DayContent(data: LocalForecast, c: WidgetColors) {
     Column(GlanceModifier.fillMaxWidth()) {
@@ -243,8 +243,8 @@ fun DayContent(data: LocalForecast, c: WidgetColors) {
 }
 
 /**
- * 12 heures (4 × 2) sur une ligne. Glance limite une ligne à 10 enfants : deux demi-lignes de 6.
- * Colonnes étroites : heure sans « h », probabilité sans « % » (légende à gauche du bloc).
+ * 12 hours (4 × 2) on one line. Glance limits a row to 10 children: two half-rows of 6.
+ * Narrow columns: hour without “h”, chance of rain without “%”.
  */
 @Composable
 fun TwelveHoursContent(data: LocalForecast, c: WidgetColors) {
@@ -262,7 +262,7 @@ fun TwelveHoursContent(data: LocalForecast, c: WidgetColors) {
     }
 }
 
-/** Semaine (4 × 3) : en-tête + 5 jours. */
+/** Week (4 × 3): header + 5 days. */
 @Composable
 fun WeekContent(data: LocalForecast, c: WidgetColors) {
     val locale = LocalContext.current.resources.configuration.locales[0]
@@ -294,7 +294,7 @@ fun WeekContent(data: LocalForecast, c: WidgetColors) {
     }
 }
 
-/** Carte de pluie : image pré-calculée (fond OSM + pluie) et légende. */
+/** Rain map: pre-computed image (OSM background + rain) and caption. */
 @Composable
 fun MapContent(image: Bitmap?, label: String?, c: WidgetColors) {
     val context = LocalContext.current

@@ -20,13 +20,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-/** Halo coloré dessiné sur le fond (position et rayon en fraction de l'écran). */
+/** Coloured glow drawn on the background (position and radius as a fraction of the screen). */
 @Immutable
 data class Glow(val x: Float, val y: Float, val radius: Float, val color: Color)
 
 /**
- * Palette d'un thème : fond et tuiles, texte contrasté, bleu pluie.
- * Les champs facultatifs servent aux thèmes colorés (dégradés, halos, tuiles teintées).
+ * Palette of a theme: background and tiles, contrasted text, rain blue.
+ * Optional fields are used by the colourful themes (gradients, glows, tinted tiles).
  */
 @Immutable
 data class SlatePalette(
@@ -37,26 +37,26 @@ data class SlatePalette(
     val secondary: Color,
     val muted: Color,
     val rain: Color,
-    /** Icônes de la barre d'état claires, schéma Material sombre. */
+    /** Light status bar icons, dark Material scheme. */
     val isDark: Boolean,
     val backgroundBrush: Brush = SolidColor(background),
     val glows: List<Glow> = emptyList(),
-    /** Carte dégradée derrière la météo actuelle (null = pas de carte). */
+    /** Gradient card behind the current weather (null = no card). */
     val heroBrush: Brush? = null,
-    /** Couleur propre à chaque tuile « Maintenant » (vide = [tile]). */
+    /** Colour of each “Now” tile (empty = [tile]). */
     val tileTints: List<Color> = emptyList(),
-    /** Dégradé de la courbe des températures, de gauche à droite. */
+    /** Gradient of the temperature curve, from left to right. */
     val curveColors: List<Color> = listOf(primary, secondary),
-    /** Bouton principal de la barre du bas. */
+    /** Main button of the bottom bar. */
     val buttonBrush: Brush = SolidColor(primary),
     val onButton: Color = background,
-    /** Fond de carte assombri. */
+    /** Darkened map background. */
     val darkMap: Boolean = isDark,
-    /** Accueil sur un paysage dessiné selon la météo et l'heure (thème Nature). */
+    /** Home screen over a landscape drawn from the weather and the time of day (Nature theme). */
     val scenic: Boolean = false,
 )
 
-/** Thème sombre « ardoise » (design d'origine). */
+/** Dark “slate” theme (original design). */
 val DarkSlate = SlatePalette(
     background = Color(0xFF353A45),
     tile = Color(0xFF2F333D),
@@ -68,7 +68,7 @@ val DarkSlate = SlatePalette(
     isDark = true,
 )
 
-/** Thème clair : même sobriété, gris perle et texte ardoise. */
+/** Light theme: same restraint, pearl grey and slate text. */
 val LightSlate = SlatePalette(
     background = Color(0xFFE9EBEF),
     tile = Color(0xFFF8F9FA),
@@ -80,7 +80,7 @@ val LightSlate = SlatePalette(
     isDark = false,
 )
 
-/** Ciel : dégradé bleu lumineux, tuiles en verre dépoli, texte blanc. */
+/** Sky: bright blue gradient, frosted glass tiles, white text. */
 val SkySlate = SlatePalette(
     background = Color(0xFF2F78C8),
     tile = Color(0x2EFFFFFF),
@@ -98,7 +98,7 @@ val SkySlate = SlatePalette(
     darkMap = false,
 )
 
-/** Pastel : fond crème, carte pêche → lavande, tuiles teintées, texte bleu nuit. */
+/** Pastel: cream background, peach → lavender card, tinted tiles, midnight blue text. */
 val PastelSlate = SlatePalette(
     background = Color(0xFFFBF7F2),
     tile = Color.White,
@@ -118,7 +118,7 @@ val PastelSlate = SlatePalette(
     onButton = Color(0xFF2B2D42),
 )
 
-/** Aurore : nuit indigo, halos corail et violet, accents cyan. */
+/** Aurora: indigo night, coral and purple glows, cyan accents. */
 val AuroraSlate = SlatePalette(
     background = Color(0xFF1B1F4B),
     tile = Color(0x17FFFFFF),
@@ -139,8 +139,8 @@ val AuroraSlate = SlatePalette(
 )
 
 /**
- * Nature : l'accueil se pose sur un paysage zen (montagnes, lac, pins) qui suit la météo et
- * l'heure ; tuiles en verre fumé, texte blanc. Ailleurs, fond de lac au crépuscule.
+ * Nature: the home screen sits on a zen landscape (mountains, lake, pines) that follows the weather
+ * and the time of day; smoked glass tiles, white text. Elsewhere, a lake background at dusk.
  */
 val NatureSlate = SlatePalette(
     background = Color(0xFF243049),
@@ -161,7 +161,7 @@ val NatureSlate = SlatePalette(
 
 val LocalSlate = staticCompositionLocalOf { DarkSlate }
 
-/** Couleurs du thème courant (sombre ou clair), utilisables dans tout composable. */
+/** Colours of the current theme (dark or light), usable in any composable. */
 object Slate {
     val Background: Color @Composable @ReadOnlyComposable get() = LocalSlate.current.background
     val Tile: Color @Composable @ReadOnlyComposable get() = LocalSlate.current.tile
@@ -180,7 +180,7 @@ object Slate {
     val Scenic: Boolean @Composable @ReadOnlyComposable get() = LocalSlate.current.scenic
 }
 
-/** Fond plein écran du thème courant : couleur ou dégradé, plus ses halos. */
+/** Full-screen background of the current theme: colour or gradient, plus its glows. */
 @Composable
 fun Modifier.screenBackground(): Modifier {
     val palette = LocalSlate.current
@@ -214,15 +214,15 @@ private val typography = Typography(
     labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.sp),
 )
 
-/** Choix de l'utilisateur dans les paramètres (variante du thème Ardoise). */
+/** User choice in the settings (variant of the Slate theme). */
 enum class ThemeMode { SYSTEM, DARK, LIGHT }
 
-/** Thème de l'application ; seul Ardoise a des variantes Système / Sombre / Clair. */
+/** App theme; only Slate has System / Dark / Light variants. */
 enum class ThemeStyle {
     SLATE, SKY, PASTEL, AURORA, NATURE;
 
     companion object {
-        /** Thème tant que l'utilisateur n'en a pas choisi un autre. */
+        /** Theme until the user picks another one. */
         val DEFAULT = NATURE
     }
 
@@ -234,7 +234,7 @@ enum class ThemeStyle {
         NATURE -> NatureSlate
     }
 
-    /** Widgets (palettes Ardoise) : fond sombre seulement pour les thèmes de nuit. */
+    /** Widgets (Slate palettes): dark background only for the night themes. */
     fun widgetDark(mode: ThemeMode, systemDark: Boolean): Boolean = when (this) {
         SLATE -> mode.isDark(systemDark)
         SKY, PASTEL -> false

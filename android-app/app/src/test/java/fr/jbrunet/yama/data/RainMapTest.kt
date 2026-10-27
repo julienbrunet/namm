@@ -19,7 +19,7 @@ import org.junit.Test
 class RainMapTest {
 
     @Test
-    fun `la grille est centrée sur le lieu`() {
+    fun `grid is centred on the place`() {
         val grid = RainMapRepository.gridAround(Fixtures.paris)
         val points = grid.coordinates()
 
@@ -29,7 +29,7 @@ class RainMapTest {
     }
 
     @Test
-    fun `les images de prévision commencent au quart d'heure en cours`() {
+    fun `forecast frames start at the current quarter hour`() {
         val grid = ForecastGrid(48.80, 2.30, 0.04, 0.06, 2, 2)
         val points = Fixtures.gridDto()
         val start = points.first().minutely15.time.first()
@@ -42,15 +42,15 @@ class RainMapTest {
     }
 
     @Test
-    fun `la grille suit la zone visible et n'est rechargée que si nécessaire`() {
+    fun `grid follows the visible area and is reloaded only when needed`() {
         val view = Bounds(south = 48.0, west = 1.0, north = 50.0, east = 4.0)
         val grid = RainMapRepository.gridFor(view)
 
         assertTrue(grid.south < 48.0 && grid.west < 1.0)
         assertFalse(RainMapRepository.needsNewGrid(grid, view))
-        // Petit déplacement à l'intérieur de la marge : pas de rechargement.
+        // Small move within the margin: no reload.
         assertFalse(RainMapRepository.needsNewGrid(grid, Bounds(48.1, 1.1, 50.1, 4.1)))
-        // Sortie de la zone couverte, dézoom fort, zoom fort : rechargement.
+        // Leaving the covered area, strong zoom out, strong zoom in: reload.
         assertTrue(RainMapRepository.needsNewGrid(grid, Bounds(49.0, 3.0, 51.0, 6.0)))
         assertTrue(RainMapRepository.needsNewGrid(grid, Bounds(46.0, -1.0, 52.0, 6.0)))
         assertTrue(RainMapRepository.needsNewGrid(grid, Bounds(48.9, 2.3, 49.2, 2.6)))
@@ -69,7 +69,7 @@ class RainMapTest {
     }
 
     @Test
-    fun `url des tuiles radar RainViewer`() {
+    fun `RainViewer radar tile url`() {
         val frames = RainViewerMapsDto("https://tilecache.rainviewer.com", RadarDto(listOf(RadarFrameDto(1, "/v2/radar/abc"))))
             .toFrames()
 
@@ -141,14 +141,14 @@ class WidgetMapGeometryTest {
     }
 
     @Test
-    fun `la grille initiale couvre déjà l'écran, pas de second chargement quand la carte apparaît`() {
-        // Zone visible calculée avant la carte (taille d'écran en dp, zoom d'ouverture), puis zone réelle
-        // signalée par la carte, un peu plus haute (barres système comprises).
+    fun `initial grid already covers the screen, no second load when the map appears`() {
+        // Visible area computed before the map exists (screen size in dp, opening zoom), then the real area
+        // reported by the map, slightly taller (system bars included).
         val initial = fr.jbrunet.yama.widget.WidgetMapRenderer.bounds(48.8566, 2.3522, 411, 891, fr.jbrunet.yama.ui.map.MapViewModel.INITIAL_ZOOM)
         val grid = RainMapRepository.gridFor(initial)
         val actual = fr.jbrunet.yama.widget.WidgetMapRenderer.bounds(48.8566, 2.3522, 411, 960, fr.jbrunet.yama.ui.map.MapViewModel.INITIAL_ZOOM)
         assertFalse(RainMapRepository.needsNewGrid(grid, actual))
-        // L'ancienne grille fixe autour du lieu ne couvrait pas l'écran.
+        // The old fixed grid around the place did not cover the screen.
         assertTrue(RainMapRepository.needsNewGrid(RainMapRepository.gridAround(fr.jbrunet.yama.Fixtures.paris), actual))
     }
 }

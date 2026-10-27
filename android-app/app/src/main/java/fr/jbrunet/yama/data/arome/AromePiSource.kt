@@ -23,43 +23,43 @@ import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.max
 
-/** Comment lire la couche de précipitation choisie. */
+/** How to read the chosen precipitation layer. */
 enum class PrecipKind {
-    /** Taux en kg m⁻² s⁻¹ (= mm/s) → × 900 pour mm / 15 min. */
+    /** Rate in kg m⁻² s⁻¹ (= mm/s) → × 900 for mm / 15 min. */
     RATE,
 
-    /** Cumul sur les 15 dernières minutes (mm). */
+    /** Accumulation over the last 15 minutes (mm). */
     PER_15MIN,
 
-    /** Cumul depuis le début du run (mm) → différence entre deux pas. */
+    /** Accumulation since the start of the run (mm) → difference between two steps. */
     CUMULATIVE,
 }
 
-/** Couche AROME-PI retenue dans GetCapabilities. */
+/** AROME-PI layer picked from GetCapabilities. */
 data class AromeLayer(val coverageId: String, val layer: String, val run: Instant, val kind: PrecipKind)
 
-/** Clé refusée par Météo-France (401/403). */
+/** Key refused by Météo-France (401/403). */
 class InvalidKeyException(message: String) : IOException(message)
 
 /**
- * Prévision immédiate AROME-PI de Météo-France (maille 0,01°, pas de 15 min jusqu'à +6 h) via le
- * service WCS du portail https://portail-api.meteofrance.fr ; nécessite une clé d'API gratuite
- * (en-tête `apikey`). Couverture : France métropolitaine et alentours.
+ * Météo-France AROME-PI nowcast (0.01° grid, 15 min steps up to +6 h) through the
+ * WCS service of the https://portail-api.meteofrance.fr portal; needs a free API key
+ * (`apikey` header). Coverage: mainland France and surroundings.
  */
 class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
 
     @Volatile
     private var cachedLayer: Pair<Long, AromeLayer>? = null
 
-    // Les 8 téléchargements parallèles partagent la couche et le jeton : un seul les obtient.
+    // The 8 parallel downloads share the layer and the token: only one fetches them.
     private val layerLock = Mutex()
     private val tokenLock = Mutex()
 
-    /** Méthode d'authentification qui a fonctionné pour une clé : essayée en premier ensuite. */
+    /** Authentication method that worked for a key: tried first afterwards. */
     @Volatile
     private var workingAuth: Pair<String, String>? = null
 
-    /** Découvre la couche de précipitation et le run le plus récent (mémorisé 5 min). */
+    /** Finds the precipitation layer and the most recent run (remembered 5 min). */
     suspend fun latestLayer(key: String, fresh: Boolean = false): AromeLayer = layerLock.withLock {
         if (fresh) {
             token = null
@@ -73,14 +73,14 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
         layer
     }
 
-    /** Images de prévision (≤ 6 h) sur l'emprise de [area], à partir du quart d'heure en cours. */
+    /** Forecast frames (≤ 6 h) over the extent of [area], from the current quarter hour. */
     suspend fun forecast(
         key: String,
         area: ForecastGrid,
         now: Long = System.currentTimeMillis() / 1000,
-        /** Nombre max d'images (le widget n'a besoin que de la pluie actuelle). */
+        /** Maximum number of frames (the widget only needs the current rain). */
         maxFrames: Int = MAX_STEPS,
-        /** Avancement (images reçues, total) pour l'écran de chargement. */
+        /** Progress (frames received, total) for the loading screen. */
         onProgress: (Int, Int) -> Unit = { _, _ -> },
     ): List<MapFrame> =
         coroutineScope {
@@ -88,7 +88,7 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
             val runSec = layer.run.epochSecond
             val steps = (1..MAX_STEPS).map { runSec + it * STEP }.filter { it + STEP > now }.take(maxFrames)
             if (steps.isEmpty()) return@coroutineScope emptyList()
-            // Couche cumulée : il faut aussi le pas précédent pour faire la différence.
+            // Accumulated layer: the previous step is needed too, to compute the difference.
             val needed = if (layer.kind == PrecipKind.CUMULATIVE) listOf(steps.first() - STEP) + steps else steps
             val limiter = Semaphore(PARALLEL)
             val done = java.util.concurrent.atomic.AtomicInteger()
@@ -119,28 +119,28 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
         return get(key, url)
     }
 
-    /** Jeton OAuth obtenu à partir d'un Application ID, avec son expiration (ms). */
+    /** OAuth token obtained from an Application ID, with its expiry (ms). */
     @Volatile
     private var token: Pair<String, Long>? = null
 
     /**
-     * Le portail Météo-France fournit trois sortes d'identifiants, tous acceptés :
-     * - « API Key » (un JWT `eyJ…` durable) → en-tête `apikey` ;
-     * - jeton « Générer token » (JWT `eyJ…`, ~1 h) → `Authorization: Bearer` ;
-     * - « Application ID » (base64 de `clé:secret`) → l'app demande elle-même un jeton
-     *   (client_credentials) et le renouvelle avant expiration.
-     * Un JWT pouvant être l'un ou l'autre, on essaie `apikey` puis `Bearer`.
+     * The Météo-France portal provides three kinds of credentials, all accepted:
+     * - “API Key” (a long-lived `eyJ…` JWT) → `apikey` header;
+     * - “Generate token” token (`eyJ…` JWT, ~1 h) → `Authorization: Bearer`;
+     * - “Application ID” (base64 of `key:secret`) → the app requests a token itself
+     *   (client_credentials) and renews it before it expires.
+     * Since a JWT may be either, `apikey` is tried first, then `Bearer`.
      */
     private fun attempts(rawKey: String): List<Pair<String, suspend (Request.Builder) -> Unit>> {
         val all = allAttempts(rawKey)
-        // Méthode déjà validée pour cette clé : en tête, pour ne pas refaire 1 ou 2 requêtes refusées à chaque image.
+        // Method already validated for this key: first, so as not to redo 1 or 2 refused requests for every frame.
         val known = workingAuth?.takeIf { it.first == normalizeKey(rawKey) }?.second ?: return all
         return all.sortedByDescending { it.first == known }
     }
 
     private fun allAttempts(rawKey: String): List<Pair<String, suspend (Request.Builder) -> Unit>> {
         val key = normalizeKey(rawKey)
-        // On ne se fie pas au type deviné : on essaie chaque méthode, la plus probable d'abord.
+        // Don't trust the guessed type: try each method, the most likely first.
         val apiKeyAuth: suspend (Request.Builder) -> Unit = { b -> b.header("apikey", key) }
         val bearerAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer $key") }
         val tokenAuth: suspend (Request.Builder) -> Unit = { b -> b.header("Authorization", "Bearer ${accessToken(key, renew = false)}") }
@@ -177,7 +177,7 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
     }
 
     private suspend fun get(key: String, url: String): ByteArray {
-        // Résultat de chaque méthode, pour un diagnostic lisible si toutes échouent.
+        // Result of each method, for a readable diagnosis if they all fail.
         val refusals = mutableListOf<String>()
         for ((name, auth) in attempts(key)) {
             val request = try {
@@ -208,10 +208,10 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
 
         enum class CredentialType { API_KEY, JWT, APPLICATION_ID }
 
-        /** Supprime espaces et retours à la ligne (fréquents en copiant depuis le portail). */
+        /** Removes spaces and line breaks (common when copying from the portal). */
         fun normalizeKey(key: String) = key.filterNot { it.isWhitespace() }
 
-        /** Devine le type d'identifiant collé par l'utilisateur. */
+        /** Guesses the type of credential pasted by the user. */
         fun credentialType(rawKey: String): CredentialType = normalizeKey(rawKey).let { key -> when {
             key.startsWith("eyJ") && key.count { it == '.' } == 2 -> CredentialType.JWT
             runCatching { String(java.util.Base64.getDecoder().decode(key)) }.getOrNull()
@@ -219,7 +219,7 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
             else -> CredentialType.API_KEY
         } }
 
-        /** Message lisible extrait d'une erreur JSON / XML du portail. */
+        /** Readable message extracted from a JSON / XML error of the portal. */
         internal fun errorMessage(body: String): String =
             Regex(""""(?:error_description|description|message)"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
                 ?: Regex("""<(?:\w+:)?ExceptionText>([^<]+)<""").find(body)?.groupValues?.get(1)
@@ -229,19 +229,19 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
         const val STEP = 15 * 60L
         const val MAX_STEPS = 24 // +6 h
 
-        /** Téléchargements simultanés (le portail les accepte sans erreur 429). */
+        /** Simultaneous downloads (the portal accepts them without a 429 error). */
         const val PARALLEL = 8
 
-        // Domaine AROME-PI (approx.) : au-delà, on reste sur Open-Meteo.
+        // AROME-PI domain (approx.): outside it, stay on Open-Meteo.
         const val FRANCE_SOUTH = 37.5
         const val FRANCE_NORTH = 55.4
         const val FRANCE_WEST = -12.0
         const val FRANCE_EAST = 16.0
 
-        /** Au-delà de cette hauteur de vue (°), les fichiers seraient trop lourds : Open-Meteo. */
+        /** Beyond this view height (°), the files would be too heavy: Open-Meteo. */
         const val MAX_VIEW_HEIGHT = 4.0
 
-        /** Taille max d'une image après réduction (px) : la mémoire reste raisonnable sur 24 images. */
+        /** Maximum image size after downscaling (px): memory stays reasonable over 24 frames. */
         private const val MAX_SIZE = 160
 
         private val ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC)
@@ -256,8 +256,8 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
         }
 
         /**
-         * Choisit, parmi les CoverageId « COUCHE___RUN » de GetCapabilities, une couche de
-         * précipitation totale (de préférence par pas de 15 min) et son run le plus récent.
+         * Picks, among the “LAYER___RUN” CoverageIds of GetCapabilities, a total precipitation
+         * layer (preferably per 15 min step) and its most recent run.
          */
         fun chooseLayer(capabilities: String): AromeLayer? {
             val ids = Regex("""<(?:\w+:)?CoverageId>\s*([^<\s]+)\s*<""").findAll(capabilities).map { it.groupValues[1] }
@@ -280,7 +280,7 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
             return byKind.maxBy { it.run }
         }
 
-        /** Réduit l'image par moyenne de blocs pour ne pas dépasser [MAX_SIZE] px. */
+        /** Downscales the image by block averaging so as not to exceed [MAX_SIZE] px. */
         internal fun downsample(r: Raster): Raster {
             val factor = ceil(max(r.width, r.height) / MAX_SIZE.toDouble()).toInt()
             if (factor <= 1) return r
@@ -295,7 +295,7 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
             return Raster(w, h, r.west, r.north, r.resLon * factor, r.resLat * factor, out)
         }
 
-        /** Raster (nord en haut) → image de prévision (ligne 0 = sud), en mm / 15 min. */
+        /** Raster (north at the top) → forecast frame (row 0 = south), in mm / 15 min. */
         internal fun Raster.toFrame(time: Long, kind: PrecipKind, previous: Raster?): MapFrame.Forecast {
             val grid = ForecastGrid(
                 south = north - (height - 0.5) * resLat,
@@ -305,8 +305,8 @@ class AromePiSource(private val client: OkHttpClient = Network.uncachedClient) {
                 rows = height,
                 cols = width,
             )
-            // Unité du taux non documentée : kg m⁻² s⁻¹ (= mm/s) ou mm/h. Un taux > 0,1 mm/s
-            // (360 mm/h) étant irréaliste, une telle valeur signifie que la couche est en mm/h.
+            // Undocumented rate unit: kg m⁻² s⁻¹ (= mm/s) or mm/h. A rate > 0.1 mm/s
+            // (360 mm/h) being unrealistic, such a value means the layer is in mm/h.
             val rateFactor = if (kind == PrecipKind.RATE && values.any { it > 0.1f }) 0.25 else STEP.toDouble()
             val same = previous?.takeIf { it.width == width && it.height == height }
             val out = FloatArray(width * height) { k ->

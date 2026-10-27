@@ -19,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import kotlin.coroutines.resume
 
-/** Position via le LocationManager natif (pas de Google Play Services → compatible F-Droid). */
+/** Position through the native LocationManager (no Google Play Services → F-Droid compatible). */
 class LocationProvider(private val context: Context) {
 
     private val manager = context.getSystemService(LocationManager::class.java)
@@ -29,10 +29,10 @@ class LocationProvider(private val context: Context) {
     }
 
     /**
-     * Position actuelle nommée (ville la plus proche si le géocodeur système est disponible).
-     * [fresh] faux (actualisation en arrière-plan) : dernière position connue seulement, sans
-     * allumer le GPS — Android le refuse de toute façon à une appli en arrière-plan et l'attente
-     * (jusqu'à 10 s) coûtait de la batterie toutes les 15 min.
+     * Current named position (nearest city if the system geocoder is available).
+     * [fresh] false (background refresh): last known position only, without turning on
+     * the GPS — Android refuses it to a background app anyway, and the wait
+     * (up to 10 s) cost battery every 15 min.
      */
     suspend fun currentPlace(fresh: Boolean = true): Place? {
         val location = (if (fresh) currentLocation() else lastKnownLocation()) ?: return null
@@ -74,13 +74,13 @@ class LocationProvider(private val context: Context) {
     companion object {
         val PERMISSIONS = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
 
-        /** Détail des lieux issus de la position (et non choisis dans la liste). */
+        /** Detail of the places coming from the position (rather than picked from the list). */
         const val CURRENT_DETAIL = "current-location"
     }
 
     /**
-     * Nom de la ville, mémorisé pour la dernière zone (~1 km) : le géocodeur système peut
-     * interroger le réseau, inutile de le refaire à chaque actualisation sans avoir bougé.
+     * City name, remembered for the last area (~1 km): the system geocoder may query
+     * the network, no need to do it again on every refresh without having moved.
      */
     @Suppress("DEPRECATION")
     private fun cityName(location: Location): String? {

@@ -10,9 +10,9 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.io.File
 
 /**
- * Open-Meteo limite les appels par minute et par IP (chaque point d'une grille compte).
- * Dès qu'un 429 est reçu, on note jusqu'à quand le service est saturé : la carte s'abstient
- * pendant ce temps pour laisser passer l'accueil, et l'accueil affiche une raison claire.
+ * Open-Meteo limits calls per minute and per IP (each point of a grid counts).
+ * As soon as a 429 is received, note until when the service is saturated: the map holds back
+ * meanwhile to let the home screen through, and the home screen shows a clear reason.
  */
 object OpenMeteoQuota {
     @Volatile
@@ -32,20 +32,20 @@ class OpenMeteoBusyException : java.io.IOException("Open-Meteo rate limit reache
 object Network {
     val json = Json { ignoreUnknownKeys = true }
 
-    /** Identifie l'appli auprès des services (exigé par la politique d'usage des tuiles OSM). */
+    /** Identifies the app to the services (required by the OSM tile usage policy). */
     val userAgent = "Yama/${BuildConfig.VERSION_NAME} (+https://github.com/julienbrunet/yama)"
 
     @Volatile
     private var cacheDir: File? = null
 
-    /** À appeler au démarrage de l'appli (avant tout appel réseau) pour activer le cache HTTP disque. */
+    /** To be called when the app starts (before any network call) to enable the HTTP disk cache. */
     fun install(cacheDir: File) {
         this.cacheDir = cacheDir
     }
 
     /**
-     * Client unique de l'appli : un seul pool de connexions (HTTP/2, TLS réutilisé) et de threads,
-     * avec un cache disque de 20 Mo (tuiles radar surtout).
+     * Single client for the app: one pool of connections (HTTP/2, reused TLS) and threads,
+     * with a 20 MB disk cache (mostly radar tiles).
      */
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -59,8 +59,8 @@ object Network {
             }
             .addNetworkInterceptor { chain ->
                 val response = chain.proceed(chain.request())
-                // Une tuile radar RainViewer ne change jamais (son URL contient l'heure de l'image) :
-                // on la garde 2 h dans le cache disque, quels que soient les en-têtes du serveur.
+                // A RainViewer radar tile never changes (its URL contains the image time):
+                // keep it 2 h in the disk cache, whatever the server headers say.
                 val url = chain.request().url
                 if (response.isSuccessful && url.host.endsWith("rainviewer.com") && url.encodedPath.endsWith(".png")) {
                     response.newBuilder().header("Cache-Control", "public, max-age=7200").removeHeader("Pragma").build()
@@ -71,7 +71,7 @@ object Network {
             .build()
     }
 
-    /** Même pool de connexions, sans cache HTTP (fichiers déjà mis en cache ailleurs ou non réutilisables). */
+    /** Same connection pool, without HTTP cache (files already cached elsewhere or not reusable). */
     val uncachedClient: OkHttpClient by lazy { client.newBuilder().cache(null).build() }
 
     inline fun <reified T> create(baseUrl: String): T = retrofit(baseUrl).create(T::class.java)

@@ -56,8 +56,8 @@ import fr.jbrunet.yama.ui.theme.screenBackground
 import kotlinx.coroutines.launch
 
 /**
- * Réglages d'UN widget (fond, couleur du texte). Ouvert par Android à la pose du widget
- * (facultatif) et via appui long → « Paramètres » (widget reconfigurable).
+ * Settings of ONE widget (background, text colour). Opened by Android when the widget is placed
+ * (optional) and through long-press → “Settings” (reconfigurable widget).
  */
 class WidgetConfigActivity : ComponentActivity() {
 
@@ -70,13 +70,13 @@ class WidgetConfigActivity : ComponentActivity() {
             finish()
             return
         }
-        // Si l'utilisateur quitte sans valider : réglages par défaut (widget conservé).
+        // If the user leaves without saving: default settings (the widget is kept).
         setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
         val app = application as MeteoApp
         val initial = WidgetConfigStore.read(this, appWidgetId)
         val provider = AppWidgetManager.getInstance(this).getAppWidgetInfo(appWidgetId)?.provider?.className.orEmpty()
         val isMap = provider.endsWith("MapWidgetReceiver")
-        // Journée et 12 h : choix du nombre d'heures (défaut 6 ou 12 selon le widget).
+        // Day and 12 h: number of hours to show (default 6 or 12 depending on the widget).
         val defaultHours = when {
             provider.endsWith("TwelveHoursWidgetReceiver") -> 12
             provider.endsWith("DayWidgetReceiver") -> 6
@@ -138,7 +138,7 @@ fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetSty
         SectionLabel(stringResource(R.string.section_text_icons))
         Choice(WidgetTextColor.entries, text, { it.label(context) }) { text = it }
 
-        // Uniquement pour les widgets Journée / 12 h.
+        // Day / 12 h widgets only.
         hours?.let { h ->
             Spacer(Modifier.height(20.dp))
             SectionLabel(stringResource(R.string.section_hours_shown))
@@ -156,7 +156,7 @@ fun WidgetConfigContent(initial: WidgetStyle, isMap: Boolean, onSave: (WidgetSty
     }
 }
 
-/** Aperçu du widget sur un faux fond d'écran (dégradé), avec les mêmes couleurs que le vrai. */
+/** Widget preview on a fake wallpaper (gradient), with the same colours as the real one. */
 @Composable
 private fun Preview(style: WidgetStyle, isMap: Boolean) {
     val palette = LocalSlate.current

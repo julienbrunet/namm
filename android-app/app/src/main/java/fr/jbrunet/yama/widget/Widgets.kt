@@ -30,8 +30,8 @@ import java.io.File
 enum class WidgetKind { MINI, RAIN, DAY, TWELVE, WEEK, MAP }
 
 /**
- * Widget générique : lit la dernière prévision en cache (rafraîchie par [RefreshWorker])
- * et le thème choisi dans les paramètres, puis affiche la variante demandée.
+ * Generic widget: reads the last cached forecast (refreshed by [RefreshWorker])
+ * and the theme chosen in the settings, then shows the requested variant.
  */
 abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
 
@@ -43,7 +43,7 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
             settings.theme,
             (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
-        // Réglages propres à CE widget (fond, couleur du texte).
+        // Settings specific to THIS widget (background, text colour).
         val style = WidgetConfigStore.read(context, GlanceAppWidgetManager(context).getAppWidgetId(id))
         val colors = WidgetColors(if (dark) DarkSlate else LightSlate, style)
         val map = if (kind == WidgetKind.MAP) WidgetMapStore.read(context) else null
@@ -60,7 +60,7 @@ abstract class MeteoWidget(private val kind: WidgetKind) : GlanceAppWidget() {
                     data == null -> EmptyContent(colors)
                     kind == WidgetKind.MINI -> MiniContent(data, colors)
                     kind == WidgetKind.RAIN -> RainContent(data, colors)
-                    // Journée / 12 h : nombre d'heures réglable par widget (6 ou 12).
+                    // Day / 12 h: number of hours set per widget (6 or 12).
                     kind == WidgetKind.DAY || kind == WidgetKind.TWELVE ->
                         if ((style.hours ?: if (kind == WidgetKind.TWELVE) 12 else 6) == 12) TwelveHoursContent(data, colors)
                         else DayContent(data, colors)
@@ -78,14 +78,14 @@ class WeekWidget : MeteoWidget(WidgetKind.WEEK)
 class TwelveHoursWidget : MeteoWidget(WidgetKind.TWELVE)
 class MapWidget : MeteoWidget(WidgetKind.MAP)
 
-/** Supprime les réglages d'un widget retiré de l'écran d'accueil. */
+/** Deletes the settings of a widget removed from the home screen. */
 abstract class MeteoWidgetReceiver : GlanceAppWidgetReceiver() {
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         super.onDeleted(context, appWidgetIds)
         WidgetConfigStore.delete(context, appWidgetIds)
     }
 
-    /** Réveil système (≈ 30 min, même en veille) : relance une actualisation si le travail périodique a pris du retard. */
+    /** System wake-up (≈ 30 min, even in doze): starts a refresh if the periodic work is late. */
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
         Widgets.refreshIfStale(context)
@@ -103,11 +103,11 @@ class MapWidgetReceiver : MeteoWidgetReceiver() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        Widgets.refreshNow(context) // calcule tout de suite la première image
+        Widgets.refreshNow(context) // computes the first image straight away
     }
 }
 
-/** Le widget carte ouvre directement l'écran carte. */
+/** The map widget opens the map screen directly. */
 private fun openAction(context: Context, kind: WidgetKind): Action =
     actionStartActivity(
         Intent(context, MainActivity::class.java)
@@ -115,7 +115,7 @@ private fun openAction(context: Context, kind: WidgetKind): Action =
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
     )
 
-/** Image du widget carte, recalculée par [RefreshWorker] (≈ toutes les 30 min). */
+/** Map widget image, recomputed by [RefreshWorker] (≈ every 30 min). */
 object WidgetMapStore {
     private fun file(context: Context) = File(context.filesDir, "widget_map.png")
     private fun prefs(context: Context) = context.getSharedPreferences("widget_map", Context.MODE_PRIVATE)
@@ -133,7 +133,7 @@ object WidgetMapStore {
 }
 
 object Widgets {
-    /** Redessine tous les widgets (après une actualisation, un changement de thème…). */
+    /** Redraws all widgets (after a refresh, a theme change…). */
     suspend fun updateAll(context: Context) {
         MiniWidget().updateAll(context)
         RainWidget().updateAll(context)
@@ -144,8 +144,8 @@ object Widgets {
     }
 
     /**
-     * Taille en pixels de l'image du widget carte, d'après la taille réelle du (premier) widget posé,
-     * plafonnée à 720 px (limite mémoire des widgets).
+     * Size in pixels of the map widget image, from the actual size of the (first) placed widget,
+     * capped at 720 px (widget memory limit).
      */
     suspend fun mapWidgetSizePx(context: Context): Pair<Int, Int> {
         val manager = GlanceAppWidgetManager(context)
@@ -154,7 +154,7 @@ object Widgets {
             AppWidgetManager.getInstance(context).getAppWidgetOptions(manager.getAppWidgetId(it))
         }
         val portrait = context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        // En portrait : largeur mini et hauteur maxi ; marges et légende du widget déduites.
+        // In portrait: minimum width and maximum height; widget margins and caption subtracted.
         val wDp = (options?.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH) ?: 0).takeIf { it > 0 } ?: 320
         val hDp = (options?.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) ?: 0).takeIf { it > 0 } ?: 240
         val w = (wDp - 20).coerceAtLeast(80).toDouble()
@@ -166,13 +166,13 @@ object Widgets {
     suspend fun hasMapWidget(context: Context) =
         GlanceAppWidgetManager(context).getGlanceIds(MapWidget::class.java).isNotEmpty()
 
-    /** Actualisation complète si la dernière date de plus de 10 min (ouverture de l'appli, réveil des widgets). */
+    /** Full refresh if the last one is older than 10 min (app opened, widgets woken up). */
     fun refreshIfStale(context: Context) {
         val last = context.getSharedPreferences("worker", Context.MODE_PRIVATE).getLong("last_run", 0)
         if (System.currentTimeMillis() - last > 10 * 60_000L) refreshNow(context, replace = false)
     }
 
-    /** Lance immédiatement une actualisation complète (prévision + image carte). */
+    /** Starts a full refresh right away (forecast + map image). */
     fun refreshNow(context: Context, replace: Boolean = true) {
         WorkManager.getInstance(context).enqueueUniqueWork(
             "refresh-now",

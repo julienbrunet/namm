@@ -33,27 +33,27 @@ sealed interface MapUiState {
         val map: RainMap,
         val index: Int,
         val playing: Boolean = false,
-        /** Heure du dernier téléchargement (ms). */
+        /** Time of the last download (ms). */
         val loadedAt: Long = 0,
         val refreshing: Boolean = false,
-        /** Prévision incomplète (Open-Meteo saturé) : nouvel essai dès la minute suivante. */
+        /** Incomplete forecast (Open-Meteo rate limit): retry from the next minute. */
         val partial: Boolean = false,
-        /** Pendant la lecture : transition en cours vers l'image suivante (null à l'arrêt). */
+        /** While playing: transition in progress towards the next frame (null when stopped). */
         val blend: Blend? = null,
     ) : MapUiState
     data class Error(val reason: fr.jbrunet.yama.data.repository.StaleReason) : MapUiState
 }
 
 /**
- * Image intermédiaire de l'animation : [t] ∈ ]0, 1[ entre l'image courante et [next] ;
- * [tween] = prévision interpolée (null entre deux images radar : fondu enchaîné).
+ * Intermediate animation frame: [t] ∈ ]0, 1[ between the current frame and [next];
+ * [tween] = interpolated forecast (null between two radar frames: cross-fade).
  */
 data class Blend(val next: MapFrame, val t: Float, val tween: MapFrame.Forecast?) {
-    /** Heure affichée, qui défile en continu. */
+    /** Displayed time, scrolling continuously. */
     fun time(from: MapFrame): Long = from.time + ((next.time - from.time) * t).toLong()
 }
 
-/** Couche « Vent » : masquée par défaut, chargée au premier affichage. */
+/** “Wind” layer: hidden by default, loaded when first shown. */
 data class WindUiState(
     val visible: Boolean = false,
     val loading: Boolean = false,
@@ -73,19 +73,19 @@ class MapViewModel(
     private var player: Job? = null
     private var viewportJob: Job? = null
 
-    /** Lieu affiché sur l'accueil (position ou lieu enregistré), fourni par l'écran. */
+    /** Place shown on the home screen (position or saved place), provided by the screen. */
     private var place: Place? = null
 
-    /** Dernière zone visible de la carte, pour y adapter la grille de prévision. */
+    /** Last visible area of the map, to fit the forecast grid to it. */
     private var viewport: Bounds? = null
 
-    /** Taille de l'écran (dp), pour connaître la zone visible avant que la carte n'existe. */
+    /** Screen size (dp), to know the visible area before the map exists. */
     private var screenDp: Pair<Int, Int>? = null
 
     /**
-     * Affiche la carte centrée sur ce lieu (null : lieu résolu via les paramètres) ; recharge s'il a changé.
-     * [screenWidthDp] × [screenHeightDp] : taille de la carte, pour charger d'emblée la prévision sur
-     * toute la zone visible (sinon un premier carré réduit puis un second chargement).
+     * Shows the map centred on this place (null: place resolved from the settings); reloads if it changed.
+     * [screenWidthDp] × [screenHeightDp]: map size, to load the forecast over the whole visible area
+     * straight away (otherwise a first smaller square, then a second load).
      */
     fun show(target: Place?, screenWidthDp: Int = 0, screenHeightDp: Int = 0) {
         if (screenWidthDp > 0 && screenHeightDp > 0) screenDp = screenWidthDp to screenHeightDp
@@ -100,8 +100,8 @@ class MapViewModel(
     }
 
     /**
-     * La carte a bougé (déplacement / zoom) : après une courte pause, on recharge la prévision
-     * sur la zone visible si la grille actuelle ne la couvre plus ou n'a plus la bonne finesse.
+     * The map moved (pan / zoom): after a short pause, reload the forecast over the visible
+     * area if the current grid no longer covers it or no longer has the right resolution.
      */
     fun onViewportChanged(bounds: Bounds) {
         viewport = bounds
@@ -110,7 +110,7 @@ class MapViewModel(
             delay(400)
             val s = _state.value as? MapUiState.Ready ?: return@launch
             if (!RainMapRepository.needsNewGrid(s.map.grid, bounds)) return@launch
-            // Zone déjà vue récemment : réutilisée sans appel réseau.
+            // Area seen recently: reused without a network call.
             rainMaps.cachedFor(bounds)?.let { (grid, forecast) ->
                 val map = s.map.withForecast(grid, forecast)
                 ForecastBitmaps.prepare(map.frames)
@@ -131,7 +131,7 @@ class MapViewModel(
         }
     }
 
-    /** Étape du chargement en cours, affichée sur l'écran d'attente et la pastille. */
+    /** Current loading step, shown on the waiting screen and the pill. */
     val progress: StateFlow<LoadProgress?> = rainMaps.progress
 
     fun load() = viewModelScope.launch {
@@ -144,7 +144,7 @@ class MapViewModel(
                     ?: RainMapRepository.gridAround(place)
                 val forecast = async { runCatching { rainMaps.forecastFor(grid) } }
                 val radar = rainMaps.radar()
-                // Premier affichage : la carte et le radar apparaissent sans attendre la prévision.
+                // First display: the map and the radar appear without waiting for the forecast.
                 if (previous == null && radar.isNotEmpty() && !forecast.isCompleted) {
                     _state.value = MapUiState.Ready(place, RainMap(grid, radar), radar.lastIndex, loadedAt = clock(), refreshing = true)
                 }
@@ -153,8 +153,8 @@ class MapViewModel(
                 if (frames.isEmpty()) throw predicted.exceptionOrNull() ?: IllegalStateException("No rain data")
                 val map = RainMap(grid, frames)
                 rainMaps.progress.value = LoadProgress(fr.jbrunet.yama.data.repository.LoadStage.PREPARING)
-                ForecastBitmaps.prepare(map.frames) // images calculées hors du thread principal
-                // On reste sur « maintenant » si l'utilisateur y était, sinon sur la même heure.
+                ForecastBitmaps.prepare(map.frames) // images computed off the main thread
+                // Stay on “now” if the user was there, otherwise on the same time.
                 val shown = _state.value as? MapUiState.Ready ?: previous
                 val index = when {
                     shown == null || shown.index == shown.map.nowIndex || shown === _state.value && shown.index == shown.map.frames.lastIndex -> map.nowIndex
@@ -173,17 +173,17 @@ class MapViewModel(
     }
 
     /**
-     * Zone visible à l'ouverture (carte centrée sur le lieu, zoom [INITIAL_ZOOM]). Tuiles à l'échelle
-     * de l'écran (isTilesScaledToDpi) : une tuile de 256 px fait 256 dp, d'où un calcul en dp.
+     * Visible area when opening (map centred on the place, zoom [INITIAL_ZOOM]). Tiles scaled to
+     * the screen (isTilesScaledToDpi): a 256 px tile is 256 dp, hence a computation in dp.
      */
     private fun initialViewport(place: Place): Bounds? = screenDp?.let { (w, h) ->
         WidgetMapRenderer.bounds(place.latitude, place.longitude, w, h, INITIAL_ZOOM)
     }
 
-    /** Recharge si les données ont plus de [REFRESH_MS] (radar mis à jour toutes les 10 min). */
+    /** Reloads if the data is older than [REFRESH_MS] (radar updated every 10 min). */
     fun refreshIfStale() {
         val s = _state.value
-        // Prévision incomplète (Open-Meteo saturé) : on réessaie dès la minute suivante.
+        // Incomplete forecast (Open-Meteo rate limit): retry from the next minute.
         val maxAge = if (s is MapUiState.Ready && s.partial) 60_000L else REFRESH_MS
         if (s is MapUiState.Ready && !s.refreshing && clock() - s.loadedAt >= maxAge) load()
         if (s is MapUiState.Error) load()
@@ -192,7 +192,7 @@ class MapViewModel(
     private val _wind = MutableStateFlow(WindUiState())
     val wind: StateFlow<WindUiState> = _wind
 
-    /** Affiche / masque le vent ; le télécharge (un appel Open-Meteo) s'il manque ou date de plus de 30 min. */
+    /** Shows / hides the wind; downloads it (one Open-Meteo call) if missing or older than 30 min. */
     fun toggleWind() {
         val w = _wind.value
         if (w.visible) {
@@ -230,9 +230,9 @@ class MapViewModel(
                 val from = start.map.frames.getOrNull(start.index) ?: break
                 val nextIndex = (start.index + 1) % start.map.frames.size
                 val to = start.map.frames[nextIndex]
-                // Entre deux prévisions de la même grille : images intermédiaires (pluie déplacée).
+                // Between two forecasts on the same grid: intermediate frames (rain moved).
                 val tweenable = from is MapFrame.Forecast && to is MapFrame.Forecast && from.grid == to.grid && nextIndex != 0
-                // Entre deux radars : fondu enchaîné, dessiné directement par la carte.
+                // Between two radar frames: cross-fade, drawn directly by the map.
                 val fade = from is MapFrame.Radar && to is MapFrame.Radar
                 if (tweenable || fade) {
                     val motion = if (tweenable) {
@@ -244,7 +244,7 @@ class MapViewModel(
                         val tween = motion?.let { m ->
                             withContext(Dispatchers.Default) {
                                 FrameInterpolation.between(from as MapFrame.Forecast, to as MapFrame.Forecast, t, m)
-                                    .also { ForecastBitmaps.get(it) } // image prête avant l'affichage
+                                    .also { ForecastBitmaps.get(it) } // image ready before display
                             }
                         }
                         val cur = _state.value as? MapUiState.Ready ?: return@launch
@@ -265,11 +265,11 @@ class MapViewModel(
     companion object {
         const val REFRESH_MS = 10 * 60 * 1000L
 
-        /** Durée d'affichage d'un pas de 15 min pendant la lecture, découpée en [STEPS] images. */
+        /** How long a 15 min step is shown while playing, split into [STEPS] frames. */
         const val FRAME_MS = 700L
         const val STEPS = 6
 
-        /** Zoom à l'ouverture de la carte. */
+        /** Zoom when the map opens. */
         const val INITIAL_ZOOM = 8
 
         val Factory = viewModelFactory {

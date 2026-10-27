@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android ≤ 11 : tout est sauvegardé sauf la clé Météo-France (reste sur l'appareil). -->
+<!-- Android ≤ 11: everything is backed up except the Météo-France key (stays on the device). -->
 <full-backup-content>
     <exclude domain="file" path="datastore/secrets.preferences_pb" />
 </full-backup-content>

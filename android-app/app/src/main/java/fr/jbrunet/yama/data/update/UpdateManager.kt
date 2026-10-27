@@ -20,8 +20,8 @@ import java.io.File
 data class AvailableUpdate(val version: AppVersion, val apkUrl: String, val notes: String?)
 
 /**
- * Mise à jour depuis les releases GitHub : détection, téléchargement de l'APK
- * puis ouverture de l'installateur Android (l'utilisateur confirme l'installation).
+ * Updates from GitHub releases: detection, APK download, then opening the Android
+ * installer (the user confirms the installation).
  */
 class UpdateManager(
     private val context: Context,
@@ -31,7 +31,7 @@ class UpdateManager(
 
     suspend fun check(): AvailableUpdate? = api.latestRelease().toUpdate(currentVersion)
 
-    /** Télécharge l'APK et renvoie le fichier, ou null en cas d'échec. */
+    /** Downloads the APK and returns the file, or null on failure. */
     suspend fun download(update: AvailableUpdate, onProgress: (Float) -> Unit = {}): File? {
         val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return null
         val file = File(dir, "yama-${update.version}.apk")
@@ -63,8 +63,8 @@ class UpdateManager(
     }
 
     /**
-     * L'APK doit être cette appli, signée avec la même clé que la version installée : un fichier
-     * altéré ou substitué dans le stockage partagé n'est jamais proposé à l'installation.
+     * The APK must be this app, signed with the same key as the installed version: a file
+     * altered or swapped in shared storage is never offered for installation.
      */
     @Suppress("DEPRECATION")
     private fun isTrusted(apk: File): Boolean = runCatching {
@@ -84,7 +84,7 @@ class UpdateManager(
     private fun sameSigners(a: Array<Signature>?, b: Array<Signature>?) =
         !a.isNullOrEmpty() && !b.isNullOrEmpty() && a.toSet() == b.toSet()
 
-    /** Ouvre l'installateur système (demande l'autorisation « sources inconnues » si besoin). */
+    /** Opens the system installer (asks for the “unknown sources” permission if needed). */
     fun install(apk: File) {
         val pm = context.packageManager
         val intent = if (!pm.canRequestPackageInstalls()) {

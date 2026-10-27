@@ -1,11 +1,11 @@
 package fr.jbrunet.yama.domain
 
-/** Seuil (mm sur 15 min) au-delà duquel on considère qu'il pleut. */
+/** Threshold (mm over 15 min) above which it is considered to be raining. */
 const val RAIN_THRESHOLD_MM = 0.1
 
 /**
- * Minutes avant le début de la pluie, si elle commence dans l'horizon fourni
- * alors qu'il ne pleut pas au premier pas ; null sinon.
+ * Minutes before the rain starts, if it starts within the given horizon
+ * while it is not raining at the first step; null otherwise.
  */
 fun minutesUntilRain(steps: List<PrecipitationStep>): Int? {
     if (steps.isEmpty() || steps.first().millimeters >= RAIN_THRESHOLD_MM) return null

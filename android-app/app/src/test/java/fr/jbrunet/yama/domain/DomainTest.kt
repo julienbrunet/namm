@@ -14,7 +14,7 @@ class DomainTest {
     private fun v(s: String) = AppVersion.parse(s)!!
 
     @Test
-    fun `comparaison numérique des versions`() {
+    fun `versions are compared numerically`() {
         assertTrue(v("0.1.10") > v("0.1.9"))
         assertTrue(v("0.2.0") > v("0.1.99"))
         assertTrue(v("v1.0.0") > v("0.9.99"))
@@ -23,7 +23,7 @@ class DomainTest {
     }
 
     @Test
-    fun `détection de mise à jour depuis une release GitHub`() {
+    fun `update detected from a GitHub release`() {
         val release = ReleaseDto("v0.2.0", assets = listOf(AssetDto("yama.apk", "https://x/yama.apk")))
 
         assertNotNull(release.toUpdate("0.1.99"))
@@ -33,7 +33,7 @@ class DomainTest {
     }
 
     @Test
-    fun `alerte pluie imminente`() {
+    fun `imminent rain alert`() {
         fun steps(vararg mm: Double) = mm.mapIndexed { i, m -> PrecipitationStep("t$i", m) }
 
         assertEquals(30, minutesUntilRain(steps(0.0, 0.0, 0.4, 1.0)))
@@ -43,7 +43,7 @@ class DomainTest {
     }
 
     @Test
-    fun `moment de la journée pour le décor`() {
+    fun `time of day for the scenery`() {
         fun at(t: String) = sunPosition("2026-10-16T$t", "2026-10-16T08:13", "2026-10-16T18:57")
 
         assertEquals(DayPhase.NIGHT, at("06:30").phase)
@@ -54,7 +54,7 @@ class DomainTest {
         assertEquals(DayPhase.NIGHT, at("19:45").phase)
         assertEquals(0f, at("08:13").progress, 0.001f)
         assertEquals(1f, at("18:57").progress, 0.001f)
-        // Ancien cache sans lever ni coucher : 7 h – 19 h.
+        // Old cache without sunrise or sunset: 7 h – 19 h.
         assertEquals(DayPhase.DAY, sunPosition("2026-10-16T12:00", null, null).phase)
         assertEquals(DayPhase.NIGHT, sunPosition("2026-10-16T22:00", null, null).phase)
     }

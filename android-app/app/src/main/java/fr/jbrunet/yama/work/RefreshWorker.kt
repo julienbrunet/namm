@@ -29,8 +29,8 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 /**
- * Toutes les 15 min (minimum Android, retardable en veille) : rafraîchit la prévision (cache + widget), prévient si la pluie
- * arrive dans l'heure, et vérifie une fois par jour la présence d'une nouvelle version.
+ * Every 15 min (Android minimum, may be delayed in doze): refreshes the forecast (cache + widgets), warns when rain
+ * is coming within the hour, and checks once a day for a new version.
  */
 class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -48,7 +48,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         if (result != null && !result.offline && settings.rainAlerts) {
             val minutes = minutesUntilRain(result.forecast.nextPrecipitation)
             val prefs = applicationContext.getSharedPreferences("worker", Context.MODE_PRIVATE)
-            // Une seule alerte par épisode : on mémorise l'heure de début annoncée.
+            // A single alert per rain episode: remember the announced start time.
             val rainStart = result.forecast.nextPrecipitation.getOrNull((minutes ?: 0) / 15)?.time
             if (minutes != null && minutes <= 60 && prefs.getString("last_rain", null) != rainStart) {
                 Notifications.rain(applicationContext, result.place.name, minutes)
@@ -70,8 +70,8 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     }
 
     /**
-     * Image du widget carte : pluie actuelle sur ≈ 50 km autour du lieu, au format du widget.
-     * Avec AROME-PI : à chaque passage (15 min, 1-2 requêtes) ; sans clé, Open-Meteo toutes les 30 min.
+     * Map widget image: current rain over ≈ 50 km around the place, in the widget's format.
+     * With AROME-PI: on every run (15 min, 1-2 requests); without a key, Open-Meteo every 30 min.
      */
     private suspend fun renderMapWidget(app: MeteoApp, place: Place) {
         val prefs = applicationContext.getSharedPreferences("widget_map", Context.MODE_PRIVATE)
@@ -83,14 +83,14 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val z = WidgetMapRenderer.zoomFor(place.latitude, height)
         val grid = RainMapRepository.gridFor(WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z))
         val frame = app.rainMapRepository.currentFrame(grid, allowOpenMeteo)
-        if (frame == null && !allowOpenMeteo) return // on garde l'image précédente
+        if (frame == null && !allowOpenMeteo) return // keep the previous image
         if (frame?.source == ForecastSource.OPEN_METEO) prefs.edit().putLong("last_open_meteo", nowMs).apply()
 
         val dark = settings.style.widgetDark(
             settings.theme,
             (applicationContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
-        // Nuages observés par Meteosat sur l'emprise exacte du widget.
+        // Clouds observed by Meteosat over the exact extent of the widget.
         val b = WidgetMapRenderer.bounds(place.latitude, place.longitude, width, height, z)
         val box = MercatorBox(MercatorBox.x(b.west), MercatorBox.y(b.south), MercatorBox.x(b.east), MercatorBox.y(b.north))
         val scale = minOf(1.0, 640.0 / maxOf(width, height))
@@ -119,7 +119,7 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
     companion object {
         fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<RefreshWorker>(15, TimeUnit.MINUTES) // minimum Android
+            val request = PeriodicWorkRequestBuilder<RefreshWorker>(15, TimeUnit.MINUTES) // Android minimum
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
             WorkManager.getInstance(context)

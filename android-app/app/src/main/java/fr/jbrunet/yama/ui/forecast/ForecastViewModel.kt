@@ -38,7 +38,7 @@ class ForecastViewModel(
     )
     val state: StateFlow<ForecastUiState> = _state
 
-    /** Vrai pendant un rafraîchissement déclenché en tirant l'écran vers le bas. */
+    /** True during a refresh triggered by pulling the screen down. */
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing
 
@@ -46,7 +46,7 @@ class ForecastViewModel(
 
     init {
         refresh()
-        // Recharge dès que l'utilisateur change de ville ou active la position.
+        // Reload as soon as the user changes city or turns on the location.
         viewModelScope.launch {
             settings.settings.map { it.place to it.useLocation }.distinctUntilChanged().drop(1).collect { refresh() }
         }
@@ -63,14 +63,14 @@ class ForecastViewModel(
             )
             _refreshing.value = false
             scheduleRetry()
-            // Les widgets reflètent tout de suite la nouvelle prévision.
+            // Widgets show the new forecast right away.
             (_state.value as? ForecastUiState.Success)?.takeIf { it.data.staleReason == null }?.let { onRefreshed() }
         }
     }
 
     private var retryJob: kotlinx.coroutines.Job? = null
 
-    /** Données en cache affichées : nouvel essai automatique (après la fin de la saturation si connue). */
+    /** Cached data shown: automatic retry (after the rate limit ends, if known). */
     private fun scheduleRetry() {
         retryJob?.cancel()
         val data = (_state.value as? ForecastUiState.Success)?.data ?: return

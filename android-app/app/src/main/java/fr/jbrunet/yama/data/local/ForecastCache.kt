@@ -10,8 +10,8 @@ import java.io.File
 data class CachedForecast(val place: Place, val fetchedAtMillis: Long, val forecast: ForecastDto)
 
 /**
- * Dernière prévision téléchargée, pour le mode hors-ligne et le widget. Gardée en mémoire tant
- * que le fichier n'a pas changé : les 6 widgets ne relisent pas et ne reparsent pas le JSON.
+ * Last downloaded forecast, for offline mode and the widgets. Kept in memory as long as
+ * the file has not changed: the 6 widgets don't re-read and re-parse the JSON.
  */
 class ForecastCache(private val file: File) {
 
@@ -19,7 +19,7 @@ class ForecastCache(private val file: File) {
     private var memo: Pair<Long, CachedForecast>? = null
 
     fun read(): CachedForecast? {
-        val modified = file.lastModified() // 0 si le fichier n'existe pas
+        val modified = file.lastModified() // 0 if the file does not exist
         if (modified == 0L) return null
         memo?.takeIf { it.first == modified }?.let { return it.second }
         return runCatching {
@@ -36,7 +36,7 @@ class ForecastCache(private val file: File) {
     }
 }
 
-/** Remplace [target] par ce fichier (renommage atomique ; copie si le renommage échoue). */
+/** Replaces [target] with this file (atomic rename; copy if the rename fails). */
 internal fun File.replace(target: File) {
     if (!renameTo(target)) {
         copyTo(target, overwrite = true)

@@ -1,6 +1,6 @@
 package fr.jbrunet.yama.domain
 
-/** Regroupement des codes WMO renvoyés par Open-Meteo. */
+/** Grouping of the WMO codes returned by Open-Meteo. */
 enum class WeatherCondition {
     CLEAR,
     PARTLY_CLOUDY,

@@ -281,7 +281,7 @@ fun SettingsContent(
     }
 }
 
-/** Choix du thème : une pastille d'aperçu (fond + tuile) au-dessus du nom. */
+/** Theme picker: a preview swatch (background + tile) above the name. */
 @Composable
 private fun StyleSelector(current: ThemeStyle, onSelect: (ThemeStyle) -> Unit) {
     Row(
@@ -312,10 +312,10 @@ private fun StyleSelector(current: ThemeStyle, onSelect: (ThemeStyle) -> Unit) {
     }
 }
 
-/** Aperçu rond d'un thème : son fond, avec une tuile et une touche de couleur. */
+/** Round preview of a theme: its background, with a tile and a touch of colour. */
 @Composable
 private fun StyleSwatch(style: ThemeStyle) {
-    // Ardoise : moitié sombre, moitié claire (le mode se choisit en dessous).
+    // Slate: half dark, half light (the mode is chosen below).
     val palette = style.palette(ThemeMode.DARK, systemDark = true)
     Box(
         Modifier
@@ -326,9 +326,9 @@ private fun StyleSwatch(style: ThemeStyle) {
                     style == ThemeStyle.SLATE ->
                         Brush.linearGradient(0.5f to DarkSlate.background, 0.5f to LightSlate.background)
                     palette.heroBrush != null -> palette.heroBrush
-                    // Nature : ciel d'aube au-dessus des crêtes.
+                    // Nature: dawn sky above the ridges.
                     palette.scenic -> Brush.verticalGradient(listOf(Color(0xFF2E3D6B), Color(0xFFA9839F), Color(0xFFF3C6A0)))
-                    // Halos du fond (Aurore) autour de la couleur de fond.
+                    // Background glows (Aurora) around the background colour.
                     palette.glows.size >= 2 -> Brush.linearGradient(
                         listOf(palette.glows[1].color.copy(alpha = 1f), palette.background, palette.glows[0].color.copy(alpha = 1f)),
                     )
@@ -346,7 +346,7 @@ private fun StyleSwatch(style: ThemeStyle) {
     }
 }
 
-/** Sélecteur segmenté Système / Sombre / Clair. */
+/** System / Dark / Light segmented selector. */
 @Composable
 private fun ThemeSelector(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     Row(
@@ -386,7 +386,7 @@ private fun ThemeSelector(current: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     }
 }
 
-/** Clé d'API AROME-PI : sans clé, la carte utilise Open-Meteo. */
+/** AROME-PI API key: without a key, the map uses Open-Meteo. */
 @Composable
 private fun AromeKeyCard(savedKey: String, status: UiText?, onSave: (String) -> Unit, onRemove: () -> Unit) {
     var key by rememberSaveable(savedKey) { mutableStateOf(savedKey) }
@@ -506,8 +506,8 @@ private fun SwitchRow(icon: ImageVector?, title: String, subtitle: String, check
 
 
 /**
- * Android (surtout Samsung, Xiaomi…) retarde fortement les tâches de fond des applis « optimisées » :
- * les widgets restent alors figés. Propose de lever l'optimisation de batterie pour l'appli.
+ * Android (especially Samsung, Xiaomi…) heavily delays background work of “optimised” apps:
+ * widgets then stay frozen. Offers to lift battery optimisation for the app.
  */
 @Composable
 private fun BackgroundRefreshCard() {

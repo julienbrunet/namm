@@ -13,12 +13,12 @@ import fr.jbrunet.yama.domain.HourlyForecast
 import fr.jbrunet.yama.domain.Place
 import fr.jbrunet.yama.domain.PrecipitationStep
 
-/** Prévision pour un lieu, avec l'heure de téléchargement et un indicateur hors-ligne. */
+/** Forecast for a place, with the download time and an offline flag. */
 data class LocalForecast(
     val place: Place,
     val forecast: Forecast,
     val fetchedAtMillis: Long,
-    /** Non nul quand la mise à jour a échoué et que l'on affiche la dernière prévision connue. */
+    /** Not null when the update failed and the last known forecast is shown. */
     val staleReason: StaleReason? = null,
 ) {
     val offline: Boolean get() = staleReason != null
@@ -43,9 +43,9 @@ class ForecastRepository(
 ) {
 
     /**
-     * Lieu à utiliser : la position si activée et disponible, sinon la ville choisie.
-     * En arrière-plan ([background]), dernière position connue, ou à défaut celle de la
-     * dernière prévision (plutôt que la ville par défaut).
+     * Place to use: the position if enabled and available, otherwise the chosen city.
+     * In the background ([background]), last known position, or failing that the one of the
+     * last forecast (rather than the default city).
      */
     suspend fun resolvePlace(background: Boolean = false): Place {
         val s = settings.current()
@@ -55,11 +55,11 @@ class ForecastRepository(
             ?: s.place
     }
 
-    /** Télécharge la prévision ; en cas d'échec réseau, renvoie la dernière prévision en cache. */
+    /** Downloads the forecast; on a network failure, returns the last cached forecast. */
     suspend fun load(place: Place? = null, background: Boolean = false): LocalForecast {
         val target = place ?: resolvePlace(background)
         return try {
-            // Vie privée : position arrondie à ~1 km, sans effet sur une prévision météo.
+            // Privacy: position rounded to ~1 km, which makes no difference to a weather forecast.
             val dto = api.forecast(roundCoordinate(target.latitude), roundCoordinate(target.longitude))
             val now = clock()
             cache.write(CachedForecast(target, now, dto))
@@ -79,18 +79,18 @@ class ForecastRepository(
     }
 }
 
-/** Coordonnée arrondie à 0,01° (≈ 1 km) avant envoi à Open-Meteo. */
+/** Coordinate rounded to 0.01° (≈ 1 km) before being sent to Open-Meteo. */
 internal fun roundCoordinate(value: Double): Double = kotlin.math.round(value * 100) / 100
 
-/** Nombre de pas de 15 min affichés (2 h). */
+/** Number of 15 min steps shown (2 h). */
 private const val NOWCAST_STEPS = 8
 
-/** Nombre d'heures du graphique de températures. */
+/** Number of hours in the temperature chart. */
 private const val HOURLY_COUNT = 24
 
 internal fun ForecastDto.toDomain(): Forecast {
     val c = requireNotNull(current) { "Response without current weather" }
-    // minutely_15 commence à minuit : on ne garde que les pas à partir du quart d'heure courant.
+    // minutely_15 starts at midnight: only keep the steps from the current quarter hour.
     val start = c.time.dropLast(2) + floorQuarter(c.time)
     val steps = minutely15?.let { m ->
         m.time.zip(m.precipitation)

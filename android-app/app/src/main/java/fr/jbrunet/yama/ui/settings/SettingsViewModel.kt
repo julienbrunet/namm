@@ -46,7 +46,7 @@ class SettingsViewModel(
     private val _aromeStatus = MutableStateFlow<UiText?>(null)
     val aromeStatus: StateFlow<UiText?> = _aromeStatus
 
-    /** Vérifie la clé auprès de Météo-France puis l'enregistre si elle fonctionne. */
+    /** Checks the key with Météo-France, then saves it if it works. */
     fun testAndSaveAromeKey(key: String) = viewModelScope.launch {
         if (key.isBlank()) {
             store.setAromeApiKey("")
@@ -100,7 +100,7 @@ class SettingsViewModel(
             return
         }
         searchJob = viewModelScope.launch {
-            delay(350) // anti-rebond pendant la frappe
+            delay(350) // debounce while typing
             _search.value = _search.value.copy(loading = true)
             _search.value = runCatching { places.search(query) }.fold(
                 onSuccess = { SearchState(query, it, error = if (it.isEmpty()) UiText(R.string.no_city_found) else null) },
@@ -109,7 +109,7 @@ class SettingsViewModel(
         }
     }
 
-    /** Ajoute (si besoin) et affiche ce lieu sur l'accueil. */
+    /** Adds this place (if needed) and shows it on the home screen. */
     fun choose(place: Place) = viewModelScope.launch {
         store.selectPlace(place)
         _search.value = SearchState()

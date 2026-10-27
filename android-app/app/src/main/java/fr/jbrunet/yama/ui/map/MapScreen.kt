@@ -79,8 +79,8 @@ fun MapScreen(viewModel: MapViewModel, place: Place?, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val wind by viewModel.wind.collectAsStateWithLifecycle()
-    // Tant que l'écran est visible (et à chaque retour au premier plan), on vérifie
-    // chaque minute si les données ont plus de 10 min et on les recharge si besoin.
+    // While the screen is visible (and every time it comes back to the foreground), check
+    // every minute whether the data is older than 10 min and reload it if needed.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -178,7 +178,7 @@ private fun RainMapView(
     }
     val radarOverlay = remember { RadarOverlay(mapView) }
     val windOverlay = remember { WindOverlay(context.resources.displayMetrics.density) }
-    // Nuages observés : satellite partagé par l'appli (cache commun) ; absent en aperçu / test.
+    // Observed clouds: satellite shared by the app (common cache); absent in previews / tests.
     val satelliteOverlay = remember {
         (context.applicationContext as? fr.jbrunet.yama.MeteoApp)?.let { SatelliteOverlay(mapView, it.satellite) }
     }
@@ -186,14 +186,14 @@ private fun RainMapView(
         satelliteOverlay?.box = fr.jbrunet.yama.data.satellite.MercatorBox.around(place.latitude, place.longitude, 400.0)
         if (online) satelliteOverlay?.prefetch(map.frames.filterIsInstance<MapFrame.Radar>().map { it.time })
     }
-    // Thème sombre : tuiles OSM assombries par le filtre ardoise ; thème clair : tuiles d'origine.
+    // Dark theme: OSM tiles darkened by the slate filter; light theme: original tiles.
     val dark = Slate.DarkMap
     val background = Slate.Tile.toArgb()
     LaunchedEffect(dark) {
         mapView.setBackgroundColor(background)
         mapView.overlayManager.tilesOverlay.apply {
             setColorFilter(if (dark) SlateMapFilter else FadedMapFilter)
-            // Le filtre inverse les couleurs : en sombre, un fond clair devient ardoise sombre.
+            // The filter inverts colours: in dark mode, a light background becomes dark slate.
             loadingBackgroundColor = if (dark) 0xFFD8D8DC.toInt() else 0xFFE9EBEF.toInt()
             loadingLineColor = loadingBackgroundColor
         }
@@ -215,7 +215,7 @@ private fun RainMapView(
         mapView.addMapListener(listener)
         onDispose { mapView.removeMapListener(listener) }
     }
-    // Recentre la carte si le lieu affiché change (autre lieu enregistré, nouvelle position).
+    // Re-centre the map if the place shown changes (another saved place, new position).
     LaunchedEffect(place.latitude, place.longitude) {
         mapView.controller.setCenter(GeoPoint(place.latitude, place.longitude))
         (mapView.overlays.firstOrNull { it is Marker } as? Marker)?.position = GeoPoint(place.latitude, place.longitude)
@@ -225,9 +225,9 @@ private fun RainMapView(
         onDispose { mapView.onDetach() }
     }
     AndroidView({ mapView }, Modifier.fillMaxSize()) { view ->
-        // Une seule couche de pluie visible : radar (passé) ou grille de prévision (futur).
+        // A single rain layer visible: radar (past) or forecast grid (future).
         view.overlays.removeAll { it is RadarOverlay || it is ForecastGridOverlay || it is SatelliteOverlay || it is WindOverlay }
-        // Carte des vents : affichée seule (sans pluie ni nuages) pour rester lisible.
+        // Wind map: shown alone (no rain or clouds) to stay readable.
         if (windFrame != null) {
             windOverlay.frame = windFrame
             view.overlays.add(0, windOverlay)
@@ -237,7 +237,7 @@ private fun RainMapView(
                 radarOverlay.next = blend?.next as? MapFrame.Radar
                 radarOverlay.mix = blend?.t ?: 0f
                 view.overlays.add(0, radarOverlay)
-                satelliteOverlay?.let { it.time = frame.time; view.overlays.add(0, it) } // nuages sous la pluie
+                satelliteOverlay?.let { it.time = frame.time; view.overlays.add(0, it) } // clouds under the rain
             }
             is MapFrame.Forecast -> {
                 gridOverlay.frame = blend?.tween ?: frame
@@ -306,7 +306,7 @@ private fun Timeline(state: MapUiState.Ready, onSelect: (Int) -> Unit, onToggleP
     }
 }
 
-/** Légende du vent : paliers de vitesse (km/h) des flèches. */
+/** Wind legend: speed levels (km/h) of the arrows. */
 @Composable
 private fun WindScale() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -322,7 +322,7 @@ private fun WindScale() {
     }
 }
 
-/** Légende commune radar / prévision : une case par palier, libellés sous les paliers clés. */
+/** Legend shared by radar / forecast: one box per level, labels under the key levels. */
 @Composable
 private fun Legend() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -332,7 +332,7 @@ private fun Legend() {
                 Text(
                     level.labelRes?.let { stringResource(it) }.orEmpty(),
                     color = Slate.Muted,
-                    // Sans espacement des lettres : « moderate » tient dans sa case.
+                    // No letter spacing: “moderate” fits in its box.
                     style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
                     maxLines = 1,
                     softWrap = false,
@@ -342,7 +342,7 @@ private fun Legend() {
     }
 }
 
-/** Pastille « Mis à jour à HH:mm » : un appui force le rechargement. */
+/** “Updated at HH:mm” pill: tapping it forces a reload. */
 @Composable
 private fun RefreshPill(loadedAt: Long, refreshing: Boolean, onRefresh: () -> Unit, progress: LoadProgress? = null) {
     Row(
@@ -368,7 +368,7 @@ private fun RefreshPill(loadedAt: Long, refreshing: Boolean, onRefresh: () -> Un
     }
 }
 
-/** « Prévision Météo-France · 12 / 24 » */
+/** “Météo-France forecast · 12 / 24” */
 @Composable
 private fun progressText(p: LoadProgress): String {
     val label = stringResource(p.stage.labelRes)
@@ -376,7 +376,7 @@ private fun progressText(p: LoadProgress): String {
     else stringResource(R.string.progress_running, label)
 }
 
-/** Écran d'attente : étape en cours et barre d'avancement quand le nombre d'images est connu. */
+/** Waiting screen: current step, and a progress bar once the number of images is known. */
 @Composable
 fun LoadingSteps(progress: LoadProgress?) {
     Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -398,7 +398,7 @@ fun LoadingSteps(progress: LoadProgress?) {
     }
 }
 
-/** Bouton « Vent » : couche masquée par défaut, surlignée quand elle est affichée. */
+/** “Wind” button: layer hidden by default, highlighted when shown. */
 @Composable
 private fun WindButton(visible: Boolean, onClick: () -> Unit) {
     Box(
@@ -416,7 +416,7 @@ private fun WindButton(visible: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Légende du vent (km/h) ou état du chargement. */
+/** Wind legend (km/h) or loading state. */
 @Composable
 private fun WindLegend(wind: WindUiState) {
     Row(

@@ -18,8 +18,8 @@ sealed interface UpdateUiState {
 }
 
 /**
- * État unique des mises à jour, partagé par l'accueil (bandeau) et les paramètres (« Vérifier ») :
- * une vérification faite n'importe où s'affiche partout, même si l'app était déjà ouverte.
+ * Single update state, shared by the home screen (banner) and the settings (“Check”):
+ * a check made anywhere shows everywhere, even if the app was already open.
  */
 class UpdateController(
     private val manager: UpdateManager,
@@ -33,7 +33,7 @@ class UpdateController(
     private var lastCheck = 0L
     private var downloadJob: Job? = null
 
-    /** Vérifie GitHub ; si une version plus récente existe et que la mise à jour auto est active, la télécharge. */
+    /** Checks GitHub; if a newer version exists and automatic updates are on, downloads it. */
     suspend fun check(): AvailableUpdate? {
         lastCheck = clock()
         val available = manager.check() ?: return null
@@ -44,7 +44,7 @@ class UpdateController(
             is UpdateUiState.Ready -> current.update
             UpdateUiState.None -> null
         }
-        // Nouvelle version ou état vide : on (re)part de « disponible ».
+        // New version or empty state: (re)start from “available”.
         if (known?.version != available.version) {
             _state.value = UpdateUiState.Available(available)
             if (settings.current().autoUpdate) download()
@@ -52,7 +52,7 @@ class UpdateController(
         return available
     }
 
-    /** Vérification de routine (lancement, retour au premier plan), au plus toutes les 30 min. */
+    /** Routine check (launch, back to the foreground), at most every 30 min. */
     fun checkIfDue() {
         if (clock() - lastCheck < CHECK_INTERVAL_MS) return
         scope.launch { runCatching { check() } }

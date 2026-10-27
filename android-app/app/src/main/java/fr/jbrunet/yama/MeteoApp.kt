@@ -19,7 +19,7 @@ import fr.jbrunet.yama.work.Notifications
 import fr.jbrunet.yama.work.RefreshWorker
 import java.io.File
 
-/** Injection de dépendances manuelle. */
+/** Manual dependency injection. */
 class MeteoApp : Application() {
 
     private val openMeteo by lazy { OpenMeteoApi.create() }
@@ -36,7 +36,7 @@ class MeteoApp : Application() {
     }
     val updateManager by lazy { UpdateManager(this, GitHubApi.create()) }
 
-    /** État des mises à jour partagé par tous les écrans. */
+    /** Update state shared by all screens. */
     val updates by lazy { UpdateController(updateManager, settings) }
 
     override fun onCreate() {

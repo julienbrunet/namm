@@ -9,7 +9,7 @@ import org.junit.Test
 class FrameInterpolationTest {
     private val grid = ForecastGrid(45.0, 3.0, 0.1, 0.1, rows = 16, cols = 12)
 
-    /** Une averse (un seul point de grille) en (r, c). */
+    /** A shower (a single grid point) at (r, c). */
     private fun shower(time: Long, r: Int, c: Int) =
         MapFrame.Forecast(time, FloatArray(grid.rows * grid.cols) { if (it == r * grid.cols + c) 4f else 0f }, grid)
 
@@ -26,7 +26,7 @@ class FrameInterpolationTest {
         val b = shower(900, 7, 5)
         val mid = FrameInterpolation.between(a, b, 0.5f, FrameInterpolation.motion(a, b))
         assertEquals(450L, mid.time)
-        // À mi-chemin, l'averse est entière au point intermédiaire (6, 4), pas à moitié à chaque bout.
+        // Halfway, the whole shower is at the intermediate point (6, 4), not half at each end.
         assertEquals(4f, mid[6, 4], 0.01f)
         assertEquals(0f, mid[5, 3], 0.01f)
         assertEquals(0f, mid[7, 5], 0.01f)

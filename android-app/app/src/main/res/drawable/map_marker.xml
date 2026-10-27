@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Point de position sobre : disque clair cerclé d'ardoise -->
+<!-- Plain position dot: light disc with a slate ring -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:width="22dp" android:height="22dp">
         <shape android:shape="oval"><solid android:color="#66F2F3F5" /></shape>

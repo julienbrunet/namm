@@ -17,7 +17,7 @@ import java.util.zip.Deflater
 
 class AromePiTest {
 
-    /** GeoTIFF float32 little-endian minimal (une bande), comme ceux du WCS Météo-France. */
+    /** Minimal little-endian float32 GeoTIFF (one band), like those from the Météo-France WCS. */
     private fun tiff(width: Int, height: Int, data: FloatArray, deflate: Boolean): ByteArray {
         val raw = ByteBuffer.allocate(data.size * 4).order(ByteOrder.LITTLE_ENDIAN)
         data.forEach { raw.putFloat(it) }
@@ -64,8 +64,8 @@ class AromePiTest {
     }
 
     @Test
-    fun `un bloc compressé trop gros est tronqué à la taille attendue, un bloc trop court est refusé`() {
-        // 4 Mo décompressés annoncés comme une image 3 × 2 : on ne lit que 24 octets.
+    fun `an oversized compressed strip is cut to the expected size, a short strip is rejected`() {
+        // 4 MB once decompressed, announced as a 3 × 2 image: only 24 bytes are read.
         val bomb = GeoTiff.decode(tiff(3, 2, FloatArray(1_000_000) { 1f }, deflate = true))
         assertEquals(1f, bomb[2, 1])
         val short = runCatching { GeoTiff.decode(tiff(3, 2, FloatArray(2), deflate = true)) }
@@ -87,14 +87,14 @@ class AromePiTest {
 
     @Test
     fun rasterIsFlippedSouthFirstAndConverted() {
-        // Ligne du haut (nord) = 0,002 mm/s → 1,8 mm/15 min ; ligne du bas = 0.
+        // Top row (north) = 0.002 mm/s → 1.8 mm/15 min; bottom row = 0.
         val r = GeoTiff.decode(tiff(2, 2, floatArrayOf(0.002f, 0.002f, 0f, 0f), deflate = false))
         val frame = r.toFrame(0, PrecipKind.RATE, null)
 
         assertEquals(ForecastSource.AROME_PI, frame.source)
-        assertEquals(0.0, frame[0, 0].toDouble(), 1e-9) // sud
-        assertEquals(1.8, frame[1, 0].toDouble(), 1e-6) // nord
-        // Même couche exprimée en mm/h : 8 mm/h → 2 mm/15 min.
+        assertEquals(0.0, frame[0, 0].toDouble(), 1e-9) // south
+        assertEquals(1.8, frame[1, 0].toDouble(), 1e-6) // north
+        // Same layer expressed in mm/h: 8 mm/h → 2 mm/15 min.
         val mmPerHour = GeoTiff.decode(tiff(2, 2, floatArrayOf(8f, 0f, 0f, 0f), deflate = false)).toFrame(0, PrecipKind.RATE, null)
         assertEquals(2.0, mmPerHour[1, 0].toDouble(), 1e-6)
         assertEquals(46.0 - 1.5 * 0.01, frame.grid.south, 1e-9)
@@ -114,7 +114,7 @@ class AromePiTest {
 
         val layer = AromePiSource.chooseLayer(xml)!!
 
-        assertEquals(PrecipKind.RATE, layer.kind) // un taux est préféré à un cumul depuis le run
+        assertEquals(PrecipKind.RATE, layer.kind) // a rate is preferred to an accumulation since the run
         assertEquals("TOTAL_PRECIPITATION_RATE__GROUND_OR_WATER_SURFACE___2026-10-16T21.00.00Z", layer.coverageId)
         assertEquals(null, AromePiSource.chooseLayer("<x/>"))
     }
@@ -122,8 +122,8 @@ class AromePiTest {
     @Test
     fun aromeUsedOnlyForFranceAndModerateZoom() {
         assertTrue(AromePiSource.covers(ForecastGrid(45.0, 2.0, 0.1, 0.1, 16, 12)))
-        assertFalse(AromePiSource.covers(ForecastGrid(40.0, -80.0, 0.1, 0.1, 16, 12))) // hors France
-        assertFalse(AromePiSource.covers(ForecastGrid(40.0, -5.0, 0.6, 0.8, 16, 12))) // vue trop large
+        assertFalse(AromePiSource.covers(ForecastGrid(40.0, -80.0, 0.1, 0.1, 16, 12))) // outside France
+        assertFalse(AromePiSource.covers(ForecastGrid(40.0, -5.0, 0.6, 0.8, 16, 12))) // view too wide
     }
 }
 
