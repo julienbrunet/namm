@@ -1,9 +1,14 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!-- Cloud + drops, light stroke on a slate background -->
-    <path android:fillColor="#F2F3F5"
-        android:pathData="M42,62h28a10,10 0,0 0,1 -20a14,14 0,0 0,-27 -3a11,11 0,0 0,-2 23z"/>
-    <path android:fillColor="#8FB3D9"
-        android:pathData="M46,68l-3,8a2,2 0,0 0,4 1l3,-8a2,2 0,0 0,-4 -1zM56,68l-3,8a2,2 0,0 0,4 1l3,-8a2,2 0,0 0,-4 -1zM66,68l-3,8a2,2 0,0 0,4 1l3,-8a2,2 0,0 0,-4 -1z"/>
+    <!-- Sun peeking from behind the cloud, light stroke on a slate background -->
+    <!-- Scaled down to sit inside the adaptive icon's safe zone (centred 66 dp). -->
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.62" android:scaleY="0.62">
+        <path android:fillColor="#F6B98A"
+            android:pathData="M69,32a13,13 0,1 0,26 0a13,13 0,1 0,-26 0z"/>
+        <path android:fillColor="#00000000" android:strokeColor="#F6B98A" android:strokeWidth="5" android:strokeLineCap="round"
+            android:pathData="M97,32L105,32M92.6,42.6L98.3,48.3M82,47L82,55M71.4,42.6L65.7,48.3M67,32L59,32M71.4,21.4L65.7,15.7M82,17L82,9M92.6,21.4L98.3,15.7"/>
+        <path android:fillColor="#F2F3F5"
+            android:pathData="M42,62h28a10,10 0,0 0,1 -20a14,14 0,0 0,-27 -3a11,11 0,0 0,-2 23z"/>
+    </group>
 </vector>
