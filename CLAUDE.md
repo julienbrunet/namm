@@ -82,7 +82,7 @@ echo "robolectricRepo=https://maven-central.storage-download.googleapis.com/mave
 - Navigation: floating bar at the bottom of the home screen (rain map, settings); pull down to refresh the home screen.
 
 ## Release & signing
-- `versionCode` = `BUILD_NUMBER` (CI run number); `versionName` = `0.<1 + n/100>.<n % 100>`: the last digit stays < 100 (build 100 → 0.2.0). Single source: `app/build.gradle.kts` (`./gradlew -q printVersionName`).
-- The app updates itself from GitHub Releases (`UpdateManager`): the release must contain a `.apk` asset and a `v<versionName>` tag. Versions are compared numerically (`AppVersion`), never as text.
+- `versionCode` = `BUILD_NUMBER` (CI run number), always increasing: Android's internal install order, never shown to the user. `versionName` is classic semver (`major.minor.patch`), a plain constant in `app/build.gradle.kts` (`./gradlew -q printVersionName`) bumped **by hand** for each meaningful release — bump it whenever user-visible behaviour changes enough to warrant a new release.
+- The app updates itself from GitHub Releases (`UpdateManager`): the release must contain a `.apk` asset and a `v<versionName>` tag, and `versionName` must be bumped before merging to `main` (`main`'s push publishes that exact tag) so the next CI run doesn't republish the same version. Versions are compared numerically (`AppVersion`), never as text.
 - Release signing through GitHub secrets `SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`. Without these secrets, the APK is signed with the runner's debug key (installable, but updates then require uninstalling first).
 - Stable download link: `https://github.com/julienbrunet/yama/releases/latest/download/yama.apk`.

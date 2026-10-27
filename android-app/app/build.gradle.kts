@@ -5,11 +5,10 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-// Version injected by CI (build number), 1 locally.
-// The last digit stays within 0..99: beyond that, the middle digit is incremented
-// (build 99 -> 0.1.99, build 100 -> 0.2.0, build 205 -> 0.3.5). versionCode stays the build number.
+// versionCode: CI build number (1 locally), always increasing, Android's internal install order.
+// versionName: classic semver, bumped by hand for each meaningful release — single source of truth.
 val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
-val appVersionName = "0.${1 + buildNumber / 100}.${buildNumber % 100}"
+val appVersionName = "1.0.0"
 
 tasks.register("printVersionName") {
     doLast { println(appVersionName) }

@@ -39,8 +39,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
-      # Version 0.<1 + n/100>.<n % 100>: the last digit never exceeds 99
-      # (build 99 → 0.1.99, build 100 → 0.2.0). Computed by Gradle, single source.
+      # Classic semver, hand-maintained in app/build.gradle.kts (single source).
       - name: Version
         id: version
         run: echo "name=$(./gradlew -q printVersionName)" >> "$GITHUB_OUTPUT"

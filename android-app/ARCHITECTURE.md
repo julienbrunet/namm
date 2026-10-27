@@ -76,8 +76,9 @@ fr.jbrunet.yama
 ```
 
 ## Versions
-`versionCode` = CI run number; `versionName` = `0.<1 + n/100>.<n % 100>`: the last digit stays < 100
-(build 99 → 0.1.99, build 100 → 0.2.0). Versions are compared numerically (`AppVersion`).
+`versionCode` = CI run number (always increasing, internal to Android). `versionName` is classic
+semver, a hand-maintained constant in `app/build.gradle.kts`, bumped for each meaningful release.
+Versions are compared numerically (`AppVersion`).
 
 ## Roadmap
 1. ✅ Skeleton + forecast screen, slate design, CI + APK release, Pages website
@@ -93,4 +94,5 @@ fr.jbrunet.yama
 11. ✅ Performance / security review: separable rain rendering, single HTTP client, dependency verification, hardened CI
 12. ✅ Nature theme: home screen redesigned over a zen landscape following the weather and the time of day
 13. ✅ Renamed to YAMA (`fr.jbrunet.yama`), English by default with a French translation (app and website)
-14. Next: open-source licence, F-Droid release, Météo-France weather warnings, optional gentle landscape animation
+14. ✅ Semver `versionName`, hand-bumped per release (`versionCode` stays the auto-incrementing CI build number)
+15. Next: open-source licence, F-Droid release, Météo-France weather warnings, optional gentle landscape animation
