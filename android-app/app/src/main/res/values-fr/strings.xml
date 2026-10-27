@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Choix des widgets -->
+    <string name="widget_mini_label">Météo · mini</string>
+    <string name="widget_mini_description">Icône, température et lieu</string>
+    <string name="widget_rain_label">Météo · pluie</string>
+    <string name="widget_rain_description">Température et pluie des 2 prochaines heures</string>
+    <string name="widget_day_label">Météo · journée</string>
+    <string name="widget_day_description">Météo actuelle et 6 prochaines heures</string>
+    <string name="widget_twelve_label">Météo · 12 h</string>
+    <string name="widget_twelve_description">Météo actuelle et 12 prochaines heures sur une ligne</string>
+    <string name="widget_week_label">Météo · semaine</string>
+    <string name="widget_week_description">Météo actuelle et 5 jours</string>
+    <string name="widget_map_label">Carte de pluie</string>
+    <string name="widget_map_description">Carte de pluie autour de vous</string>
+
+    <!-- Commun -->
+    <string name="action_retry">Réessayer</string>
+    <string name="action_back">Retour</string>
+    <string name="settings">Paramètres</string>
+    <string name="rain_map">Carte de pluie</string>
+    <string name="date_long_pattern">EEEE d MMMM</string>
+    <string name="clock_date_pattern">EEE d MMM</string>
+
+    <!-- Conditions météo -->
+    <string name="condition_clear">Ensoleillé</string>
+    <string name="condition_partly_cloudy">Éclaircies</string>
+    <string name="condition_cloudy">Couvert</string>
+    <string name="condition_fog">Brouillard</string>
+    <string name="condition_drizzle">Bruine</string>
+    <string name="condition_rain">Pluie</string>
+    <string name="condition_snow">Neige</string>
+    <string name="condition_storm">Orage</string>
+    <string name="condition_clear_night">Nuit claire</string>
+
+    <!-- Pourquoi la prévision affichée n'est pas à jour -->
+    <string name="stale_no_network">pas de réseau</string>
+    <string name="stale_rate_limited">Open-Meteo saturé</string>
+    <string name="stale_error">service indisponible</string>
+    <string name="stale_data">données de %1$s · %2$s</string>
+
+    <!-- Accueil -->
+    <string name="weather_unavailable">Météo indisponible</string>
+    <string name="choose_city">Choisir une ville</string>
+    <string name="section_next_24h">PROCHAINES 24 H</string>
+    <string name="section_rain_2h">PLUIE DANS LES 2 H</string>
+    <string name="section_now">MAINTENANT</string>
+    <string name="section_sun">LEVER ET COUCHER DU SOLEIL</string>
+    <string name="section_7_days">7 JOURS</string>
+    <string name="tile_feels_like">ressenti</string>
+    <string name="tile_wind">vent</string>
+    <string name="tile_humidity">humidité</string>
+    <string name="tile_rain_today">pluie du jour</string>
+    <string name="tile_max">max</string>
+    <string name="tile_min">min</string>
+    <string name="no_rain_expected">Pas de pluie prévue</string>
+    <string name="rain_expected_mm">%1$s mm attendus</string>
+    <string name="see_map">Voir la carte</string>
+    <string name="sunrise_at">Lever %1$s</string>
+    <string name="sunset_at">Coucher %1$s</string>
+    <string name="home_footer">Données Open-Meteo · sans publicité</string>
+    <string name="update_available">Version %1$s disponible</string>
+    <string name="update_downloading">Téléchargement de la version %1$s…</string>
+    <string name="update_ready">Version %1$s prête</string>
+    <string name="action_download">Télécharger</string>
+    <string name="action_install">Installer</string>
+
+    <!-- Paramètres -->
+    <string name="section_home_place">LIEU AFFICHÉ SUR L\'ACCUEIL</string>
+    <string name="my_location">Ma position</string>
+    <string name="my_location_detail">GPS du téléphone, jamais partagé</string>
+    <string name="section_add_place">AJOUTER UN LIEU</string>
+    <string name="search_city">Rechercher une ville…</string>
+    <string name="no_city_found">Aucune ville trouvée</string>
+    <string name="search_failed">Recherche impossible (réseau)</string>
+    <string name="place_shown">Affiché</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="section_notifications">NOTIFICATIONS</string>
+    <string name="rain_alert_title">Alerte pluie imminente</string>
+    <string name="rain_alert_subtitle">Prévient quand la pluie arrive dans l\'heure</string>
+    <string name="section_appearance">APPARENCE</string>
+    <string name="theme_mode_system">Système</string>
+    <string name="theme_mode_dark">Sombre</string>
+    <string name="theme_mode_light">Clair</string>
+    <string name="theme_style_slate">Ardoise</string>
+    <string name="theme_style_sky">Ciel</string>
+    <string name="theme_style_pastel">Pastel</string>
+    <string name="theme_style_aurora">Aurore</string>
+    <string name="theme_style_nature">Nature</string>
+    <string name="section_widgets">WIDGETS</string>
+    <string name="widgets_hint">Fond et couleur du texte se règlent pour chaque widget : appui long sur le widget → Paramètres.</string>
+    <string name="background_refresh_title">Actualisation en arrière-plan</string>
+    <string name="background_refresh_allowed">Autorisée : les widgets se mettent à jour toutes les 15 min</string>
+    <string name="background_refresh_limited">Limitée par l\'économie de batterie : les widgets peuvent rester figés plusieurs heures. Appuyer pour autoriser.</string>
+    <string name="section_rain_map_meteo_france">CARTE DE PLUIE · MÉTÉO-FRANCE</string>
+    <string name="arome_default">Prévision Open-Meteo (par défaut)</string>
+    <string name="arome_enabled">Prévision AROME-PI activée</string>
+    <string name="arome_explanation">Avec une clé gratuite du portail portail-api.meteofrance.fr (abonnement « AROME-PI »), la carte affiche la prévision immédiate de Météo-France : maille 1,3 km, 15 min, jusqu\'à +6 h, en France.</string>
+    <string name="arome_key_hint">Clé d\'API (API Key)</string>
+    <string name="action_show">Afficher</string>
+    <string name="action_hide">Masquer</string>
+    <string name="action_remove">Retirer</string>
+    <string name="action_test_and_save">Tester et enregistrer</string>
+    <string name="arome_key_removed">Clé retirée : prévision Open-Meteo</string>
+    <string name="checking">Vérification…</string>
+    <string name="arome_key_valid">Clé valide ✓ · run du %1$s · couche %2$s</string>
+    <string name="arome_key_refused">Refusé (%1$s probable, %2$d caractères). Détail : %3$s</string>
+    <string name="arome_check_failed">Vérification impossible : %1$s</string>
+    <string name="credential_jwt">API Key ou jeton</string>
+    <string name="section_updates">MISES À JOUR</string>
+    <string name="auto_update_title">Mise à jour automatique</string>
+    <string name="auto_update_subtitle">Télécharge les nouvelles versions publiées sur GitHub</string>
+    <string name="version_name">Version %1$s</string>
+    <string name="action_check">Vérifier</string>
+    <string name="update_searching">Recherche…</string>
+    <string name="update_latest">Vous avez la dernière version</string>
+    <string name="update_found">Version %1$s disponible : voir le bandeau sur l\'accueil</string>
+    <string name="update_check_failed">Vérification impossible (réseau)</string>
+    <string name="settings_footer">Aucune publicité, aucun pistage. Données Open-Meteo, Météo-France (AROME-PI) et RainViewer, fond de carte © contributeurs OpenStreetMap.</string>
+
+    <!-- Carte de pluie -->
+    <string name="map_unavailable">Carte indisponible</string>
+    <string name="action_play">Lecture</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_refresh">Actualiser</string>
+    <string name="map_wind_source">Vent prévu à 10 m (Open-Meteo)</string>
+    <string name="map_radar_source">Radar et nuages satellite observés</string>
+    <string name="map_no_data">Aucune donnée</string>
+    <string name="source_open_meteo">Prévision Open-Meteo (AROME / ICON)</string>
+    <string name="source_arome_pi">Prévision Météo-France AROME-PI</string>
+    <string name="timeline_radar">radar −2 h</string>
+    <string name="timeline_forecast">prévision +24 h</string>
+    <string name="rain_level_light">faible</string>
+    <string name="rain_level_moderate">modérée</string>
+    <string name="rain_level_heavy">forte</string>
+    <string name="rain_level_intense">intense</string>
+    <string name="show_wind">Afficher le vent</string>
+    <string name="hide_wind">Masquer le vent</string>
+    <string name="wind_loading">Vent…</string>
+    <string name="wind_unavailable">Vent indisponible</string>
+    <string name="map_updating">Mise à jour…</string>
+    <string name="map_updated_at">Mis à jour à %1$s</string>
+    <string name="map_loading_first">Localisation et radar…</string>
+    <string name="stage_meteo_france">Prévision Météo-France</string>
+    <string name="stage_open_meteo">Prévision Open-Meteo</string>
+    <string name="stage_preparing">Préparation des images</string>
+
+    <!-- Widgets -->
+    <string name="widget_empty">Ouvrez l\'application pour charger la météo</string>
+    <string name="widget_raining">Il pleut</string>
+    <string name="widget_rain_in">Pluie dans %1$d min</string>
+    <string name="widget_no_rain">Pas de pluie d\'ici 2 h</string>
+    <string name="widget_hour">%1$sh</string>
+    <string name="widget_map_preparing">Carte en préparation…</string>
+    <string name="widget_map_rain">Pluie</string>
+    <string name="widget_map_caption">%1$s · pluie à %2$s · %3$s · maj %4$s</string>
+    <string name="widget_map_caption_no_rain">%1$s · maj %2$s</string>
+    <string name="widget_settings_title">Réglages du widget</string>
+    <string name="widget_settings_hint">Propres à ce widget uniquement. Modifiables plus tard par un appui long sur le widget.</string>
+    <string name="section_preview">APERÇU</string>
+    <string name="section_background_colour">COULEUR DU FOND</string>
+    <string name="section_background_opacity">OPACITÉ DU FOND</string>
+    <string name="section_text_icons">TEXTE ET ICÔNES</string>
+    <string name="section_hours_shown">HEURES AFFICHÉES</string>
+    <plurals name="hours_count">
+        <item quantity="one">%d heure</item>
+        <item quantity="many">%d heures</item>
+        <item quantity="other">%d heures</item>
+    </plurals>
+    <string name="action_save">Valider</string>
+    <string name="option_auto">Auto</string>
+    <string name="option_light">Clair</string>
+    <string name="option_dark">Sombre</string>
+    <string name="option_white">Blanc</string>
+    <string name="option_dark_text">Foncé</string>
+    <string name="option_opaque">Opaque</string>
+    <string name="option_transparent">Transparent</string>
+
+    <!-- Notifications -->
+    <string name="channel_rain">Pluie imminente</string>
+    <string name="channel_updates">Mises à jour</string>
+    <string name="notification_rain_title">Pluie dans %1$d min</string>
+    <string name="notification_rain_text">Pluie attendue à %1$s d\'ici %2$d minutes.</string>
+    <string name="notification_update_title">Mise à jour disponible</string>
+    <string name="notification_update_text">YAMA %1$s est prête à être installée.</string>
+</resources>

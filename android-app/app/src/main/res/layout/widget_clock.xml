@@ -10,8 +10,8 @@
         android:id="@+id/clock_date"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:format12Hour="EEE d MMM"
-        android:format24Hour="EEE d MMM"
+        android:format12Hour="@string/clock_date_pattern"
+        android:format24Hour="@string/clock_date_pattern"
         android:fontFamily="sans-serif-medium"
         android:textSize="12sp" />
 

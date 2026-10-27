@@ -63,14 +63,14 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk no-ad-meteo.apk
+          cp app/build/outputs/apk/release/app-release.apk yama.apk
 
       # Garde-fou : R8 ne doit pas fusionner les classes de widgets (sinon tous les widgets
       # affichent la même variante). Chaque classe doit rester présente sous son nom.
       - name: Vérifier les classes de widgets dans l'APK release
         run: |
           for w in Mini Rain Day TwelveHours Week Map; do
-            grep -q "^com.namm.meteo.widget.${w}Widget -> com.namm.meteo.widget.${w}Widget:" \
+            grep -q "^fr.jbrunet.yama.widget.${w}Widget -> fr.jbrunet.yama.widget.${w}Widget:" \
               app/build/outputs/mapping/release/mapping.txt || { echo "Classe ${w}Widget fusionnée par R8"; exit 1; }
           done
 
@@ -78,7 +78,7 @@ jobs:
         with:
           name: apk-and-screenshots
           path: |
-            android-app/no-ad-meteo.apk
+            android-app/yama.apk
             android-app/app/screenshots/*.png
 
   # Publication séparée : ce job a le droit d'écrire sur le dépôt mais ne voit ni le code
@@ -99,7 +99,7 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.version }}
           target_commitish: ${{ github.sha }}
-          name: No Ad Météo ${{ needs.build.outputs.version }}
+          name: YAMA ${{ needs.build.outputs.version }}
           make_latest: true
           generate_release_notes: true
-          files: no-ad-meteo.apk
+          files: yama.apk

@@ -57,7 +57,7 @@ Aucune API gratuite ne fournit des **tuiles de prévision** de pluie prêtes à 
 - Mise à jour : `UpdateManager` (GitHub Releases → DownloadManager → installateur Android via FileProvider)
 
 ```
-com.namm.meteo
+fr.jbrunet.yama
 ├── data
 │   ├── remote        # Open-Meteo (prévision, grille, géocodage), RainViewer, GitHub
 │   ├── local         # SettingsStore (DataStore), ForecastCache

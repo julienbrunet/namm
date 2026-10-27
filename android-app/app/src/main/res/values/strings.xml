@@ -1,15 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Default language: English. French translation in values-fr/strings.xml. -->
 <resources>
-    <string name="app_name">No Ad Météo</string>
-    <string name="widget_mini_label">Météo · mini</string>
-    <string name="widget_mini_description">Icône, température et lieu</string>
-    <string name="widget_rain_label">Météo · pluie</string>
-    <string name="widget_rain_description">Température et pluie des 2 prochaines heures</string>
-    <string name="widget_day_label">Météo · journée</string>
-    <string name="widget_day_description">Météo actuelle et 6 prochaines heures</string>
-    <string name="widget_twelve_label">Météo · 12 h</string>
-    <string name="widget_twelve_description">Météo actuelle et 12 prochaines heures sur une ligne</string>
-    <string name="widget_week_label">Météo · semaine</string>
-    <string name="widget_week_description">Météo actuelle et 5 jours</string>
-    <string name="widget_map_label">Carte de pluie</string>
-    <string name="widget_map_description">Carte de pluie autour de vous</string>
+    <string name="app_name" translatable="false">YAMA</string>
+
+    <!-- Widget picker -->
+    <string name="widget_mini_label">Weather · mini</string>
+    <string name="widget_mini_description">Icon, temperature and place</string>
+    <string name="widget_rain_label">Weather · rain</string>
+    <string name="widget_rain_description">Temperature and rain over the next 2 hours</string>
+    <string name="widget_day_label">Weather · day</string>
+    <string name="widget_day_description">Current weather and next 6 hours</string>
+    <string name="widget_twelve_label">Weather · 12 h</string>
+    <string name="widget_twelve_description">Current weather and next 12 hours on one line</string>
+    <string name="widget_week_label">Weather · week</string>
+    <string name="widget_week_description">Current weather and 5 days</string>
+    <string name="widget_map_label">Rain map</string>
+    <string name="widget_map_description">Rain map around you</string>
+
+    <!-- Common -->
+    <string name="action_retry">Retry</string>
+    <string name="action_back">Back</string>
+    <string name="settings">Settings</string>
+    <string name="rain_map">Rain map</string>
+    <!-- Date patterns (java.time). -->
+    <string name="date_long_pattern">EEEE, MMMM d</string>
+    <string name="clock_date_pattern">EEE, MMM d</string>
+
+    <!-- Weather conditions -->
+    <string name="condition_clear">Sunny</string>
+    <string name="condition_partly_cloudy">Partly cloudy</string>
+    <string name="condition_cloudy">Cloudy</string>
+    <string name="condition_fog">Fog</string>
+    <string name="condition_drizzle">Drizzle</string>
+    <string name="condition_rain">Rain</string>
+    <string name="condition_snow">Snow</string>
+    <string name="condition_storm">Thunderstorm</string>
+    <string name="condition_clear_night">Clear night</string>
+
+    <!-- Why the forecast shown is not up to date -->
+    <string name="stale_no_network">no network</string>
+    <string name="stale_rate_limited">Open-Meteo overloaded</string>
+    <string name="stale_error">service unavailable</string>
+    <string name="stale_data">data from %1$s · %2$s</string>
+
+    <!-- Home -->
+    <string name="weather_unavailable">Weather unavailable</string>
+    <string name="choose_city">Choose a city</string>
+    <string name="section_next_24h">NEXT 24 H</string>
+    <string name="section_rain_2h">RAIN IN THE NEXT 2 H</string>
+    <string name="section_now">NOW</string>
+    <string name="section_sun">SUNRISE AND SUNSET</string>
+    <string name="section_7_days">7 DAYS</string>
+    <string name="tile_feels_like">feels like</string>
+    <string name="tile_wind">wind</string>
+    <string name="tile_humidity">humidity</string>
+    <string name="tile_rain_today">rain today</string>
+    <string name="tile_max">max</string>
+    <string name="tile_min">min</string>
+    <string name="no_rain_expected">No rain expected</string>
+    <string name="rain_expected_mm">%1$s mm expected</string>
+    <string name="see_map">See the map</string>
+    <string name="sunrise_at">Sunrise %1$s</string>
+    <string name="sunset_at">Sunset %1$s</string>
+    <string name="home_footer">Open-Meteo data · ad-free</string>
+    <string name="update_available">Version %1$s available</string>
+    <string name="update_downloading">Downloading version %1$s…</string>
+    <string name="update_ready">Version %1$s ready</string>
+    <string name="action_download">Download</string>
+    <string name="action_install">Install</string>
+
+    <!-- Settings -->
+    <string name="section_home_place">PLACE SHOWN ON THE HOME SCREEN</string>
+    <string name="my_location">My location</string>
+    <string name="my_location_detail">Phone GPS, never shared</string>
+    <string name="section_add_place">ADD A PLACE</string>
+    <string name="search_city">Search for a city…</string>
+    <string name="no_city_found">No city found</string>
+    <string name="search_failed">Search failed (network)</string>
+    <string name="place_shown">Shown</string>
+    <string name="action_delete">Delete</string>
+    <string name="section_notifications">NOTIFICATIONS</string>
+    <string name="rain_alert_title">Imminent rain alert</string>
+    <string name="rain_alert_subtitle">Lets you know when rain is due within the hour</string>
+    <string name="section_appearance">APPEARANCE</string>
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_style_slate">Slate</string>
+    <string name="theme_style_sky">Sky</string>
+    <string name="theme_style_pastel">Pastel</string>
+    <string name="theme_style_aurora">Aurora</string>
+    <string name="theme_style_nature">Nature</string>
+    <string name="section_widgets">WIDGETS</string>
+    <string name="widgets_hint">Background and text colour are set for each widget: long-press the widget → Settings.</string>
+    <string name="background_refresh_title">Background refresh</string>
+    <string name="background_refresh_allowed">Allowed: widgets update every 15 min</string>
+    <string name="background_refresh_limited">Limited by battery saving: widgets may stay frozen for hours. Tap to allow.</string>
+    <string name="section_rain_map_meteo_france">RAIN MAP · MÉTÉO-FRANCE</string>
+    <string name="arome_default">Open-Meteo forecast (default)</string>
+    <string name="arome_enabled">AROME-PI forecast enabled</string>
+    <string name="arome_explanation">With a free key from portail-api.meteofrance.fr (“AROME-PI” subscription), the map shows the Météo-France nowcast: 1.3 km grid, 15 min steps, up to +6 h, in France.</string>
+    <string name="arome_key_hint">API key</string>
+    <string name="action_show">Show</string>
+    <string name="action_hide">Hide</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_test_and_save">Test and save</string>
+    <string name="arome_key_removed">Key removed: Open-Meteo forecast</string>
+    <string name="checking">Checking…</string>
+    <string name="arome_key_valid">Valid key ✓ · run of %1$s · layer %2$s</string>
+    <string name="arome_key_refused">Refused (probably %1$s, %2$d characters). Details: %3$s</string>
+    <string name="arome_check_failed">Check failed: %1$s</string>
+    <string name="credential_api_key" translatable="false">API Key</string>
+    <string name="credential_jwt">API Key or token</string>
+    <string name="credential_application_id" translatable="false">Application ID</string>
+    <string name="section_updates">UPDATES</string>
+    <string name="auto_update_title">Automatic updates</string>
+    <string name="auto_update_subtitle">Downloads new versions published on GitHub</string>
+    <string name="version_name">Version %1$s</string>
+    <string name="action_check">Check</string>
+    <string name="update_searching">Searching…</string>
+    <string name="update_latest">You have the latest version</string>
+    <string name="update_found">Version %1$s available: see the banner on the home screen</string>
+    <string name="update_check_failed">Check failed (network)</string>
+    <string name="settings_footer">No ads, no tracking. Data from Open-Meteo, Météo-France (AROME-PI) and RainViewer, map © OpenStreetMap contributors.</string>
+
+    <!-- Rain map -->
+    <string name="map_unavailable">Map unavailable</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="map_wind_source">Forecast wind at 10 m (Open-Meteo)</string>
+    <string name="map_radar_source">Observed radar and satellite clouds</string>
+    <string name="map_no_data">No data</string>
+    <string name="source_open_meteo">Open-Meteo forecast (AROME / ICON)</string>
+    <string name="source_arome_pi">Météo-France AROME-PI forecast</string>
+    <string name="timeline_radar">radar −2 h</string>
+    <string name="timeline_forecast">forecast +24 h</string>
+    <string name="rain_level_light">light</string>
+    <string name="rain_level_moderate">moderate</string>
+    <string name="rain_level_heavy">heavy</string>
+    <string name="rain_level_intense">intense</string>
+    <string name="unit_kmh" translatable="false">km/h</string>
+    <string name="wind_level" translatable="false">%1$s km/h</string>
+    <string name="wind_level_max" translatable="false">%1$s+ km/h</string>
+    <string name="show_wind">Show wind</string>
+    <string name="hide_wind">Hide wind</string>
+    <string name="wind_loading">Wind…</string>
+    <string name="wind_unavailable">Wind unavailable</string>
+    <string name="map_updating">Updating…</string>
+    <string name="map_updated_at">Updated at %1$s</string>
+    <string name="map_loading_first">Location and radar…</string>
+    <string name="progress_steps" translatable="false">%1$s · %2$d / %3$d</string>
+    <string name="progress_running" translatable="false">%1$s…</string>
+    <string name="stage_meteo_france">Météo-France forecast</string>
+    <string name="stage_open_meteo">Open-Meteo forecast</string>
+    <string name="stage_preparing">Preparing images</string>
+
+    <!-- Widgets -->
+    <string name="widget_empty">Open the app to load the weather</string>
+    <string name="widget_raining">Raining</string>
+    <string name="widget_rain_in">Rain in %1$d min</string>
+    <string name="widget_no_rain">No rain within 2 h</string>
+    <string name="widget_hour">%1$s:00</string>
+    <string name="widget_map_preparing">Map loading…</string>
+    <string name="widget_map_rain">Rain</string>
+    <string name="widget_map_caption">%1$s · rain at %2$s · %3$s · updated %4$s</string>
+    <string name="widget_map_caption_no_rain">%1$s · updated %2$s</string>
+    <string name="widget_settings_title">Widget settings</string>
+    <string name="widget_settings_hint">For this widget only. You can change them later by long-pressing the widget.</string>
+    <string name="section_preview">PREVIEW</string>
+    <string name="section_background_colour">BACKGROUND COLOUR</string>
+    <string name="section_background_opacity">BACKGROUND OPACITY</string>
+    <string name="section_text_icons">TEXT AND ICONS</string>
+    <string name="section_hours_shown">HOURS SHOWN</string>
+    <plurals name="hours_count">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <string name="action_save">Save</string>
+    <string name="option_auto">Auto</string>
+    <string name="option_light">Light</string>
+    <string name="option_dark">Dark</string>
+    <string name="option_white">White</string>
+    <string name="option_dark_text">Dark</string>
+    <string name="option_opaque">Opaque</string>
+    <string name="option_transparent">Transparent</string>
+
+    <!-- Notifications -->
+    <string name="channel_rain">Imminent rain</string>
+    <string name="channel_updates">Updates</string>
+    <string name="notification_rain_title">Rain in %1$d min</string>
+    <string name="notification_rain_text">Rain expected in %1$s within %2$d minutes.</string>
+    <string name="notification_update_title">Update available</string>
+    <string name="notification_update_text">YAMA %1$s is ready to install.</string>
 </resources>

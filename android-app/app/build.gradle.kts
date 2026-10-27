@@ -16,11 +16,11 @@ tasks.register("printVersionName") {
 }
 
 android {
-    namespace = "com.namm.meteo"
+    namespace = "fr.jbrunet.yama"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.namm.meteo"
+        applicationId = "fr.jbrunet.yama"
         minSdk = 26
         targetSdk = 35
         versionCode = buildNumber
@@ -47,6 +47,10 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
         }
+    }
+    // English (default) and French only: drops the other translations shipped by libraries.
+    androidResources {
+        localeFilters += listOf("en", "fr")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

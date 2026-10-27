@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "NoAdMeteo"
+rootProject.name = "Yama"
 include(":app")
