@@ -82,9 +82,13 @@ object WidgetConfigStore {
     }
 }
 
-/** Forced light or dark text (otherwise: theme colours). */
+/**
+ * Forced light or dark text (otherwise: theme colours). Fully opaque, even for the secondary
+ * and muted tones: a translucent white/black blends into whatever shows through a transparent
+ * widget background (photo wallpaper…) and stops being a reliable, legible override.
+ */
 internal object WidgetTextPalettes {
-    val light = Triple(Color(0xFFFFFFFF), Color(0xE6FFFFFF), Color(0xB3FFFFFF))
+    val light = Triple(Color(0xFFFFFFFF), Color(0xFFE8EAEE), Color(0xFFC7CBD3))
     val dark = Triple(Color(0xFF2B2F38), Color(0xFF4A505C), Color(0xFF6E7480))
     val lightRain = Color(0xFFA9C8EC)
     val darkRain = Color(0xFF2F6DB5)
