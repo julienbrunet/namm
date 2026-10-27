@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Air
+import androidx.compose.material.icons.outlined.NorthEast
+import androidx.compose.material.icons.outlined.SouthEast
+import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Icon
@@ -92,138 +97,118 @@ fun NatureForecastContent(
     val condition = WeatherCondition.fromWmo(c.weatherCode)
     val today = forecast.days.firstOrNull()
     val sun = sunPosition(c.time, today?.sunrise, today?.sunset)
-    val scroll = rememberScrollState()
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val screenHeight = maxHeight
-        val shadeDistance = constraints.maxHeight * 0.6f
-        NatureScene(
-            condition,
-            sun,
-            // Le paysage s'assombrit en faisant défiler : les tuiles restent lisibles.
-            Modifier.fillMaxSize().scrollShade { (scroll.value / shadeDistance).coerceIn(0f, 1f) * 0.45f },
-        )
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scroll)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 22.dp),
-        ) {
-            // Premier écran : la météo dans le ciel, le paysage dégagé, les tuiles qui affleurent.
-            Column(Modifier.height(screenHeight * 0.74f).padding(top = 20.dp)) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpenSettings).padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+    Box(Modifier.fillMaxSize().background(Slate.Background)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            // En-tête : le paysage (montagnes et reflet dans le lac) occupe le haut de l'écran ;
+            // la météo actuelle se lit à gauche, le paysage reste dégagé à droite.
+            Box(Modifier.fillMaxWidth()) {
+                NatureScene(condition, sun, Modifier.matchParentSize())
+                // Fondu du bas du paysage vers le fond de page, sous lequel arrivent les tuiles.
+                Box(
+                    Modifier.matchParentSize().background(
+                        Brush.verticalGradient(0.72f to Color.Transparent, 1f to Slate.Background),
+                    ),
+                )
+                Column(
+                    Modifier
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                        .padding(start = 22.dp, end = 22.dp, top = 16.dp, bottom = 28.dp),
                 ) {
-                    Icon(Icons.Outlined.Place, null, tint = Slate.Primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp))
+                    Row(
+                        Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpenSettings).padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Outlined.Place, null, tint = Slate.Primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            data.place.name,
+                            style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Normal, shadow = SoftShadow),
+                            color = Slate.Primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
-                        data.place.name,
-                        style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Normal, shadow = SoftShadow),
-                        color = Slate.Primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        longDate(c.time),
+                        style = MaterialTheme.typography.bodyMedium.copy(shadow = SoftShadow),
+                        color = Slate.Secondary,
+                        modifier = Modifier.padding(start = 26.dp),
                     )
-                }
-                Text(
-                    longDate(c.time),
-                    style = MaterialTheme.typography.bodyMedium.copy(shadow = SoftShadow),
-                    color = Slate.Secondary,
-                    modifier = Modifier.padding(start = 26.dp),
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "${c.temperature.roundToInt()}°",
-                    style = TextStyle(fontSize = 112.sp, fontWeight = FontWeight.Thin, letterSpacing = (-4).sp, shadow = SoftShadow),
-                    color = Slate.Primary,
-                )
-                Text(
-                    // « Ensoleillé » n'a pas de sens la nuit.
-                    if (condition == WeatherCondition.CLEAR && sun.phase == DayPhase.NIGHT) "Nuit claire" else condition.label,
-                    style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Light, shadow = SoftShadow),
-                    color = Slate.Primary,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "↑ ${today?.tempMax?.roundToInt() ?: "–"}°   ↓ ${today?.tempMin?.roundToInt() ?: "–"}°   ·   ressenti ${c.apparentTemperature.roundToInt()}°",
-                    style = MaterialTheme.typography.titleMedium.copy(shadow = SoftShadow),
-                    color = Slate.Secondary,
-                )
-                // Mise à jour échouée : on dit de quand datent les données et pourquoi.
-                data.staleReason?.let { reason ->
-                    val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-                        .format(java.time.Instant.ofEpochMilli(data.fetchedAtMillis).atZone(java.time.ZoneId.systemDefault()))
-                    Spacer(Modifier.height(10.dp))
-                    Pill("données de $time · ${reason.label}")
+                    Text(
+                        "${c.temperature.roundToInt()}°",
+                        style = TextStyle(fontSize = 92.sp, fontWeight = FontWeight.Thin, letterSpacing = (-3).sp, shadow = SoftShadow),
+                        color = Slate.Primary,
+                    )
+                    Text(
+                        // « Ensoleillé » n'a pas de sens la nuit.
+                        if (condition == WeatherCondition.CLEAR && sun.phase == DayPhase.NIGHT) "Nuit claire" else condition.label,
+                        style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Light, shadow = SoftShadow),
+                        color = Slate.Primary,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "↑ ${today?.tempMax?.roundToInt() ?: "–"}°   ↓ ${today?.tempMin?.roundToInt() ?: "–"}°",
+                        style = MaterialTheme.typography.titleMedium.copy(shadow = SoftShadow),
+                        color = Slate.Secondary,
+                    )
+                    // Mise à jour échouée : on dit de quand datent les données et pourquoi.
+                    data.staleReason?.let { reason ->
+                        val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                            .format(java.time.Instant.ofEpochMilli(data.fetchedAtMillis).atZone(java.time.ZoneId.systemDefault()))
+                        Spacer(Modifier.height(10.dp))
+                        Pill("données de $time · ${reason.label}")
+                    }
                 }
             }
 
-            UpdateBanner(update, onUpdateAction)
-            Spacer(Modifier.height(16.dp))
-            SectionLabel("PLUIE DANS LES 2 H")
-            NowcastTile(forecast.nextPrecipitation, onOpenMap)
+            // Tuiles : même organisation que les autres thèmes, plus la course du soleil.
+            Column(Modifier.padding(horizontal = 22.dp)) {
+                UpdateBanner(update, onUpdateAction)
+                SectionLabel("PROCHAINES 24 H")
+                HourlyTile(forecast.hours)
 
-            Spacer(Modifier.height(20.dp))
-            SectionLabel("PROCHAINES 24 H")
-            HourlyTile(forecast.hours)
+                Spacer(Modifier.height(16.dp))
+                SectionLabel("PLUIE DANS LES 2 H")
+                NowcastTile(forecast.nextPrecipitation, onOpenMap)
 
-            Spacer(Modifier.height(20.dp))
-            SectionLabel("EN CE MOMENT")
-            Row(Modifier.fillMaxWidth().clip(TileShape).background(Slate.Tile).padding(vertical = 16.dp)) {
-                Stat(Icons.Outlined.Air, "${c.windSpeed.roundToInt()} km/h", "vent")
-                Divider()
-                Stat(Icons.Outlined.WaterDrop, "${c.humidity} %", "humidité")
-                Divider()
-                Stat(WeatherIcons.Rain, "${mm(today?.precipitationSum ?: 0.0)} mm", "pluie du jour")
+                Spacer(Modifier.height(24.dp))
+                SectionLabel("MAINTENANT")
+                TileGrid(
+                    listOf(
+                        TileData(Icons.Outlined.Thermostat, "${c.apparentTemperature.roundToInt()}°", "ressenti"),
+                        TileData(Icons.Outlined.Air, "${c.windSpeed.roundToInt()} km/h", "vent"),
+                        TileData(Icons.Outlined.WaterDrop, "${c.humidity} %", "humidité"),
+                        TileData(WeatherIcons.Rain, "${mm(today?.precipitationSum ?: 0.0)} mm", "pluie du jour"),
+                        TileData(Icons.Outlined.NorthEast, "${today?.tempMax?.roundToInt() ?: "–"}°", "max"),
+                        TileData(Icons.Outlined.SouthEast, "${today?.tempMin?.roundToInt() ?: "–"}°", "min"),
+                    ),
+                )
+
+                if (today?.sunrise != null && today.sunset != null) {
+                    Spacer(Modifier.height(24.dp))
+                    SectionLabel("LEVER ET COUCHER DU SOLEIL")
+                    SunArc(sun, today.sunrise.substringAfter('T'), today.sunset.substringAfter('T'))
+                }
+
+                Spacer(Modifier.height(24.dp))
+                SectionLabel("7 JOURS")
+                Column(Modifier.fillMaxWidth().clip(TileShape).background(Slate.Tile).padding(vertical = 6.dp)) {
+                    forecast.days.forEach { DayRow(it) }
+                }
+
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    "Données Open-Meteo · sans publicité",
+                    color = Slate.Muted,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(88.dp)) // place pour la barre du bas
             }
-
-            if (today?.sunrise != null && today.sunset != null) {
-                Spacer(Modifier.height(20.dp))
-                SectionLabel("SOLEIL")
-                SunArc(sun, today.sunrise.substringAfter('T'), today.sunset.substringAfter('T'))
-            }
-
-            Spacer(Modifier.height(20.dp))
-            SectionLabel("7 JOURS")
-            val weekMin = forecast.days.minOfOrNull { it.tempMin } ?: 0.0
-            val weekMax = forecast.days.maxOfOrNull { it.tempMax } ?: 0.0
-            Column(Modifier.fillMaxWidth().clip(TileShape).background(Slate.Tile).padding(vertical = 6.dp)) {
-                forecast.days.forEach { RangeDayRow(it, weekMin, weekMax) }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            Text(
-                "Données Open-Meteo · sans publicité",
-                color = Slate.Muted,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(88.dp)) // place pour la barre du bas
         }
         BottomBar(onOpenMap, onOpenSettings, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing))
     }
-}
-
-/** Voile noir dont l'opacité est lue au moment du dessin (pas de recomposition au défilement). */
-private fun Modifier.scrollShade(alpha: () -> Float) = drawWithContent {
-    drawContent()
-    drawRect(Color.Black.copy(alpha = alpha()))
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.Stat(icon: ImageVector, value: String, label: String) {
-    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, null, tint = Slate.Secondary, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.height(8.dp))
-        Text(value, color = Slate.Primary, style = MaterialTheme.typography.titleMedium)
-        Text(label, color = Slate.Muted, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@Composable
-private fun Divider() {
-    Box(Modifier.width(1.dp).height(64.dp).background(Slate.TileHighlight))
 }
 
 /** Course du soleil : arc pointillé du lever au coucher, position actuelle marquée. */
@@ -265,48 +250,6 @@ private fun SunArc(sun: SunPosition, sunrise: String, sunset: String) {
             Text("Lever $sunrise", color = Slate.Secondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Text("Coucher $sunset", color = Slate.Secondary, style = MaterialTheme.typography.bodyMedium)
         }
-    }
-}
-
-/** Jour de la semaine avec une barre min → max placée sur l'amplitude de la semaine. */
-@Composable
-private fun RangeDayRow(day: DailyForecast, weekMin: Double, weekMax: Double) {
-    val date = LocalDate.parse(day.date)
-    val track = Slate.TileHighlight
-    val colors = Slate.CurveColors
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            date.dayOfWeek.getDisplayName(DateStyle.SHORT, French).replaceFirstChar { it.uppercase() },
-            color = Slate.Primary,
-            modifier = Modifier.width(48.dp),
-        )
-        Icon(WeatherCondition.fromWmo(day.weatherCode).icon(), null, tint = Slate.Primary, modifier = Modifier.size(20.dp))
-        Text(
-            if (day.precipitationSum > 0) "${mm(day.precipitationSum)} mm" else "",
-            color = Slate.Rain,
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.width(60.dp),
-        )
-        Text("${day.tempMin.roundToInt()}°", color = Slate.Secondary, textAlign = TextAlign.End, modifier = Modifier.width(32.dp))
-        Canvas(Modifier.weight(1f).height(6.dp).padding(horizontal = 10.dp)) {
-            val range = (weekMax - weekMin).coerceAtLeast(1.0)
-            val start = ((day.tempMin - weekMin) / range).toFloat() * size.width
-            val end = ((day.tempMax - weekMin) / range).toFloat() * size.width
-            val stroke = size.height
-            drawLine(track, Offset(0f, stroke / 2), Offset(size.width, stroke / 2), stroke, StrokeCap.Round)
-            drawLine(
-                Brush.horizontalGradient(colors.reversed(), 0f, size.width),
-                Offset(start, stroke / 2),
-                Offset(end.coerceAtLeast(start + 1f), stroke / 2),
-                stroke,
-                StrokeCap.Round,
-            )
-        }
-        Text("${day.tempMax.roundToInt()}°", color = Slate.Primary, modifier = Modifier.width(32.dp))
     }
 }
 

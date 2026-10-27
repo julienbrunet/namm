@@ -335,10 +335,10 @@ internal fun NowcastTile(steps: List<PrecipitationStep>, onOpenMap: () -> Unit) 
     }
 }
 
-private data class TileData(val icon: ImageVector, val value: String, val label: String)
+internal data class TileData(val icon: ImageVector, val value: String, val label: String)
 
 @Composable
-private fun TileGrid(tiles: List<TileData>) {
+internal fun TileGrid(tiles: List<TileData>) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(3).forEachIndexed { r, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -365,7 +365,7 @@ private fun TileGrid(tiles: List<TileData>) {
 }
 
 @Composable
-private fun DayRow(day: DailyForecast) {
+internal fun DayRow(day: DailyForecast) {
     val date = LocalDate.parse(day.date)
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
