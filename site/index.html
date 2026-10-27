@@ -4,95 +4,153 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>No Ad Météo</title>
-  <meta name="description" content="La météo locale sur Android, sans publicité ni pistage.">
+  <meta name="description" content="La météo locale sur Android, sans publicité ni pistage : pluie à 15 minutes, carte de pluie, widgets.">
   <style>
+    /* Palette du thème Nature de l'application : nuit bleutée, crépuscule rosé, eau du lac. */
     :root {
-      --bg: #9a9ea6; --phone: #353a45; --tile: #2f333d; --hi: #3d424e;
-      --text: #f2f3f5; --sub: #9aa0ac; --muted: #6b717d; --rain: #8fb3d9;
+      --night: #1f2a44; --deep: #243049; --dusk: #3a4c6b; --haze: #7e7f96;
+      --peach: #f6b98a; --tile: rgba(14, 22, 38, .42); --line: rgba(242, 243, 245, .12);
+      --text: #f2f3f5; --sub: #b7bccb; --muted: #8189a0; --rain: #9cc2ea;
     }
     * { box-sizing: border-box; margin: 0; }
     body {
-      background: var(--phone); color: var(--text);
-      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--deep); color: var(--text);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    main { max-width: 1040px; margin: 0 auto; padding: 72px 24px 48px; }
-    .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; }
-    h1 { font-size: clamp(40px, 6vw, 60px); font-weight: 400; line-height: 1.1; }
-    h1 span { color: var(--sub); display: block; }
-    .pill {
-      display: inline-block; margin: 20px 0 32px; padding: 5px 14px; border-radius: 99px;
-      background: var(--hi); color: var(--sub); font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+    a { color: inherit; }
+
+    /* En-tête : ciel du crépuscule, montagnes et leur reflet dans le lac (dessinés en SVG). */
+    .sky {
+      position: relative; overflow: hidden;
+      background: linear-gradient(180deg, #1c2440 0%, #3b3f63 30%, #8c6f86 52%, #e0a283 64%, #3a4c6b 64.2%, var(--deep) 100%);
     }
-    .lead { color: var(--sub); font-size: 18px; max-width: 30em; }
-    .download {
-      display: inline-flex; align-items: center; gap: 12px; margin-top: 32px;
-      padding: 16px 26px; border-radius: 18px; background: var(--text); color: var(--phone);
-      text-decoration: none; font-weight: 600;
-    }
+    .sky svg.land { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 72%; }
+    .sun { position: absolute; right: 18%; top: 47%; width: 70px; height: 70px; border-radius: 50%;
+      background: radial-gradient(circle, #ffe2bd 0 40%, rgba(255, 210, 160, .35) 60%, transparent 72%); }
+    main, .hero { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+    .hero { position: relative; display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px;
+      align-items: end; padding-top: 72px; padding-bottom: 48px; }
+    h1 { font-size: clamp(42px, 6.4vw, 66px); font-weight: 200; line-height: 1.05; letter-spacing: -1px;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, .35); }
+    h1 span { display: block; color: var(--sub); font-weight: 300; font-size: .52em; letter-spacing: 0; margin-top: 14px; }
+    .pill { display: inline-block; margin: 22px 0 26px; padding: 5px 14px; border-radius: 99px;
+      background: rgba(14, 22, 38, .45); backdrop-filter: blur(6px); color: var(--sub);
+      font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+    .lead { color: #dfe2ea; font-size: 18px; max-width: 30em; text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
+    .download { display: inline-flex; align-items: center; gap: 12px; margin-top: 30px;
+      padding: 16px 26px; border-radius: 18px; background: var(--text); color: var(--night);
+      text-decoration: none; font-weight: 600; box-shadow: 0 12px 30px rgba(0, 0, 0, .3); }
     .download:hover { background: #fff; }
-    .version { display: block; margin-top: 12px; color: var(--muted); font-size: 13px; }
-    .phone {
-      justify-self: center; width: min(100%, 330px); padding: 12px; border-radius: 46px;
-      background: #2a2e37; box-shadow: 0 30px 60px rgba(0,0,0,.35), inset 0 0 0 2px #23262e;
-    }
-    .phone img { display: block; width: 100%; height: auto; border-radius: 36px; }
-    .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 88px; }
-    .gallery figure { margin: 0; }
-    .gallery img { display: block; width: 100%; height: auto; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
-    .gallery figcaption { color: var(--sub); font-size: 14px; text-align: center; margin-top: 12px; }
-    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 88px; }
-    .tile { background: var(--tile); border-radius: 18px; padding: 20px; min-height: 150px;
+    .version { display: block; margin-top: 12px; color: var(--sub); font-size: 13px; }
+    .phone { justify-self: center; width: min(100%, 320px); padding: 10px; border-radius: 44px;
+      background: #141a2b; box-shadow: 0 30px 70px rgba(0, 0, 0, .45), inset 0 0 0 2px #0e1322; margin-bottom: -120px; }
+    .phone img { display: block; width: 100%; height: auto; border-radius: 35px; }
+
+    main { padding-top: 150px; padding-bottom: 48px; }
+    h2 { font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); margin: 0 0 18px; }
+    section + section { margin-top: 80px; }
+    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .tile { background: var(--tile); border: 1px solid var(--line); border-radius: 20px; padding: 20px; min-height: 150px;
       display: flex; flex-direction: column; justify-content: space-between; }
     .tile b { font-weight: 600; display: block; }
     .tile p { color: var(--sub); font-size: 14px; }
-    .tile .ico { font-size: 20px; color: var(--rain); }
-    footer { margin-top: 64px; color: var(--muted); font-size: 13px; text-align: center; letter-spacing: .5px; }
-    footer a { color: var(--sub); }
-    @media (max-width: 760px) {
-      main { padding: 48px 16px 32px; }
-      .hero { grid-template-columns: 1fr; gap: 40px; }
-      .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 88px; }
+    .tile .ico { font-size: 20px; color: var(--peach); }
+    .gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
     .gallery figure { margin: 0; }
-    .gallery img { display: block; width: 100%; height: auto; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
-    .gallery figcaption { color: var(--sub); font-size: 14px; text-align: center; margin-top: 12px; }
-    .tiles { grid-template-columns: 1fr 1fr; margin-top: 56px; }
+    .gallery img, .themes img { display: block; width: 100%; height: auto; border-radius: 24px; box-shadow: 0 18px 40px rgba(0, 0, 0, .35); }
+    figcaption { color: var(--sub); font-size: 14px; text-align: center; margin-top: 12px; }
+    .widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .widgets img { display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 18px 40px rgba(0, 0, 0, .35); }
+    .themes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+    footer { margin-top: 72px; color: var(--muted); font-size: 13px; text-align: center; letter-spacing: .5px; }
+    footer a { color: var(--sub); }
+    @media (max-width: 800px) {
+      .hero { grid-template-columns: 1fr; padding-top: 48px; gap: 36px; }
+      .phone { margin-bottom: -90px; }
+      main { padding-top: 120px; }
+      .tiles { grid-template-columns: 1fr 1fr; }
+      .gallery { grid-template-columns: 1fr 1fr; }
+      .widgets { grid-template-columns: 1fr; }
+      .themes { grid-template-columns: repeat(3, 1fr); }
     }
   </style>
 </head>
 <body>
-<main>
-  <section class="hero">
+<header class="sky">
+  <div class="sun" aria-hidden="true"></div>
+  <svg class="land" viewBox="0 0 1200 400" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#5d5873" stop-opacity=".75"/><stop offset="1" stop-color="#243049"/>
+      </linearGradient>
+    </defs>
+    <!-- Montagnes lointaines puis proches ; l'horizon (rive) est à y = 100. -->
+    <path d="M0 100 L0 62 L90 40 L170 58 L260 22 L360 52 L450 30 L560 60 L660 26 L760 50 L860 18 L960 48 L1060 34 L1200 56 L1200 100 Z" fill="#6f6680" opacity=".75"/>
+    <path d="M0 100 L0 80 L120 66 L220 84 L330 62 L430 82 L540 70 L650 88 L760 64 L880 84 L990 70 L1100 86 L1200 74 L1200 100 Z" fill="#3c3b55"/>
+    <!-- Lac : reflet adouci des montagnes. -->
+    <rect y="100" width="1200" height="300" fill="url(#lake)"/>
+    <path d="M0 100 L0 120 L120 134 L220 116 L330 138 L430 118 L540 130 L650 112 L760 136 L880 116 L990 130 L1100 114 L1200 126 L1200 100 Z" fill="#3c3b55" opacity=".45"/>
+  </svg>
+  <div class="hero">
     <div>
-      <h1>No Ad Météo<span>La météo locale,<br>rien d'autre.</span></h1>
+      <h1>No Ad Météo<span>La météo locale, rien d'autre.</span></h1>
       <div class="pill">Android · gratuit · open-source</div>
-      <p class="lead">Prévisions précises à 15 minutes, tendance sur 7 jours et pluie des deux prochaines heures.
-        Sans publicité, sans pistage, sans compte.</p>
+      <p class="lead">Pluie des deux prochaines heures au quart d'heure, carte de pluie animée avec nuages et vent,
+        prévisions sur 7 jours et widgets. Sans publicité, sans pistage, sans compte.</p>
       <a class="download" href="https://github.com/julienbrunet/namm/releases/latest/download/no-ad-meteo.apk">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
         Télécharger l'APK
       </a>
       <span class="version" id="version">Dernière version sur GitHub Releases</span>
     </div>
-    <div class="phone"><img src="accueil.png" alt="Écran principal de l'application : température, pluie dans les 2 heures et tuiles météo" width="1233" height="2673"></div>
+    <div class="phone"><img src="nature_crepuscule.jpg" alt="Accueil du thème Nature au crépuscule : paysage de montagnes et lac, température et prévisions" width="660" height="1431"></div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <h2>Ce que fait l'appli</h2>
+    <div class="tiles">
+      <div class="tile"><span class="ico">◎</span><div><b>Votre position</b><p>GPS par défaut, plus vos lieux enregistrés.</p></div></div>
+      <div class="tile"><span class="ico">☂</span><div><b>Pluie au quart d'heure</b><p>Modèles haute résolution (AROME, ICON) et alerte quand la pluie arrive dans l'heure.</p></div></div>
+      <div class="tile"><span class="ico">▦</span><div><b>Carte de pluie</b><p>Radar observé, prévision animée et fluide, nuages satellite Meteosat, carte des vents.</p></div></div>
+      <div class="tile"><span class="ico">▢</span><div><b>Six widgets</b><p>De la pastille 2×1 à la carte de pluie, chacun avec son fond et sa transparence.</p></div></div>
+      <div class="tile"><span class="ico">◐</span><div><b>Thèmes</b><p>Ardoise, Ciel, Pastel, Aurore et Nature, dont le paysage suit l'heure et le temps qu'il fait.</p></div></div>
+      <div class="tile"><span class="ico">◌</span><div><b>Zéro publicité</b><p>Aucun SDK publicitaire ni pistage, code ouvert, mises à jour automatiques depuis GitHub.</p></div></div>
+    </div>
   </section>
 
-  <section class="gallery">
-    <figure><img src="accueil_mise_a_jour.png" alt="Accueil : mise à jour en cours de téléchargement" width="1233" height="2673" loading="lazy"><figcaption>Mises à jour automatiques, mode hors-ligne</figcaption></figure>
-    <figure><img src="carte.png" alt="Carte de pluie : radar et prévision animés" width="1233" height="2673" loading="lazy"><figcaption>Carte de pluie, radar + prévision 6 h</figcaption></figure>
-    <figure><img src="parametres.png" alt="Paramètres : lieux enregistrés et options" width="1233" height="2673" loading="lazy"><figcaption>Lieux enregistrés et réglages</figcaption></figure>
+  <section>
+    <h2>Le thème Nature</h2>
+    <div class="gallery">
+      <figure><img src="nature_jour_soleil.jpg" alt="Thème Nature en journée ensoleillée" width="540" height="1171"><figcaption>Grand soleil</figcaption></figure>
+      <figure><img src="nature_nuit_claire.jpg" alt="Thème Nature de nuit, ciel étoilé" width="540" height="1171"><figcaption>Nuit claire</figcaption></figure>
+      <figure><img src="nature_defilement.jpg" alt="Bas de l'accueil : tuiles, lever et coucher du soleil, 7 jours" width="540" height="1171"><figcaption>Tuiles, soleil et 7 jours</figcaption></figure>
+      <figure><img src="carte.jpg" alt="Carte de pluie animée avec nuages" width="540" height="1171"><figcaption>Carte de pluie et nuages</figcaption></figure>
+    </div>
   </section>
 
-  <section class="tiles">
-    <div class="tile"><span class="ico">◎</span><div><b>Votre position</b><p>GPS par défaut, plus vos lieux enregistrés.</p></div></div>
-    <div class="tile"><span class="ico">☂</span><div><b>Pluie à 15 min</b><p>Modèles haute résolution (AROME, ICON-D2) et alerte pluie dans l'heure.</p></div></div>
-    <div class="tile"><span class="ico">▦</span><div><b>Carte de pluie</b><p>Radar observé et prévision animée sur 6 h.</p></div></div>
-    <div class="tile"><span class="ico">▢</span><div><b>Widget</b><p>Température et pluie à venir sur l'écran d'accueil.</p></div></div>
-    <div class="tile"><span class="ico">↻</span><div><b>Mise à jour auto</b><p>Les nouvelles versions s'installent depuis GitHub.</p></div></div>
-    <div class="tile"><span class="ico">◌</span><div><b>Zéro publicité</b><p>Aucun SDK publicitaire, aucun pistage, open-source.</p></div></div>
+  <section>
+    <h2>Widgets</h2>
+    <div class="widgets">
+      <img src="widget_journee.jpg" alt="Widget Journée : météo actuelle, heure et 6 prochaines heures" width="720" height="400">
+      <img src="widget_12h.jpg" alt="Widget 12 h : les 12 prochaines heures" width="720" height="340">
+    </div>
+  </section>
+
+  <section>
+    <h2>Cinq thèmes</h2>
+    <div class="themes">
+      <figure><img src="accueil.jpg" alt="Thème Ardoise" width="360" height="780"><figcaption>Ardoise</figcaption></figure>
+      <figure><img src="accueil_ciel.jpg" alt="Thème Ciel" width="360" height="780"><figcaption>Ciel</figcaption></figure>
+      <figure><img src="accueil_pastel.jpg" alt="Thème Pastel" width="360" height="780"><figcaption>Pastel</figcaption></figure>
+      <figure><img src="accueil_aurore.jpg" alt="Thème Aurore" width="360" height="780"><figcaption>Aurore</figcaption></figure>
+      <figure><img src="accueil_nature.jpg" alt="Thème Nature sous la pluie" width="360" height="780"><figcaption>Nature</figcaption></figure>
+    </div>
   </section>
 
   <footer>
-    Données météo <a href="https://open-meteo.com">Open-Meteo</a> · Code source <a href="https://github.com/julienbrunet/namm">GitHub</a>
+    Données météo <a href="https://open-meteo.com">Open-Meteo</a>, Météo-France, RainViewer, EUMETSAT · Code source <a href="https://github.com/julienbrunet/namm">GitHub</a>
   </footer>
 </main>
 <script>
