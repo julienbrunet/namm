@@ -51,6 +51,8 @@ import kotlin.math.roundToInt
  * Colours of a widget: the background follows the widget setting (Auto = app theme, Light, Dark)
  * and the text, in Auto, contrasts with that background.
  */
+private const val MIN_VISIBLE_ALPHA = 1f / 255f
+
 class WidgetColors(appPalette: SlatePalette, style: WidgetStyle = WidgetStyle()) {
     private val base = when (style.background) {
         WidgetBgColor.AUTO -> appPalette
@@ -62,7 +64,10 @@ class WidgetColors(appPalette: SlatePalette, style: WidgetStyle = WidgetStyle())
         WidgetTextColor.LIGHT -> WidgetTextPalettes.light
         WidgetTextColor.DARK -> WidgetTextPalettes.dark
     }
-    val background = base.background.copy(alpha = style.opacity.alpha)
+    // A background with alpha exactly 0 is drawn as fully opaque by some launchers/hosts
+    // (RemoteViews optimises a fully transparent drawable away instead of keeping it invisible-but-present);
+    // a hair of alpha keeps it genuinely transparent everywhere.
+    val background = base.background.copy(alpha = style.opacity.alpha.coerceAtLeast(MIN_VISIBLE_ALPHA))
     val tile = base.tile
     val primaryColor = text.first
     val secondaryColor = text.second
