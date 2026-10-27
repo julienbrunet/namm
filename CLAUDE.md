@@ -8,6 +8,7 @@ Toute la conversation avec l'utilisateur se fait **en français**.
 - `site/` — page web statique de présentation (HTML/CSS pur, sans dépendance), déployée sur GitHub Pages.
 - `.github/workflows/android.yml` — CI : tests, captures d'écran, APK release, GitHub Release.
 - `.github/workflows/pages.yml` — déploiement de `site/` sur GitHub Pages.
+- `.github/workflows/securite.yml` — analyses gratuites intégrées à GitHub (onglet Security) : CodeQL (Kotlin compilé en release + workflows), graphe des dépendances Gradle (`releaseRuntimeClasspath`, alimente les alertes Dependabot ; généré en lecture seule, envoyé par un job séparé), dependency review sur les PR. Badges en tête du `README.md`.
 
 ## Méthode de travail (à suivre à chaque conversation)
 1. Développer sur la branche de travail fournie par la session (sinon une branche `claude/<sujet>`).
@@ -60,6 +61,9 @@ echo "robolectricRepo=https://maven-central.storage-download.googleapis.com/mave
   ./gradlew --write-verification-metadata sha256 printVersionName testDebugUnitTest recordRoborazziDebug assembleRelease help
   unset GRADLE_USER_HOME
   ```
+- Le plugin `org.gradle:github-dependency-graph-gradle-plugin` (job « Graphe des dépendances » de `securite.yml`) a ses checksums dans ce fichier ;
+  sa version est figée par `DEPENDENCY_GRAPH_PLUGIN_VERSION`. Ne pas supprimer le fichier avant de régénérer (l'entrée serait perdue), et
+  ajouter de nouveaux checksums si cette version change (init script de `gradle/actions`, tâche `:ForceDependencyResolutionPlugin_resolveAllDependencies`).
 - Mise à jour du wrapper : `./gradlew wrapper --gradle-version X --gradle-distribution-sha256-sum <sha publié sur services.gradle.org>`.
 - Actions GitHub figées par SHA de commit (commentaire `# vX.Y.Z`) ; le job `release` est le seul à pouvoir écrire et ne reçoit pas les secrets de signature.
 - Préférer des versions publiées depuis au moins deux semaines (Dependabot : `cooldown` 14 jours).

@@ -1,5 +1,9 @@
 # No Ad Météo
 
+[![Build et tests](https://github.com/julienbrunet/namm/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/julienbrunet/namm/actions/workflows/android.yml)
+[![Sécurité (CodeQL, dépendances)](https://github.com/julienbrunet/namm/actions/workflows/securite.yml/badge.svg?branch=main)](https://github.com/julienbrunet/namm/security)
+[![Site](https://github.com/julienbrunet/namm/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/julienbrunet/namm/actions/workflows/pages.yml)
+
 **La météo locale sur Android, rien d'autre** : pas de publicité, pas de pistage, pas de compte.
 Application gratuite et open-source, basée sur des données météo ouvertes.
 
