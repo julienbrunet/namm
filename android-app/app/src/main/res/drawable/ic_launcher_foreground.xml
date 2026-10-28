@@ -2,8 +2,10 @@
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
     <!-- Sun peeking from behind the cloud, light stroke on a slate background -->
-    <!-- Scaled down to sit inside the adaptive icon's safe zone (centred 66 dp). -->
-    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.62" android:scaleY="0.62">
+    <!-- Scaled and re-centred to sit inside the adaptive icon's safe zone (centred 66 dp circle):
+         the artwork itself isn't centred in the 108x108 viewport, so a pivot-only scale left it
+         off-centre; shift first, then scale around the origin. -->
+    <group android:scaleX="0.8" android:scaleY="0.8" android:translateX="-1.58" android:translateY="26.59">
         <path android:fillColor="#F6B98A"
             android:pathData="M69,32a13,13 0,1 0,26 0a13,13 0,1 0,-26 0z"/>
         <path android:fillColor="#00000000" android:strokeColor="#F6B98A" android:strokeWidth="5" android:strokeLineCap="round"
