@@ -154,6 +154,7 @@ fun NatureForecastContent(
             // Tiles: same layout as the other themes, plus the sun's course.
             Column(Modifier.padding(horizontal = 22.dp)) {
                 UpdateBanner(update, onUpdateAction)
+                Spacer(Modifier.height(20.dp))
                 SectionLabel(stringResource(R.string.section_next_24h))
                 HourlyTile(forecast.hours)
 

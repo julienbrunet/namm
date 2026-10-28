@@ -8,7 +8,7 @@ plugins {
 // versionCode: CI build number (1 locally), always increasing, Android's internal install order.
 // versionName: classic semver, bumped by hand for each meaningful release — single source of truth.
 val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
-val appVersionName = "1.0.5"
+val appVersionName = "1.0.6"
 
 tasks.register("printVersionName") {
     doLast { println(appVersionName) }
