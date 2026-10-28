@@ -5,7 +5,7 @@
     <!-- Scaled and re-centred to sit inside the adaptive icon's safe zone (centred 66 dp circle):
          the artwork itself isn't centred in the 108x108 viewport, so a pivot-only scale left it
          off-centre; shift first, then scale around the origin. -->
-    <group android:scaleX="0.8" android:scaleY="0.8" android:translateX="-1.58" android:translateY="26.59">
+    <group android:scaleX="0.65" android:scaleY="0.65" android:translateX="8.84" android:translateY="31.73">
         <path android:fillColor="#F6B98A"
             android:pathData="M69,32a13,13 0,1 0,26 0a13,13 0,1 0,-26 0z"/>
         <path android:fillColor="#00000000" android:strokeColor="#F6B98A" android:strokeWidth="5" android:strokeLineCap="round"
